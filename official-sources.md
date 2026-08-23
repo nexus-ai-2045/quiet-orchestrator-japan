@@ -1,6 +1,6 @@
 # 公式URL台帳｜静かなオーケストレーターとしての日本
 
-確認基準日: 2026-08-23
+確認基準日: 2026-08-24
 
 ## 1. 公開原典
 
@@ -29,18 +29,18 @@
 | 論理ノード | 参照する公開上の役割 | 公式URL |
 |---|---|---|
 | US-NSC | 国内・外交・軍事政策を統合する大統領の国家安全保障調整 | White House: [Organization of the National Security Council and Subcommittees](https://www.whitehouse.gov/presidential-actions/2025/01/organization-of-the-national-security-council-and-subcommittees/) |
-| US-MIL | 全領域戦力の統合、抑止、危機対応、同盟国との調整 | USINDOPACOM: [About USINDOPACOM](https://www.pacom.mil/About-USINDOPACOM/USPACOM-Area-of-Obligation/) / [Alliance C2 modernization](https://www.pacom.mil/Media/USINDOPACOM-NEWS/News-Article-View/Article/4060514/usfj-alliance-evolves-multilateral-partnerships-training-at-core-of-c2-moderniz/) |
+| US-MIL | 全領域戦力の統合、抑止、危機対応、同盟国との調整 | U.S. Pacific Command: [About the command](https://www.pacom.mil/About-USINDOPACOM/USPACOM-Area-of-Obligation/) / [2026年の名称復帰](https://www.pacom.mil/Media/Press-Releases-and-Readouts/Press-Releases-and-Readouts/Article/4519249/department-of-war-restores-us-pacific-command-designation/) / [Alliance C2 modernization](https://www.pacom.mil/Media/USINDOPACOM-NEWS/News-Article-View/Article/4060514/usfj-alliance-evolves-multilateral-partnerships-training-at-core-of-c2-moderniz/) |
 | US-STATE | 外交、交渉、対外代表 | U.S. Department of State: [What is the mission of the U.S. Department of State?](https://diplomacy.state.gov/what-is-the-mission-of-the-u-s-department-of-state/) |
 | US-CYBER | 資産対応、捜査、情報支援、国防対応の分担 | CISA: [National Cyber Incident Response Plan](https://www.cisa.gov/sites/default/files/2023-01/national_cyber_incident_response_plan.pdf) / [Ransomware Guide](https://www.cisa.gov/stopransomware/ransomware-guide) |
 
-`US-CYBER` は複数機関の公開上の分担を圧縮したシミュレーション用ノードであり、実在する単一組織ではない。
+`US-CYBER` は複数機関の公開上の分担を圧縮したシミュレーション用ノードであり、実在する単一組織ではない。米統合軍の名称は2026年6月16日にU.S. Indo-Pacific CommandからU.S. Pacific Commandへ復帰した。旧名称を含むURLや過去資料はそのまま参照し、モデル内では名称変更に影響されない論理ノード`US-MIL`を使う。
 
 ## 4. 中国：公開された役割の参照
 
 | 論理ノード | 参照する公開上の役割 | 公式URL |
 |---|---|---|
 | CN-MFA | 外交、部門間調整、海洋に関する対外実務、危機対応、公開外交 | 中国外交部: [主要职责](https://www.mfa.gov.cn/eng/wjb/zyzz/) / [Departments](https://www.mfa.gov.cn/eng/wjb/zzjg_663340/) |
-| CN-CCG | 海洋権益・法執行、海上警戒、国際協力 | 中国海警局: [海警法](https://www.ccg.gov.cn/zcfg/202405/t20240515_175.html) |
+| CN-CCG | 海洋権益・法執行、海上警戒、国際協力 | 中国海警局: [中華人民共和国海警法](https://www.ccg.gov.cn/zcfg/202405/t20240515_180.html) |
 | CN-CYBER | コンピュータネットワーク事案の予防、検知、警報、調整 | CNCERT/CC: [About CNCERT/CC](https://www.cert.org.cn/publish/english/index.html) |
 | CN-ETC / CN-CORE | 人民解放軍、武装警察、海警、戦区の公開上の組織関係 | 防衛省: [2025年版防衛白書 中国の軍事組織](https://www.mod.go.jp/j/press/wp/wp2025/html/n130202000.html) |
 

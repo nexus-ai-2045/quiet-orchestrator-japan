@@ -46,7 +46,7 @@
 | デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
 | UTF-8 / LF / 相対リンク | pass-local | 41ファイル、Markdown 19件、相対リンク切れ0、conflict marker 0 |
 | 既知secret形式 / 個人絶対パス | pass-local | 成果物内の既知secret候補0、個人絶対パス0。worktree管理用`.git`は公開対象外 |
-| 公式URL | partial | 23件はHTTP 200、3件はbot拒否のため掲載面を目視確認する |
+| 公式URL | pass-source-check | 23件のHTTP到達に加え、bot拒否3件を公式検索結果と掲載面で確認。米統合軍の名称復帰と海警法URLを修正 |
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
 | SECURITY / threat model | ready-for-review | ライブAPIなし。Private Vulnerability Reportingはvisibility変更後に確認 |
