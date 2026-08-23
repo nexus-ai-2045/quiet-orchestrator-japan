@@ -6,9 +6,10 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - 表示タイトル: 「静かなオーケストレーターとしての日本」
-- 現在のvisibility: `PRIVATE`
+- 現在のvisibility: `PUBLIC`（2026-08-24 live確認）
 - 準備branch: `codex/public-prep`
-- public化、release、告知、応募フォーム編集はこの文書だけでは承認されない
+- default branch: `main`（初期commit。公開候補はDraft PR #1で未merge）
+- merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
 
 ## 公開候補ファイル
 
@@ -44,7 +45,7 @@
 
 | 項目 | 状態 | 備考 |
 |---|---|---|
-| README情報設計 | pass-local | 2045ゴール、二重時間軸、実行手順、制約を確認 |
+| README情報設計 | pass-local / pending-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を確認。main反映はPR merge後 |
 | Webアプリ | pass-local | 決定論テスト4件、build、Sites互換テスト4件を確認 |
 | ブラウザ操作 | pass-local | 年次更新、72時間テスト、比較を内蔵ブラウザで確認 |
 | デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
@@ -53,18 +54,17 @@
 | 公式URL | pass-source-check | 23件のHTTP到達に加え、bot拒否3件を公式検索結果と掲載面で確認。米統合軍の名称復帰と海警法URLを修正 |
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
-| SECURITY / threat model | ready-for-review | ライブAPIなし。Private Vulnerability Reportingはvisibility変更後に確認 |
-| CI / repository設定 | pass-local / pending-remote | YAML 6件・JSON 1件をparse。公式ActionをSHA固定。CI、CodeQL、Dependabot、Issue/PR template、branch protection候補を追加 |
-| repo-preflight | pass / ready-after-confirmation | content HEAD `8f9b350`の必須文書、secret、個人path、origin、CI設定2件はpass。push intentの明示確認待ち |
+| SECURITY / threat model | pass-local / pending-remote | ライブAPIなし。secret scanning、push protection、Private Vulnerability Reportingは公開後も未設定 |
+| CI / repository設定 | pass-local / blocked-remote | YAML 6件・JSON 1件をparse。公式ActionをSHA固定。直近CIは課金・spending limitによりstep開始前にfailure、CodeQLはprivate時点の条件でskip |
+| repo-preflight | needs-human-input | 必須文書、secret候補0、個人path0、README設計はpass。初期commitのGitHub committerとremote CIを人間判断へ返す |
 | ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
 | 人間目視review | pending | README、権利、免責、公開全履歴を確認する |
 
-## public化の停止線
+## public化後の実測と停止線
 
-public化候補コマンドは次のとおり。
+- repository visibilityは`PUBLIC`。
+- `main`は初期commitのまま。実装、SECURITY.md、PUBLIC_READY.md、視覚改善READMEはDraft PR #1のbranchで公開中。
+- secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reporting、default branch rulesetは未設定。
+- merge、設定変更、workflow再実行、release、告知はそれぞれ別の人間承認を必要とする。
 
-```powershell
-gh repo edit nexus-ai-2045/quiet-orchestrator-japan --visibility public
-```
-
-実行前に、target repository、コマンド、README、LICENSE、SECURITY、secret scan、personal path scan、PREFLIGHT、Webから見える全ファイルと全commit historyを再提示し、このrepository固有の明確な承認を得る。
+公開後lockdownは、設定ごとに現在値・正確なAPI操作・外部影響・rollbackを提示し、承認された項目だけ適用してread-backする。
