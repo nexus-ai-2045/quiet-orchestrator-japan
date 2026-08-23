@@ -54,8 +54,8 @@
 | 公式URL | pass-source-check | 23件のHTTP到達に加え、bot拒否3件を公式検索結果と掲載面で確認。米統合軍の名称復帰と海警法URLを修正 |
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
-| SECURITY / threat model | pass-local / pending-remote | ライブAPIなし。secret scanning、push protection、Private Vulnerability Reportingは公開後も未設定 |
-| CI / repository設定 | pass-local / blocked-remote | YAML 6件・JSON 1件をparse。公式ActionをSHA固定。直近CIは課金・spending limitによりstep開始前にfailure、CodeQLはprivate時点の条件でskip |
+| SECURITY / threat model | pass-local / pass-remote | secret scanning、push protection、vulnerability alerts、Private Vulnerability Reportingを有効化してread-back済み |
+| CI / repository設定 | pass-local / pass-remote | `e246127`でvalidate、CodeQLともpass。GitHub公式Actionのみ許可し、full SHA固定をremoteでも必須化 |
 | repo-preflight | needs-human-input | 必須文書、secret候補0、個人path0、README設計はpass。初期commitのGitHub committerとremote CIを人間判断へ返す |
 | ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
 | 人間目視review | pending | README、権利、免責、公開全履歴を確認する |
@@ -64,7 +64,10 @@
 
 - repository visibilityは`PUBLIC`。
 - `main`は初期commitのまま。実装、SECURITY.md、PUBLIC_READY.md、視覚改善READMEはDraft PR #1のbranchで公開中。
-- secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reporting、default branch rulesetは未設定。
+- secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reportingは有効化・read-back済み。
+- ActionsはGitHub公式Actionだけを許可し、full commit SHA固定を必須化済み。
+- merge方式はsquashだけを許可し、merge後のremote branch自動削除を有効化済み。
+- default branch rulesetは未設定。Draft PRのCI成功後に別承認で適用する。
 - merge、設定変更、workflow再実行、release、告知はそれぞれ別の人間承認を必要とする。
 
 公開後lockdownは、設定ごとに現在値・正確なAPI操作・外部影響・rollbackを提示し、承認された項目だけ適用してread-backする。

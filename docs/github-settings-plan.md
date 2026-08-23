@@ -14,14 +14,15 @@
 | default branch | `main` |
 | 公開候補 | Draft PR #1 / `codex/public-prep`（main未merge） |
 | Issues / Projects / Wiki / Discussions | on / on / off / off |
-| merge方式 | merge commit / squash / rebaseがすべてon |
-| merge後branch削除 | off |
+| merge方式 | squashのみ |
+| merge後branch削除 | on |
 | branch protection | rule 0件 |
-| Actions | enabled、全Actionを許可、SHA pin必須ではない |
-| vulnerability alerts | disabled |
-| secret scanning / push protection | disabled / disabled |
-| Dependabot security updates | disabled |
-| Private Vulnerability Reporting | disabled |
+| Actions | enabled、GitHub公式Actionのみ許可、full SHA pin必須 |
+| vulnerability alerts | enabled |
+| secret scanning / push protection | enabled / enabled |
+| Dependabot security updates | enabled |
+| Private Vulnerability Reporting | enabled |
+| Draft PR CI / CodeQL | `e246127`でpass / pass |
 
 ## repo内で適用する設定
 
