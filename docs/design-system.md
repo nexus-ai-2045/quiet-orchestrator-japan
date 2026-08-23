@@ -33,4 +33,4 @@
 
 中央の接続網を守り、常時表示する周辺UIは左右1面ずつに制限する。狭い画面では主体、ネットワーク、詳細の順へ縦積みする。非本質的な動きは `prefers-reduced-motion` で停止する。
 
-選択済みの視覚仕様は[コンセプト画像](design/selected-ui-concept.png)、実装の第一画面は[プレビュー](images/simulator-preview.jpg)を参照する。
+選択済みの視覚仕様は[コンセプト画像](design/selected-ui-concept.png)、現在の実装画面は[終末の1ヶ月版プレビュー](images/simulator-preview-one-month.jpg)を参照する。コンセプト画像内の「72時間」は初期案の履歴であり、現在の期間正本はADR-0007の30日間である。

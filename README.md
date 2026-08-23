@@ -176,6 +176,7 @@ docs/
 ## 文書
 
 - [シミュレーション契約](simulation-contract.md)
+- [プロダクト設計](docs/product-architecture.md)
 - [ロードマップ](ROADMAP.md)
 - [実行結果](RESULTS.md)
 - [OSINT根拠台帳](evidence.md)
