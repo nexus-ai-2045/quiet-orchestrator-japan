@@ -1,6 +1,6 @@
 # 公開準備チェック
 
-最終更新: 2026-08-23
+最終更新: 2026-08-24
 
 ## 対象
 
@@ -13,6 +13,12 @@
 ## 公開候補ファイル
 
 - `README.md`
+- `app/`（実行可能なローカルWebアプリ、lockfile、テスト）
+- `docs/adr/`
+- `docs/design-system.md`
+- `docs/threat-model.md`
+- `docs/design/selected-ui-concept.png`
+- `docs/images/simulator-preview.jpg`
 - `simulation-contract.md`
 - `evidence.md`
 - `official-sources.md`
@@ -34,15 +40,18 @@
 
 | 項目 | 状態 | 備考 |
 |---|---|---|
-| README情報設計 | pass | 目的、できること、クイックスタート、制約を確認 |
-| UTF-8 / LF / 相対リンク | pass-before-export | 新repositoryで再検査する |
-| 既知secret形式 / 個人絶対パス | pass-before-export | 新repositoryの全履歴で再検査する |
+| README情報設計 | pass-local | 2045ゴール、二重時間軸、実行手順、制約を確認 |
+| Webアプリ | pass-local | 決定論テスト4件、build、Sites互換テスト4件を確認 |
+| ブラウザ操作 | pass-local | 年次更新、72時間テスト、比較を内蔵ブラウザで確認 |
+| デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
+| UTF-8 / LF / 相対リンク | pass-local | 41ファイル、Markdown 19件、相対リンク切れ0、conflict marker 0 |
+| 既知secret形式 / 個人絶対パス | pass-local | 成果物内の既知secret候補0、個人絶対パス0。worktree管理用`.git`は公開対象外 |
 | 公式URL | partial | 23件はHTTP 200、3件はbot拒否のため掲載面を目視確認する |
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
-| SECURITY | provisional | public化前に非公開報告経路を確定する |
-| repo-preflight | pending | content HEADとPREFLIGHT記録後に再実行する |
-| ai-ratchet-gate | pass | baseline 0件、現在0件、新規0件 |
+| SECURITY / threat model | ready-for-review | ライブAPIなし。Private Vulnerability Reportingはvisibility変更後に確認 |
+| repo-preflight | pending-final | 新しいcontent HEADとPREFLIGHT記録後に再実行する |
+| ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
 | 人間目視review | pending | README、権利、免責、公開全履歴を確認する |
 
 ## public化の停止線
