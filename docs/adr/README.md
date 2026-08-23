@@ -9,5 +9,6 @@
 | [0003](0003-static-local-first-web-app.md) | accepted | React/Viteの静的・ローカルファーストWebアプリにする |
 | [0004](0004-evidence-and-actor-boundary.md) | accepted | 証拠型と論理主体の安全境界を固定する |
 | [0005](0005-japan-absence-success-condition.md) | accepted | 日本不在時の継続性を2045年の成功条件にする |
+| [0006](0006-stateful-relationships-and-causal-ledger.md) | accepted | 接続を状態化し、因果レジャーを正本にする |
 
 状態は `proposed | accepted | superseded | rejected` のいずれかを使う。判断を変更する場合、過去ADRを書き換えず、新しいADRから置換先を示す。

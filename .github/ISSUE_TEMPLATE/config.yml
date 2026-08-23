@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: セキュリティ脆弱性の報告
+    url: https://github.com/nexus-ai-2045/quiet-orchestrator-japan/security/policy
+    about: 公開Issueではなく、SECURITY.mdの手順を確認してください。

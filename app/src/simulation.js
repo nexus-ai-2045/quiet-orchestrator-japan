@@ -11,7 +11,7 @@ export const ACTORS = [
   { id: "J4", group: "日本", name: "海上保安庁・第一管区", x: 570, y: 62, portfolio: "verification" },
   { id: "J5", group: "日本", name: "経済産業・供給網連携", x: 155, y: 250, portfolio: "interop" },
   { id: "J6", group: "日本", name: "民間プラットフォーム連携", x: 520, y: 250, portfolio: "interop" },
-  { id: "U1", group: "米国", name: "インド太平洋軍・司令部", x: 710, y: 70, portfolio: "verification" },
+  { id: "U1", group: "米国", name: "太平洋軍・統合司令部", x: 710, y: 70, portfolio: "verification" },
   { id: "U2", group: "米国", name: "国務省・情報分析局", x: 335, y: 235, portfolio: "interop" },
   { id: "U3", group: "米国", name: "DHS・サイバー基盤", x: 675, y: 235, portfolio: "interop" },
   { id: "U4", group: "米国", name: "海洋警備隊・太平洋地域", x: 840, y: 80, portfolio: "verification" },

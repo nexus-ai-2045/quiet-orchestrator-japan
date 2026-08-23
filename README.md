@@ -45,6 +45,8 @@ npm run test:sites
 - 同盟代理、単独仲介、静かなオーケストレーションの比較表示
 - 同じ状態と施策から同じ結果を返す再現可能なローカルエンジン
 
+現在は、5施策による**全体指標の差**までを実装した公開基準点です。接続線はまだ接続ごとの状態を持たず、主体ごとの利害・制約も行動差へ反映していません。できていること、実測値、結論に使えないことは[実行結果](RESULTS.md)に、接続単位のシミュレーターへ進む順序は[ロードマップ](ROADMAP.md)に明記しています。
+
 ## 二つの時間軸
 
 | 時間軸 | 役割 | 操作 |
@@ -144,11 +146,14 @@ docs/
 ## 文書
 
 - [シミュレーション契約](simulation-contract.md)
+- [ロードマップ](ROADMAP.md)
+- [実行結果](RESULTS.md)
 - [OSINT根拠台帳](evidence.md)
 - [公式URL台帳](official-sources.md)
 - [ADR一覧](docs/adr/README.md)
 - [デザインシステム](docs/design-system.md)
 - [脅威モデル](docs/threat-model.md)
+- [GitHub設定計画](docs/github-settings-plan.md)
 - [公開準備チェック](PUBLIC_READY.md)
 - [出典・権利・責任境界](NOTICE.md)
 - [セキュリティ方針](SECURITY.md)
