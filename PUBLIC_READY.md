@@ -55,7 +55,7 @@
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
 | SECURITY / threat model | ready-for-review | ライブAPIなし。Private Vulnerability Reportingはvisibility変更後に確認 |
 | CI / repository設定 | pass-local / pending-remote | YAML 6件・JSON 1件をparse。公式ActionをSHA固定。CI、CodeQL、Dependabot、Issue/PR template、branch protection候補を追加 |
-| repo-preflight | pass-scan / needs-human | content HEAD `7c45739`の必須文書、secret、個人path、originはpass。push intentの明示確認待ち |
+| repo-preflight | pass / ready-after-confirmation | content HEAD `8f9b350`の必須文書、secret、個人path、origin、CI設定2件はpass。push intentの明示確認待ち |
 | ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
 | 人間目視review | pending | README、権利、免責、公開全履歴を確認する |
 

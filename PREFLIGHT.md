@@ -6,9 +6,9 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/public-prep`
-- content HEAD: `7c457396d983de8a0bd1448e6d8166e947b08e72`
+- content HEAD: `8f9b350efc4ccc2078c1dff879ba9fb6b5c4eace`
 - base: `origin/main@8b208ef457e6aa1a5dfd23bb62aa063f9451d2f3`
-- inspected at: `2026-08-23T16:03:43Z`
+- inspected at: `2026-08-23T16:40:21Z`
 - intended audience at this gate: PRIVATE repositoryのPull Request reviewer
 
 この記録自体はcontent HEADの後続commitとして追加する。content HEADと記録commitを同一とみなさない。
@@ -17,13 +17,14 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight repository scan | pass-scan / needs-human | 必須文書、secret候補、個人絶対パス、origin、worktree cleanはpass。push intentは人間確認までblocked |
+| repo-preflight repository scan | pass / ready-after-confirmation | 必須文書、secret候補、個人絶対パス、origin、worktree clean、CI設定2件はpass。pushは人間確認待ち |
 | 決定論テスト | pass | `npm test`: 4件pass |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass | Vite 6.4.3、191 modules、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities。repo-preflight本体はecosystem audit対象外と判定 |
 | README情報設計 | pass | 2026〜2045年、入れ子の72時間試験、実行手順、反証条件、免責を確認 |
-| UTF-8 / LF / Markdown相対リンク | pass | Markdown 19件、相対リンク切れ0、conflict marker 0、`git diff --check` pass |
+| UTF-8 / LF / Markdown相対リンク | pass | Markdown 24件、相対リンク切れ0、conflict marker 0、`git diff --check` pass |
+| GitHub設定ファイル | pass-local | YAML 6件、JSON 1件をparse。workflowのAction参照は公式repositoryのcommit SHAへ固定 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件 |
 | GitHub repository read-back | pass | `nexus-ai-2045/quiet-orchestrator-japan`、visibility `PRIVATE`、default branch `main` |
 | 公式URL | pass-source-check | 既存HTTP検査に加え、米統合軍の名称復帰と中国海警法の掲載面を公式ソースで再確認・修正 |
@@ -45,7 +46,8 @@
 - 作者名義の固定照合を設定するか（推奨・非blocking）
 - PRIVATE remoteへのbranch push
 - GitHub上でのPR差分とcommit historyの目視review
-- CI workflowを追加するか（現在0件）
+- remote CIの同一HEAD実行結果とCodeQLのpublic化後初回結果
+- branch protection、merge方式、Actions制限、vulnerability alerts等のremote設定変更
 - SECURITY.mdの非公開報告経路とPrivate Vulnerability Reporting
 - MIT Licenseの公開適用範囲と第三者原典の非再配布境界
 - merge、public化、release、告知の個別承認
