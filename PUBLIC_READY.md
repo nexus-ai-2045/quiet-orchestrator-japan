@@ -50,7 +50,7 @@
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
 | SECURITY / threat model | ready-for-review | ライブAPIなし。Private Vulnerability Reportingはvisibility変更後に確認 |
-| repo-preflight | pending-final | 新しいcontent HEADとPREFLIGHT記録後に再実行する |
+| repo-preflight | pass-scan / needs-human | content HEAD `7c45739`の必須文書、secret、個人path、originはpass。push intentの明示確認待ち |
 | ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
 | 人間目視review | pending | README、権利、免責、公開全履歴を確認する |
 
