@@ -1,6 +1,9 @@
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
 export const CHECKPOINTS = [2030, 2035, 2040, 2045];
+export const CRISIS_DAYS = 30;
+export const CRISIS_TURN_HOURS = 6;
+export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -146,6 +149,9 @@ export function runStressTest(state) {
   ));
   const result = {
     year: state.year,
+    durationDays: CRISIS_DAYS,
+    turnHours: CRISIS_TURN_HOURS,
+    turns: CRISIS_TURNS,
     attributionSafety,
     coordinationSurvival,
     civilianProtection,

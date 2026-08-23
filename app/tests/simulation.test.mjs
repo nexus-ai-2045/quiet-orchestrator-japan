@@ -4,6 +4,9 @@ import {
   advanceYear,
   createDemoState,
   createInitialState,
+  CRISIS_DAYS,
+  CRISIS_TURN_HOURS,
+  CRISIS_TURNS,
   END_YEAR,
   getFinalAssessment,
   runStressTest,
@@ -24,9 +27,16 @@ test("the strategic simulation cannot advance beyond 2045", () => {
   assert.equal(state.history.length, END_YEAR - 2026);
 });
 
-test("the same state always produces the same 72-hour stress result", () => {
+test("the same state always produces the same one-month stress result", () => {
   const state = createDemoState(2035);
-  assert.deepEqual(runStressTest(state).stressTests[2035], runStressTest(state).stressTests[2035]);
+  const first = runStressTest(state).stressTests[2035];
+  const second = runStressTest(state).stressTests[2035];
+  assert.deepEqual(first, second);
+  assert.equal(first.durationDays, CRISIS_DAYS);
+  assert.equal(first.turnHours, CRISIS_TURN_HOURS);
+  assert.equal(first.turns, CRISIS_TURNS);
+  assert.equal(CRISIS_DAYS, 30);
+  assert.equal(CRISIS_TURNS, 120);
 });
 
 test("2045 assessment rewards continuity rather than Japanese centrality", () => {

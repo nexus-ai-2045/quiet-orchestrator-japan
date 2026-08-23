@@ -22,13 +22,13 @@
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass | Vite 6.4.3、191 modules、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities。repo-preflight本体はecosystem audit対象外と判定 |
-| README情報設計 | pass | 2026〜2045年、入れ子の72時間試験、実行手順、反証条件、免責を確認 |
+| README情報設計 | pass | 2026〜2045年、入れ子の終末の1ヶ月試験、実行手順、反証条件、免責を確認 |
 | UTF-8 / LF / Markdown相対リンク | pass | Markdown 24件、相対リンク切れ0、conflict marker 0、`git diff --check` pass |
 | GitHub設定ファイル | pass-local | YAML 6件、JSON 1件をparse。workflowのAction参照は公式repositoryのcommit SHAへ固定 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件 |
 | GitHub repository read-back | pass | `nexus-ai-2045/quiet-orchestrator-japan`、visibility `PRIVATE`、default branch `main` |
 | 公式URL | pass-source-check | 既存HTTP検査に加え、米統合軍の名称復帰と中国海警法の掲載面を公式ソースで再確認・修正 |
-| ブラウザ操作・デザインQA | pass-local | 年次更新、72時間試験、比較、resetを確認。`design-qa.md` final result `passed` |
+| ブラウザ操作・デザインQA | pass-local | 年次更新、終末の1ヶ月試験、比較、resetを内蔵ブラウザで再確認。実行時error・warning 0件 |
 
 ## repo-preflightの保証と非保証
 

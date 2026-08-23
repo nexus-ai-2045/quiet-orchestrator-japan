@@ -47,7 +47,7 @@
 |---|---|---|
 | README情報設計 | pass-local / pending-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を確認。main反映はPR merge後 |
 | Webアプリ | pass-local | 決定論テスト4件、build、Sites互換テスト4件を確認 |
-| ブラウザ操作 | pass-local | 年次更新、72時間テスト、比較を内蔵ブラウザで確認 |
+| ブラウザ操作 | pass-local | 年次更新、終末の1ヶ月テスト、比較、resetを変更後に再確認。実行時error・warning 0件 |
 | デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |
 | 既知secret形式 / 個人絶対パス | pass-local | 成果物内の既知secret候補0、個人絶対パス0。worktree管理用`.git`は公開対象外 |

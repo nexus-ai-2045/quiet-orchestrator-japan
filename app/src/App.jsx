@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  ACTIONS, ACTORS, CHECKPOINTS, END_YEAR, RELATIONSHIPS, START_YEAR,
+  ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
   runStressTest, selectAction, selectActor,
 } from "./simulation.js";
@@ -78,14 +78,14 @@ function Header({ state, onAdvance, onStress, onCompare, onReset, comparing }) {
     <>
       <header className="app-header">
         <div className="identity"><h1>静かなオーケストレーターとしての日本</h1><span>2026 → 2045 戦略シミュレーション</span></div>
-        <div className="thesis" aria-label="中心命題"><p>日本は危機の72時間に何をするか、ではない。</p><strong>その72時間に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
+        <div className="thesis" aria-label="中心命題"><p>日本は終末の1ヶ月に何をするか、ではない。</p><strong>その1ヶ月に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
         <div className="boundary"><span>社会シミュレーション / 公式方針・外交提言ではありません</span><strong>架空シナリオ / 現実の攻撃主体を断定しません</strong></div>
       </header>
       <div className="command-bar">
         <StrategicTimeline year={state.year} />
         <div className="command-actions">
           <button className="button primary" onClick={onAdvance} disabled={state.year >= END_YEAR}>{state.year >= END_YEAR ? "2045年に到達" : "次の1年へ"}<span aria-hidden="true">→</span></button>
-          <button className="button" onClick={onStress}>72時間テスト</button>
+          <button className="button" onClick={onStress}>終末の1ヶ月テスト</button>
           <button className={`button ${comparing ? "active" : ""}`} onClick={onCompare}>比較</button>
           <button className="button quiet" onClick={onReset}>リセット</button>
         </div>
@@ -179,8 +179,8 @@ function ActionRail({ state, onChoose }) {
 
 function StressStrip({ state }) {
   return (
-    <section className="stress-strip" aria-label="72時間ストレステスト">
-      <div className="stress-heading"><strong>72時間テスト</strong><span>長期投資を壊して確かめる</span></div>
+    <section className="stress-strip" aria-label="終末の1ヶ月ストレステスト">
+      <div className="stress-heading"><strong>終末の1ヶ月</strong><span>{CRISIS_DAYS}日間、長期投資が持ちこたえるか確かめる</span></div>
       {CHECKPOINTS.map((year) => {
         const result = state.stressTests[year];
         return (
@@ -226,7 +226,7 @@ export function App() {
   const [comparing, setComparing] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
   const handleAdvance = () => setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? "2045年の最終評価に到達しています" : `${next.year}年へ進みました`); return next; });
-  const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の72時間テストを記録しました`); return next; });
+  const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
   const handleReset = () => { setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
 
   return (

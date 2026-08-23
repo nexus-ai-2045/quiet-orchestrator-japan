@@ -10,7 +10,7 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 ## Durable product decisions
 
-- The primary horizon is 2026–2045. A 72-hour crisis is a nested stress test, not the main simulation.
+- The primary horizon is 2026–2045. “終末の1ヶ月” is a 30-day, 6-hour-step nested stress test, not the main simulation.
 - The final success condition is that the coordination network still functions when Japan leaves the center.
 - The visual source of truth is the selected dark-indigo 2026–2045 hybrid mock generated on 2026-08-24.
 - The simulation is deterministic and local-only. Do not add live attribution, external API calls, or model-generated policy decisions without a separate ADR and review.

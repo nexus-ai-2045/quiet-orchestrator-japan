@@ -51,7 +51,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .year-point.elapsed i { background: #4e8298; border-color: #79adc1; }
 .year-point.elapsed::after { background: #4a8296; }
 .year-point.checkpoint i { width: 8px; height: 8px; top: 15px; border-color: var(--cyan); }
-.year-point.checkpoint::before { content: "72h"; position: absolute; top: 24px; left: 50%; transform: translateX(-50%); color: #5f8998; font-size: 7px; }
+.year-point.checkpoint::before { content: "30d"; position: absolute; top: 24px; left: 50%; transform: translateX(-50%); color: #5f8998; font-size: 7px; }
 .year-point.current { color: #fff; font-weight: 700; }
 .year-point.current i { width: 12px; height: 12px; top: 13px; background: var(--blue); box-shadow: 0 0 0 4px #1d4f75; }
 .command-actions { display: flex; gap: 8px; }
