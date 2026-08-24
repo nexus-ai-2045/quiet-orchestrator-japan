@@ -4,7 +4,7 @@ import "@xyflow/react/dist/style.css";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
-  getSelectedRelationship, previewRelationshipInvestment, runStressTest,
+  getSelectedRelationship, getStressContributionFocus, previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
 
@@ -22,6 +22,11 @@ const RISK_META = [
   ["surveillance", "監視化", "過剰監視のリスク"],
   ["dependency", "単一依存", "依存・脆弱性のリスク"],
 ];
+const METRIC_DELTA_LABELS = new Map([
+  ...METRIC_META.map(([key, label]) => [key, label]),
+  ...RISK_META.map(([key, label]) => [key, label]),
+  ["continuity", "日本不在時の継続性"],
+]);
 const RELATIONSHIP_FIELD_META = [
   ["maturity", "成熟度"],
   ["trust", "信頼"],
@@ -71,7 +76,7 @@ function buildEdges(state) {
 
 function StrategicTimeline({ year }) {
   return (
-    <div className="strategic-timeline" aria-label={`戦略時間軸、現在${year}年`}>
+    <div className="strategic-timeline" role="group" aria-label={`戦略時間軸、現在${year}年`}>
       <div className="timeline-label">戦略時間軸 <span>2026 → 2045</span></div>
       <div className="year-track">
         {YEARS.map((item) => (
@@ -91,7 +96,7 @@ function Header({ state, preview, onAdvance, onStress, onCompare, onReset, compa
     <>
       <header className="app-header">
         <div className="identity"><h1>静かなオーケストレーターとしての日本</h1><span>2026 → 2045 戦略シミュレーション</span></div>
-        <div className="thesis" aria-label="中心命題"><p>日本は終末の1ヶ月に何をするか、ではない。</p><strong>その1ヶ月に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
+        <div className="thesis" role="note" aria-label="中心命題"><p>日本は終末の1ヶ月に何をするか、ではない。</p><strong>その1ヶ月に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
         <div className="boundary"><span>社会シミュレーション / 公式方針・外交提言ではありません</span><strong>架空シナリオ / 現実の攻撃主体を断定しません</strong></div>
       </header>
       <div className="command-bar">
@@ -153,15 +158,17 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship }) {
   );
 }
 
-function Inspector({ state }) {
+function Inspector({ state, focusedLedgerEntry }) {
   const relationship = getSelectedRelationship(state);
+  const historicalEntry = focusedLedgerEntry?.relationshipId === relationship.id ? focusedLedgerEntry : null;
+  const relationshipState = historicalEntry?.after ?? relationship.state;
   const source = ACTORS.find((item) => item.id === relationship.source);
   const target = ACTORS.find((item) => item.id === relationship.target);
   const preview = previewRelationshipInvestment(state);
   const final = getFinalAssessment(state);
   return (
-    <aside className="inspector" aria-label="選択中の接続詳細">
-      <div className="panel-heading"><strong>選択中の接続</strong><span>{relationship.label}</span></div>
+    <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
+        <div className="panel-heading"><strong>{historicalEntry ? `${historicalEntry.year}年の接続` : "選択中の接続"}</strong><span>{relationship.label}</span></div>
       <div className="inspector-body">
         <div className={`scope-badge ${relationship.investable ? "active" : ""}`}>{relationship.investable ? "P1 代表接続 / 投資可能" : "P1 表示のみ / 未校正"}</div>
         <h2>{source.name}<span> ↔ </span>{target.name}</h2>
@@ -171,10 +178,11 @@ function Inspector({ state }) {
           <div><dt>所有形態</dt><dd>{relationship.ownership}</dd></div>
         </dl>
         <div className="relationship-grid">
-          {RELATIONSHIP_FIELD_META.map(([key, label]) => <div key={key} className={key === "dependency" ? "risk" : ""}><span>{label}</span><strong>{relationship.state[key]}</strong>{preview.eligible && preview.deltas[key] ? <small>{preview.deltas[key] > 0 ? "+" : ""}{preview.deltas[key]}</small> : null}</div>)}
-          <div><span>代替経路</span><strong>{relationship.state.alternateRoutes}</strong><small>本</small></div>
-          <div className="risk"><span>開示コスト</span><strong>{relationship.state.disclosureCost}</strong>{preview.eligible && preview.deltas.disclosureCost ? <small>+{preview.deltas.disclosureCost}</small> : null}</div>
+          {RELATIONSHIP_FIELD_META.map(([key, label]) => <div key={key} className={key === "dependency" ? "risk" : ""}><span>{label}</span><strong>{relationshipState[key]}</strong>{!historicalEntry && preview.eligible && preview.deltas[key] ? <small>{preview.deltas[key] > 0 ? "+" : ""}{preview.deltas[key]}</small> : null}</div>)}
+          <div><span>代替経路</span><strong>{relationshipState.alternateRoutes}</strong><small>本</small></div>
+          <div className="risk"><span>開示コスト</span><strong>{relationshipState.disclosureCost}</strong>{!historicalEntry && preview.eligible && preview.deltas.disclosureCost ? <small>+{preview.deltas.disclosureCost}</small> : null}</div>
         </div>
+        {historicalEntry && <p className="scope-note">終末の1ヶ月テストから、因果台帳 {historicalEntry.id} 適用後の状態を表示しています。</p>}
         {!preview.eligible && <p className="scope-note">{preview.reason}</p>}
         <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{state.metrics.continuity}</b><span>/100<br />日本不在時の継続性<br />{final.label}</span></div></div>
       </div>
@@ -182,10 +190,11 @@ function Inspector({ state }) {
   );
 }
 
-function ActionRail({ state, onChoose }) {
+function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus }) {
   const selected = ACTIONS.find((item) => item.id === state.selectedAction) ?? ACTIONS[0];
   const preview = previewRelationshipInvestment(state);
-  const latest = state.ledger.at(-1);
+  const latest = focusedLedgerEntry ?? state.ledger.at(-1);
+  const ledgerIndex = latest ? state.ledger.findIndex((entry) => entry.id === latest.id) + 1 : 0;
   return (
     <section className="action-rail" aria-label="年間アクション">
       <div className="action-budget"><span>年間アクション</span><strong>100</strong><small>ポイント</small></div>
@@ -196,16 +205,16 @@ function ActionRail({ state, onChoose }) {
           </button>
         ))}
       </div>
-      <div className="selected-action">
-        <span>{preview.relationshipId} への投資プレビュー</span><strong>{selected.project}</strong>
-        {preview.eligible ? <div className="delta-list">{Object.entries(preview.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div> : <p>{preview.reason}</p>}
-        {latest && <div className="ledger-latest"><span>最新の因果台帳 #{state.ledger.length} / {latest.ruleVersion}</span><b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b><div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div></div>}
+      <div className="selected-action" tabIndex={0}>
+        <div className="preview-heading"><span>{preview.relationshipId} への投資プレビュー</span>{focusedLedgerEntry && <button className="ledger-current" onClick={onClearLedgerFocus}>現在の台帳へ戻る</button>}</div><strong>{selected.project}</strong>
+        {preview.eligible ? <><div className="delta-list">{Object.entries(preview.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">集約指標への副作用</span><div className="delta-list metric-deltas">{Object.entries(preview.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">構造上の注意</span><div className="tradeoff-list">{preview.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div></> : <p>{preview.reason}</p>}
+        {latest && <div className="ledger-latest"><span>{focusedLedgerEntry ? "チェックポイントで選択中" : "最新"}の因果台帳 #{ledgerIndex} / {latest.ruleVersion}</span><b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b><div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div></div>}
       </div>
     </section>
   );
 }
 
-function StressStrip({ state, onSelectRelationship }) {
+function StressStrip({ state, onSelectContribution }) {
   return (
     <section className="stress-strip" aria-label="終末の1ヶ月ストレステスト">
       <div className="stress-heading"><strong>終末の1ヶ月</strong><span>{CRISIS_DAYS}日間、長期投資が持ちこたえるか確かめる</span></div>
@@ -214,7 +223,7 @@ function StressStrip({ state, onSelectRelationship }) {
         return (
           <article key={year} className={state.year === year ? "current" : ""}>
             <div><strong>{year}</strong><span>{result ? result.verdict : "未実施"}</span></div>
-            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectRelationship(result.relationshipContributions[0].relationshipId)}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
+            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, result.relationshipContributions[0])}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
           </article>
         );
       })}
@@ -253,16 +262,27 @@ export function App() {
   const [state, setState] = useState(() => createDemoState(2035));
   const [comparing, setComparing] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
+  const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
   const preview = previewRelationshipInvestment(state);
-  const handleAdvance = () => setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; });
+  const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
+  const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
+  const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
-  const handleReset = () => { setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
+  const handleContributionSelect = (checkpointYear, contribution) => {
+    const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
+    if (!focus) return;
+    setState((current) => selectRelationship(current, focus.relationshipId));
+    setFocusedLedgerEntryId(focus.ledgerEntryId);
+    setNotice(`${checkpointYear}年チェックポイントを生んだ因果台帳を表示しています`);
+  };
 
   return (
     <main className="app-shell">
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => setComparing((value) => !value)} onReset={handleReset} comparing={comparing} />
-      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={(id) => setState((current) => selectRelationship(current, id))} /><ActionRail state={state} onChoose={(id) => setState((current) => selectAction(current, id))} /></div><Inspector state={state} /></div>
-      <StressStrip state={state} onSelectRelationship={(id) => setState((current) => selectRelationship(current, id))} /><MetricRail state={state} />
+      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
+      <StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
     </main>

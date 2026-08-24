@@ -42,7 +42,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .timeline-label { margin-bottom: 8px; font-size: 11px; color: var(--text); }
 .timeline-label span { margin-left: 8px; color: var(--muted); font: 10px var(--mono); }
 .year-track { display: grid; grid-template-columns: repeat(20, minmax(24px, 1fr)); align-items: end; }
-.year-point { position: relative; min-width: 0; height: 31px; color: #647d8a; text-align: center; font: 8px var(--mono); }
+.year-point { position: relative; min-width: 0; height: 31px; color: #78929f; text-align: center; font: 8px var(--mono); }
 .year-point::after { content: ""; position: absolute; left: 50%; right: -50%; top: 19px; height: 1px; background: #253f4f; }
 .year-point:last-child::after { display: none; }
 .year-point span { display: block; overflow: hidden; }
@@ -62,7 +62,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .button.quiet { background: transparent; }
 .button:disabled { opacity: .45; cursor: not-allowed; }
 
-.workspace { height: 510px; display: grid; grid-template-columns: 215px minmax(650px, 1fr) 300px; gap: 8px; margin-top: 8px; }
+.workspace { height: 560px; display: grid; grid-template-columns: 215px minmax(650px, 1fr) 300px; gap: 8px; margin-top: 8px; }
 .actor-rail, .network-stage, .inspector, .action-rail, .stress-strip, .metric-rail { border: 1px solid var(--line); background: var(--panel); }
 .panel-heading { height: 34px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); font-size: 11px; letter-spacing: .04em; }
 .panel-heading span { color: var(--cyan); font: 10px var(--mono); }
@@ -88,7 +88,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .line.forming { background: #6b8b9a; border-top: 1px dashed #6b8b9a; }
 .line.risk { background: var(--amber); }
 
-.center-stack { display: grid; grid-template-rows: 356px 146px; gap: 8px; min-width: 0; overflow: hidden; }
+.center-stack { display: grid; grid-template-rows: 356px 196px; gap: 8px; min-width: 0; overflow: hidden; }
 .network-stage { position: relative; overflow: hidden; }
 .stage-title { position: absolute; z-index: 4; top: 8px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
 .stage-title span { color: var(--muted); font: 9px var(--mono); }
@@ -123,17 +123,23 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .action-options span { display: block; margin-bottom: 7px; color: #d7e4e9; font-size: 11px; font-weight: 650; }
 .action-options small { display: block; color: var(--muted); font-size: 7px; line-height: 1.5; }
 .action-options b { position: absolute; right: 7px; bottom: 5px; color: #77bca4; font: 9px var(--mono); }
-.selected-action { padding: 7px 10px; border-left: 1px solid var(--line); min-width: 0; }
+.selected-action { padding: 7px 10px; border-left: 1px solid var(--line); min-width: 0; overflow-y: auto; }
 .selected-action span { display: block; color: var(--muted); font-size: 8px; }
 .selected-action strong { display: block; margin: 5px 0; color: #eef5f7; font-size: 10px; }
 .selected-action p { margin: 0; color: #91a9b5; font-size: 8px; line-height: 1.55; }
+.preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .delta-list { display: flex; flex-wrap: wrap; gap: 3px; }
 .delta-list i { padding: 3px 5px; border: 1px solid #2e5668; border-radius: 3px; background: #0d2a38; color: #9ab2bc; font-size: 7px; font-style: normal; }
 .delta-list b { color: var(--green); font: 8px var(--mono); }
+.preview-subheading { margin: 5px 0 3px; color: #7f9eaa !important; }
+.metric-deltas b { color: var(--amber); }
+.tradeoff-list { display: flex; flex-wrap: wrap; gap: 3px; }
+.tradeoff-list i { padding: 3px 5px; border: 1px solid #644d35; border-radius: 3px; background: #2a2118; color: #d9b47b; font-size: 7px; font-style: normal; }
 .ledger-latest { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line-soft); }
 .ledger-latest span, .ledger-latest b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ledger-latest span { color: var(--amber); }
 .ledger-latest b { margin-top: 2px; color: #b9cbd2; font: 7px var(--mono); }
+.ledger-current { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--cyan); cursor: pointer; font: 7px var(--mono); }
 .ledger-deltas { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px; }
 .ledger-deltas i { color: #79bfa4; font: 6px var(--mono); font-style: normal; }
 

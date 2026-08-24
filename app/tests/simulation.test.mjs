@@ -16,6 +16,7 @@ import {
   END_YEAR,
   getFinalAssessment,
   getRelationshipContribution,
+  getStressContributionFocus,
   migrateSimulationState,
   previewRelationshipInvestment,
   RELATIONSHIPS,
@@ -66,12 +67,18 @@ test("relationship v1 gives every connection a stable schema", () => {
 });
 
 test("legacy aggregate state has an explicit migration path", () => {
-  const migrated = migrateSimulationState({ year: 2030, metrics: { verification: 61 }, history: [] });
+  const migrated = migrateSimulationState({
+    year: 2030,
+    metrics: { verification: 61 },
+    history: [],
+    stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
+  });
   assert.equal(migrated.schemaVersion, 2);
   assert.equal(migrated.year, 2030);
   assert.equal(migrated.metrics.verification, 61);
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
   assert.deepEqual(migrated.ledger, []);
+  assert.deepEqual(migrated.stressTests, {});
 });
 
 test("the selected yearly investment previews an exact relationship delta", () => {
@@ -83,6 +90,20 @@ test("the selected yearly investment previews an exact relationship delta", () =
   assert.equal(preview.deltas.verificationAgreement, 12);
   assert.equal(preview.after.verificationAgreement, 50);
   assert.ok(preview.tradeoffs.includes("開示コスト +2"));
+});
+
+test("preview and ledger record the applied delta after clamping", () => {
+  const state = selectAction(createInitialState(), "verification");
+  state.relationships["B1-C6"].state.maturity = 98;
+  state.metrics.verification = 97;
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.after.maturity, 100);
+  assert.equal(preview.deltas.maturity, 2);
+  assert.equal(preview.metricDeltas.verification, 3);
+
+  const next = advanceYear(state);
+  assert.equal(next.ledger[0].deltas.maturity, 2);
+  assert.equal(next.ledger[0].metricDeltas.verification, 3);
 });
 
 test("verification investment deterministically increases verification capacity", () => {
@@ -126,6 +147,16 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
 });
 
+test("a stress contribution keeps the checkpoint ledger context", () => {
+  const state = runStressTest(createDemoState(2035));
+  const contribution = state.stressTests[2035].relationshipContributions[0];
+  const focus = getStressContributionFocus(state, 2035, contribution.relationshipId);
+  assert.equal(focus.checkpointYear, 2035);
+  assert.equal(focus.relationshipId, "B1-C6");
+  assert.equal(focus.ledgerEntryId, contribution.ledgerEntryId);
+  assert.equal(state.ledger.find((entry) => entry.id === focus.ledgerEntryId).year <= 2035, true);
+});
+
 test("relationship investment is traceable to a larger crisis contribution", () => {
   const initial = createInitialState();
   const invested = advanceYear(selectAction(initial, "verification"));
@@ -134,7 +165,18 @@ test("relationship investment is traceable to a larger crisis contribution", () 
   assert.ok(after.attributionSafety > before.attributionSafety);
 
   const result = runStressTest(invested).stressTests[2027];
-  assert.deepEqual(result.relationshipContributions[0], after);
+  assert.deepEqual(
+    {
+      relationshipId: result.relationshipContributions[0].relationshipId,
+      relationshipLabel: result.relationshipContributions[0].relationshipLabel,
+      attributionSafety: result.relationshipContributions[0].attributionSafety,
+      coordinationSurvival: result.relationshipContributions[0].coordinationSurvival,
+      civilianProtection: result.relationshipContributions[0].civilianProtection,
+    },
+    after,
+  );
+  assert.equal(result.relationshipContributions[0].checkpointYear, 2027);
+  assert.equal(result.relationshipContributions[0].ledgerEntryId, invested.ledger[0].id);
 });
 
 test("2045 assessment rewards continuity rather than Japanese centrality", () => {

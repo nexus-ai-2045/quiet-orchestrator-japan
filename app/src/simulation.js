@@ -110,8 +110,20 @@ export function createInitialState() {
   };
 }
 
+function normalizeStressTests(stressTests) {
+  if (!stressTests || typeof stressTests !== "object" || Array.isArray(stressTests)) return {};
+  return Object.fromEntries(Object.entries(stressTests).filter(([, result]) => (
+    result
+    && typeof result === "object"
+    && Array.isArray(result.relationshipContributions)
+    && result.relationshipContributions.length > 0
+  )));
+}
+
 export function migrateSimulationState(candidate) {
-  if (candidate?.schemaVersion === 2) return candidate;
+  if (candidate?.schemaVersion === 2) {
+    return { ...candidate, stressTests: normalizeStressTests(candidate.stressTests) };
+  }
   const initial = createInitialState();
   return {
     ...initial,
@@ -123,7 +135,7 @@ export function migrateSimulationState(candidate) {
     selectedRelationshipId: REPRESENTATIVE_RELATIONSHIP_ID,
     history: [...(candidate?.history ?? [])],
     ledger: [],
-    stressTests: { ...(candidate?.stressTests ?? {}) },
+    stressTests: normalizeStressTests(candidate?.stressTests),
   };
 }
 
@@ -173,12 +185,17 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const yearsElapsed = state.year - START_YEAR;
   const fatigue = yearsElapsed >= 12 ? 1 : 0;
   const configured = RELATIONSHIP_ACTION_EFFECTS[action.id];
-  const deltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
-  const metricDeltas = Object.fromEntries(Object.entries(action.effects).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
+  const requestedDeltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
+  const requestedMetricDeltas = Object.fromEntries(Object.entries(action.effects).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
   const after = { ...relationship.state };
-  for (const [key, delta] of Object.entries(deltas)) {
+  for (const [key, delta] of Object.entries(requestedDeltas)) {
     after[key] = key === "alternateRoutes" ? clamp(after[key] + delta, 0, 5) : clamp(after[key] + delta);
   }
+  const deltas = Object.fromEntries(Object.keys(requestedDeltas).map((key) => [key, after[key] - relationship.state[key]]));
+  const metricDeltas = Object.fromEntries(Object.entries(requestedMetricDeltas).map(([key, delta]) => [
+    key,
+    clamp(state.metrics[key] + delta) - state.metrics[key],
+  ]));
   return {
     eligible: state.year < END_YEAR && state.budget >= action.cost,
     relationshipId,
@@ -261,7 +278,11 @@ export function getRelationshipContribution(state, relationshipId) {
 
 export function runStressTest(state) {
   const { metrics } = state;
-  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => getRelationshipContribution(state, relationship.id));
+  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => {
+    const contribution = getRelationshipContribution(state, relationship.id);
+    const ledgerEntry = [...state.ledger].reverse().find((entry) => entry.relationshipId === relationship.id && entry.year <= state.year);
+    return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry?.id ?? null };
+  });
   const contribution = relationshipContributions.reduce((total, item) => ({
     attributionSafety: total.attributionSafety + item.attributionSafety,
     coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,
@@ -272,6 +293,19 @@ export function runStressTest(state) {
   const civilianProtection = clamp(Math.round(metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 + metrics.verification * 0.2 - metrics.dependency * 0.15 + contribution.civilianProtection));
   const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
   return { ...state, stressTests: { ...state.stressTests, [state.year]: result } };
+}
+
+export function getStressContributionFocus(state, checkpointYear, relationshipId) {
+  const result = state.stressTests[checkpointYear];
+  const contribution = result?.relationshipContributions?.find((item) => item.relationshipId === relationshipId);
+  if (!contribution) return null;
+  const ledgerEntry = state.ledger.find((entry) => entry.id === contribution.ledgerEntryId)
+    ?? [...state.ledger].reverse().find((entry) => entry.relationshipId === relationshipId && entry.year <= checkpointYear);
+  return {
+    checkpointYear,
+    relationshipId,
+    ledgerEntryId: ledgerEntry?.id ?? null,
+  };
 }
 
 export function getFinalAssessment(state) {
