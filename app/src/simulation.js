@@ -1,3 +1,12 @@
+import {
+  CALIBRATION_VERSION,
+  DEFAULT_RELATIONSHIP_STATE,
+  RELATIONSHIP_ACTION_EFFECTS,
+  RELATIONSHIP_CONTRIBUTION_LIMITS,
+  RELATIONSHIP_CONTRIBUTION_WEIGHTS,
+  REPRESENTATIVE_INITIAL_STATE,
+} from "./calibration-v0.js";
+
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
 export const CHECKPOINTS = [2030, 2035, 2040, 2045];
@@ -5,7 +14,7 @@ export const CRISIS_DAYS = 30;
 export const CRISIS_TURN_HOURS = 6;
 export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
-export const RULE_VERSION = "relationship-v1.0.0";
+export const RULE_VERSION = CALIBRATION_VERSION;
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -38,28 +47,6 @@ const RELATIONSHIP_PAIRS = [
   ["U1", "C3"], ["U4", "C3"], ["J6", "C6"], ["J1", "J5"],
 ];
 
-const DEFAULT_RELATIONSHIP_STATE = {
-  maturity: 28,
-  trust: 32,
-  verificationAgreement: 30,
-  interoperability: 30,
-  coOwnership: 20,
-  dependency: 52,
-  alternateRoutes: 1,
-  disclosureCost: 10,
-};
-
-const REPRESENTATIVE_INITIAL_STATE = {
-  maturity: 46,
-  trust: 42,
-  verificationAgreement: 38,
-  interoperability: 36,
-  coOwnership: 28,
-  dependency: 48,
-  alternateRoutes: 1,
-  disclosureCost: 12,
-};
-
 const CONTESTED_RELATIONSHIPS = new Set(["U3-B1", "J2-C1", "U1-C3"]);
 
 export const RELATIONSHIPS = RELATIONSHIP_PAIRS.map(([source, target]) => {
@@ -88,14 +75,6 @@ export const ACTIONS = [
   { id: "redundancy", label: "複線化", cost: 20, summary: "供給・通信・判断経路の単一依存を減らす", project: "宇宙・海洋・エネルギー情報経路の複線化", effects: { interoperability: 6, autonomy: 7, dependency: -8 } },
   { id: "coownership", label: "共同所有", cost: 15, summary: "成果とガバナンスを多元的に持つ", project: "共同検証ハブの多元ガバナンス移行", effects: { continuity: 9, coordinationCapital: 6, concentration: -6 } },
 ];
-
-const RELATIONSHIP_ACTION_EFFECTS = {
-  translation: { deltas: { maturity: 6, trust: 5, interoperability: 2, disclosureCost: 1 }, tradeoffs: ["開示コスト +1"] },
-  verification: { deltas: { maturity: 5, trust: 4, verificationAgreement: 12, dependency: -1, disclosureCost: 2 }, tradeoffs: ["開示コスト +2", "監視化リスク +2"] },
-  reversibility: { deltas: { maturity: 3, interoperability: 4, dependency: -4, alternateRoutes: 1 }, tradeoffs: ["合意形成の速度を優先しない"] },
-  redundancy: { deltas: { maturity: 4, interoperability: 7, dependency: -8, alternateRoutes: 1, disclosureCost: 1 }, tradeoffs: ["開示コスト +1", "維持経路が増える"] },
-  coownership: { deltas: { maturity: 4, trust: 3, coOwnership: 10, dependency: -5 }, tradeoffs: ["日本の単独編集権を縮小"] },
-};
 
 function createRelationshipState() {
   return Object.fromEntries(RELATIONSHIPS.map((definition) => [definition.id, {
@@ -266,12 +245,17 @@ export function getRelationshipContribution(state, relationshipId) {
   const current = relationship.state;
   const initial = definition.initialState;
   const delta = (key) => current[key] - initial[key];
+  const weightedDelta = (weights) => Object.entries(weights).reduce(
+    (total, [key, weight]) => total + delta(key) * weight,
+    0,
+  );
+  const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
   return {
     relationshipId,
     relationshipLabel: relationship.label,
-    attributionSafety: clamp(Math.round(delta("verificationAgreement") * 0.28 + delta("trust") * 0.14 - delta("disclosureCost") * 0.08), -20, 25),
-    coordinationSurvival: clamp(Math.round(delta("maturity") * 0.12 + delta("interoperability") * 0.18 + delta("coOwnership") * 0.2 + delta("alternateRoutes") * 1.5 - delta("dependency") * 0.12), -20, 25),
-    civilianProtection: clamp(Math.round(delta("interoperability") * 0.15 + delta("trust") * 0.1 + delta("alternateRoutes") * 1.2 - delta("dependency") * 0.12 - delta("disclosureCost") * 0.05), -20, 25),
+    attributionSafety: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.attributionSafety)), min, max),
+    coordinationSurvival: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival)), min, max),
+    civilianProtection: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.civilianProtection)), min, max),
   };
 }
 

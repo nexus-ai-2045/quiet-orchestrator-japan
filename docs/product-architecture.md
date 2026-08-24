@@ -80,6 +80,8 @@ UI上の線、指標、判定はすべてこの状態から導出する。描画
 
 ### 5.2 Relationship
 
+代表接続の初期値、年間delta、危機寄与weightは[架空係数 Calibration v0](calibration-v0.md)を参照する。実装上の正本は`app/src/calibration-v0.js`であり、係数変更はversion・ADR・回帰テストを同時に更新する。
+
 | フィールド | 意味 |
 |---|---|
 | `source / target / purpose / channel` | 誰が、何のために、どの回線でつながるか |

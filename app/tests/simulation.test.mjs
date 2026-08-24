@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CALIBRATION_VERSION,
+  RELATIONSHIP_ACTION_EFFECTS,
+  RELATIONSHIP_CONTRIBUTION_WEIGHTS,
+  REPRESENTATIVE_INITIAL_STATE,
+} from "../src/calibration-v0.js";
+import {
   advanceYear,
   createDemoState,
   createInitialState,
@@ -17,6 +23,29 @@ import {
   selectAction,
   selectRelationship,
 } from "../src/simulation.js";
+
+test("the adopted calibration v0 remains explicit and versioned", () => {
+  assert.equal(CALIBRATION_VERSION, "relationship-v1.0.0");
+  assert.equal(Object.isFrozen(RELATIONSHIP_ACTION_EFFECTS.verification.deltas), true);
+  assert.deepEqual(REPRESENTATIVE_INITIAL_STATE, {
+    maturity: 46,
+    trust: 42,
+    verificationAgreement: 38,
+    interoperability: 36,
+    coOwnership: 28,
+    dependency: 48,
+    alternateRoutes: 1,
+    disclosureCost: 12,
+  });
+  assert.deepEqual(RELATIONSHIP_ACTION_EFFECTS.verification.deltas, {
+    maturity: 5,
+    trust: 4,
+    verificationAgreement: 12,
+    dependency: -1,
+    disclosureCost: 2,
+  });
+  assert.equal(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival.coOwnership, 0.2);
+});
 
 test("relationship v1 gives every connection a stable schema", () => {
   const state = createInitialState();

@@ -180,6 +180,7 @@ docs/
 
 - [シミュレーション契約](simulation-contract.md)
 - [プロダクト設計](docs/product-architecture.md)
+- [架空係数 Calibration v0](docs/calibration-v0.md)
 - [ロードマップ](ROADMAP.md)
 - [実行結果](RESULTS.md)
 - [OSINT根拠台帳](evidence.md)
