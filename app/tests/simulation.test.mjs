@@ -9,15 +9,72 @@ import {
   CRISIS_TURNS,
   END_YEAR,
   getFinalAssessment,
+  getRelationshipContribution,
+  migrateSimulationState,
+  previewRelationshipInvestment,
+  RELATIONSHIPS,
   runStressTest,
   selectAction,
+  selectRelationship,
 } from "../src/simulation.js";
+
+test("relationship v1 gives every connection a stable schema", () => {
+  const state = createInitialState();
+  assert.equal(state.schemaVersion, 2);
+  assert.equal(RELATIONSHIPS.length, 20);
+  assert.equal(Object.keys(state.relationships).length, 20);
+  assert.equal(state.selectedRelationshipId, "B1-C6");
+
+  const relationship = state.relationships["B1-C6"];
+  assert.deepEqual(
+    Object.keys(relationship.state).sort(),
+    [
+      "alternateRoutes", "coOwnership", "dependency", "disclosureCost",
+      "interoperability", "maturity", "trust", "verificationAgreement",
+    ],
+  );
+  assert.equal(relationship.investable, true);
+});
+
+test("legacy aggregate state has an explicit migration path", () => {
+  const migrated = migrateSimulationState({ year: 2030, metrics: { verification: 61 }, history: [] });
+  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.year, 2030);
+  assert.equal(migrated.metrics.verification, 61);
+  assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
+  assert.deepEqual(migrated.ledger, []);
+});
+
+test("the selected yearly investment previews an exact relationship delta", () => {
+  const state = selectAction(createInitialState(), "verification");
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.eligible, true);
+  assert.equal(preview.relationshipId, "B1-C6");
+  assert.equal(preview.cost, 25);
+  assert.equal(preview.deltas.verificationAgreement, 12);
+  assert.equal(preview.after.verificationAgreement, 50);
+  assert.ok(preview.tradeoffs.includes("開示コスト +2"));
+});
 
 test("verification investment deterministically increases verification capacity", () => {
   const initial = selectAction(createInitialState(), "verification");
   const next = advanceYear(initial);
   assert.equal(next.year, 2027);
   assert.equal(next.metrics.verification, 48);
+  assert.equal(next.relationships["B1-C6"].state.verificationAgreement, 50);
+  assert.equal(next.ledger.length, 1);
+  assert.deepEqual(next.ledger[0].before, initial.relationships["B1-C6"].state);
+  assert.deepEqual(next.ledger[0].after, next.relationships["B1-C6"].state);
+  assert.equal(next.ledger[0].ruleVersion, "relationship-v1.0.0");
+  assert.equal(next.ledger[0].seed, "baseline-0");
+});
+
+test("a display-only relationship cannot silently receive the representative investment", () => {
+  const initial = selectRelationship(createInitialState(), "J1-B1");
+  const preview = previewRelationshipInvestment(initial);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /P1/);
+  assert.strictEqual(advanceYear(initial), initial);
 });
 
 test("the strategic simulation cannot advance beyond 2045", () => {
@@ -37,6 +94,18 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(first.turns, CRISIS_TURNS);
   assert.equal(CRISIS_DAYS, 30);
   assert.equal(CRISIS_TURNS, 120);
+  assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
+});
+
+test("relationship investment is traceable to a larger crisis contribution", () => {
+  const initial = createInitialState();
+  const invested = advanceYear(selectAction(initial, "verification"));
+  const before = getRelationshipContribution(initial, "B1-C6");
+  const after = getRelationshipContribution(invested, "B1-C6");
+  assert.ok(after.attributionSafety > before.attributionSafety);
+
+  const result = runStressTest(invested).stressTests[2027];
+  assert.deepEqual(result.relationshipContributions[0], after);
 });
 
 test("2045 assessment rewards continuity rather than Japanese centrality", () => {

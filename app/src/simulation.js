@@ -4,6 +4,8 @@ export const CHECKPOINTS = [2030, 2035, 2040, 2045];
 export const CRISIS_DAYS = 30;
 export const CRISIS_TURN_HOURS = 6;
 export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
+export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
+export const RULE_VERSION = "relationship-v1.0.0";
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -28,7 +30,7 @@ export const ACTORS = [
   { id: "B1", group: "BRIDGE", name: "検証・対話ハブ", x: 455, y: 245, portfolio: "interop" },
 ];
 
-export const RELATIONSHIPS = [
+const RELATIONSHIP_PAIRS = [
   ["J1", "B1"], ["J2", "U2"], ["J3", "U1"], ["J4", "U4"],
   ["J5", "U5"], ["J6", "B1"], ["U2", "B1"], ["U3", "B1"],
   ["U5", "C4"], ["B1", "C6"], ["B1", "C5"], ["J2", "C1"],
@@ -36,68 +38,113 @@ export const RELATIONSHIPS = [
   ["U1", "C3"], ["U4", "C3"], ["J6", "C6"], ["J1", "J5"],
 ];
 
+const DEFAULT_RELATIONSHIP_STATE = {
+  maturity: 28,
+  trust: 32,
+  verificationAgreement: 30,
+  interoperability: 30,
+  coOwnership: 20,
+  dependency: 52,
+  alternateRoutes: 1,
+  disclosureCost: 10,
+};
+
+const REPRESENTATIVE_INITIAL_STATE = {
+  maturity: 46,
+  trust: 42,
+  verificationAgreement: 38,
+  interoperability: 36,
+  coOwnership: 28,
+  dependency: 48,
+  alternateRoutes: 1,
+  disclosureCost: 12,
+};
+
+const CONTESTED_RELATIONSHIPS = new Set(["U3-B1", "J2-C1", "U1-C3"]);
+
+export const RELATIONSHIPS = RELATIONSHIP_PAIRS.map(([source, target]) => {
+  const id = `${source}-${target}`;
+  const investable = id === REPRESENTATIVE_RELATIONSHIP_ID;
+  return {
+    id,
+    source,
+    target,
+    label: `${source} ↔ ${target}`,
+    investable,
+    contested: CONTESTED_RELATIONSHIPS.has(id),
+    purpose: investable
+      ? "公開可能な事実と検証手順を、政策判断より先に共有する。"
+      : "P1では構造だけを表示し、係数と投資適格性は次段階で校正する。",
+    channel: investable ? "共同検証プロトコル" : "未校正の接続チャネル",
+    ownership: investable ? "共同所有 / 多元ガバナンス" : "P1未設定",
+    initialState: { ...(investable ? REPRESENTATIVE_INITIAL_STATE : DEFAULT_RELATIONSHIP_STATE) },
+  };
+});
+
 export const ACTIONS = [
-  {
-    id: "translation",
-    label: "翻訳",
-    cost: 20,
-    summary: "制度・用語・意図を共通言語へ変換する",
-    project: "日米中研究機関の危機用語クロスウォーク",
-    effects: { coordinationCapital: 7, legitimacy: 3, dependency: -2 },
-  },
-  {
-    id: "verification",
-    label: "検証",
-    cost: 25,
-    summary: "事実を共同で十分に確かめる",
-    project: "日米中研究機関の共同検証プロトコル",
-    effects: { verification: 10, coordinationCapital: 4, surveillance: 2 },
-  },
-  {
-    id: "reversibility",
-    label: "可逆化",
-    cost: 20,
-    summary: "いつでも戻せる対応手順を設計する",
-    project: "段階的対応と共同停止条件の標準化",
-    effects: { autonomy: 6, legitimacy: 4, concentration: -3 },
-  },
-  {
-    id: "redundancy",
-    label: "複線化",
-    cost: 20,
-    summary: "供給・通信・判断経路の単一依存を減らす",
-    project: "宇宙・海洋・エネルギー情報経路の複線化",
-    effects: { interoperability: 6, autonomy: 7, dependency: -8 },
-  },
-  {
-    id: "coownership",
-    label: "共同所有",
-    cost: 15,
-    summary: "成果とガバナンスを多元的に持つ",
-    project: "共同検証ハブの多元ガバナンス移行",
-    effects: { continuity: 9, coordinationCapital: 6, concentration: -6 },
-  },
+  { id: "translation", label: "翻訳", cost: 20, summary: "制度・用語・意図を共通言語へ変換する", project: "日米中研究機関の危機用語クロスウォーク", effects: { coordinationCapital: 7, legitimacy: 3, dependency: -2 } },
+  { id: "verification", label: "検証", cost: 25, summary: "事実を共同で十分に確かめる", project: "日米中研究機関の共同検証プロトコル", effects: { verification: 10, coordinationCapital: 4, surveillance: 2 } },
+  { id: "reversibility", label: "可逆化", cost: 20, summary: "いつでも戻せる対応手順を設計する", project: "段階的対応と共同停止条件の標準化", effects: { autonomy: 6, legitimacy: 4, concentration: -3 } },
+  { id: "redundancy", label: "複線化", cost: 20, summary: "供給・通信・判断経路の単一依存を減らす", project: "宇宙・海洋・エネルギー情報経路の複線化", effects: { interoperability: 6, autonomy: 7, dependency: -8 } },
+  { id: "coownership", label: "共同所有", cost: 15, summary: "成果とガバナンスを多元的に持つ", project: "共同検証ハブの多元ガバナンス移行", effects: { continuity: 9, coordinationCapital: 6, concentration: -6 } },
 ];
+
+const RELATIONSHIP_ACTION_EFFECTS = {
+  translation: { deltas: { maturity: 6, trust: 5, interoperability: 2, disclosureCost: 1 }, tradeoffs: ["開示コスト +1"] },
+  verification: { deltas: { maturity: 5, trust: 4, verificationAgreement: 12, dependency: -1, disclosureCost: 2 }, tradeoffs: ["開示コスト +2", "監視化リスク +2"] },
+  reversibility: { deltas: { maturity: 3, interoperability: 4, dependency: -4, alternateRoutes: 1 }, tradeoffs: ["合意形成の速度を優先しない"] },
+  redundancy: { deltas: { maturity: 4, interoperability: 7, dependency: -8, alternateRoutes: 1, disclosureCost: 1 }, tradeoffs: ["開示コスト +1", "維持経路が増える"] },
+  coownership: { deltas: { maturity: 4, trust: 3, coOwnership: 10, dependency: -5 }, tradeoffs: ["日本の単独編集権を縮小"] },
+};
+
+function createRelationshipState() {
+  return Object.fromEntries(RELATIONSHIPS.map((definition) => [definition.id, {
+    id: definition.id,
+    source: definition.source,
+    target: definition.target,
+    label: definition.label,
+    investable: definition.investable,
+    contested: definition.contested,
+    purpose: definition.purpose,
+    channel: definition.channel,
+    ownership: definition.ownership,
+    state: { ...definition.initialState },
+    lastChangedYear: null,
+    lastAction: null,
+  }]));
+}
 
 export function createInitialState() {
   return {
+    schemaVersion: 2,
+    seed: "baseline-0",
     year: START_YEAR,
     budget: 100,
     selectedAction: "verification",
     selectedActor: "B1",
-    metrics: {
-      coordinationCapital: 42,
-      verification: 38,
-      interoperability: 35,
-      autonomy: 48,
-      legitimacy: 55,
-      continuity: 28,
-      concentration: 22,
-      surveillance: 18,
-      dependency: 48,
-    },
+    selectedRelationshipId: REPRESENTATIVE_RELATIONSHIP_ID,
+    relationships: createRelationshipState(),
+    metrics: { coordinationCapital: 42, verification: 38, interoperability: 35, autonomy: 48, legitimacy: 55, continuity: 28, concentration: 22, surveillance: 18, dependency: 48 },
     history: [],
+    ledger: [],
     stressTests: {},
+  };
+}
+
+export function migrateSimulationState(candidate) {
+  if (candidate?.schemaVersion === 2) return candidate;
+  const initial = createInitialState();
+  return {
+    ...initial,
+    ...(candidate ?? {}),
+    schemaVersion: 2,
+    seed: candidate?.seed ?? initial.seed,
+    metrics: { ...initial.metrics, ...(candidate?.metrics ?? {}) },
+    relationships: createRelationshipState(),
+    selectedRelationshipId: REPRESENTATIVE_RELATIONSHIP_ID,
+    history: [...(candidate?.history ?? [])],
+    ledger: [],
+    stressTests: { ...(candidate?.stressTests ?? {}) },
   };
 }
 
@@ -111,71 +158,142 @@ export function selectActor(state, actorId) {
   return { ...state, selectedActor: actorId };
 }
 
-export function advanceYear(state) {
-  if (state.year >= END_YEAR) return state;
-  const action = ACTIONS.find((item) => item.id === state.selectedAction) ?? ACTIONS[0];
+export function selectRelationship(state, relationshipId) {
+  if (!state.relationships[relationshipId]) return state;
+  return { ...state, selectedRelationshipId: relationshipId };
+}
+
+export function getSelectedRelationship(state) {
+  return state.relationships[state.selectedRelationshipId] ?? state.relationships[REPRESENTATIVE_RELATIONSHIP_ID];
+}
+
+function effectiveDelta(delta, fatigue) {
+  return delta > 1 ? delta - fatigue : delta;
+}
+
+export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId) {
+  const relationship = state.relationships[relationshipId];
+  const action = ACTIONS.find((item) => item.id === actionId);
+  if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
+  if (!relationship.investable) {
+    return {
+      eligible: false,
+      relationshipId,
+      actionId,
+      cost: action.cost,
+      project: action.project,
+      reason: "P1では B1 ↔ C6 だけを投資可能な代表接続として検証します",
+      before: { ...relationship.state },
+      after: { ...relationship.state },
+      deltas: {},
+      metricDeltas: {},
+      tradeoffs: [],
+    };
+  }
+
   const yearsElapsed = state.year - START_YEAR;
   const fatigue = yearsElapsed >= 12 ? 1 : 0;
-  const metrics = { ...state.metrics };
-  for (const [key, delta] of Object.entries(action.effects)) {
-    metrics[key] = clamp(metrics[key] + delta - (delta > 0 ? fatigue : 0));
+  const configured = RELATIONSHIP_ACTION_EFFECTS[action.id];
+  const deltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
+  const metricDeltas = Object.fromEntries(Object.entries(action.effects).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
+  const after = { ...relationship.state };
+  for (const [key, delta] of Object.entries(deltas)) {
+    after[key] = key === "alternateRoutes" ? clamp(after[key] + delta, 0, 5) : clamp(after[key] + delta);
   }
+  return {
+    eligible: state.year < END_YEAR && state.budget >= action.cost,
+    relationshipId,
+    relationshipLabel: relationship.label,
+    actionId: action.id,
+    actionLabel: action.label,
+    cost: action.cost,
+    project: action.project,
+    reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : state.budget < action.cost ? "年間ポイントが不足しています" : "実行可能",
+    before: { ...relationship.state },
+    after,
+    deltas,
+    metricDeltas,
+    tradeoffs: [...configured.tradeoffs],
+  };
+}
+
+export function advanceYear(state) {
+  const preview = previewRelationshipInvestment(state);
+  if (!preview.eligible) return state;
+
+  const metrics = { ...state.metrics };
+  for (const [key, delta] of Object.entries(preview.metricDeltas)) metrics[key] = clamp(metrics[key] + delta);
   metrics.legitimacy = clamp(metrics.legitimacy - (metrics.concentration > 55 ? 2 : 0));
   metrics.continuity = clamp(metrics.continuity + Math.floor(metrics.coordinationCapital / 35));
 
   const nextYear = state.year + 1;
+  const relationship = state.relationships[preview.relationshipId];
+  const nextRelationship = { ...relationship, state: { ...preview.after }, lastChangedYear: nextYear, lastAction: preview.actionId };
+  const ledgerId = `${nextYear}:${preview.relationshipId}:${preview.actionId}:${state.ledger.length + 1}`;
+  const ledgerEntry = {
+    id: ledgerId,
+    year: nextYear,
+    relationshipId: preview.relationshipId,
+    relationshipLabel: preview.relationshipLabel,
+    action: preview.actionId,
+    actionLabel: preview.actionLabel,
+    project: preview.project,
+    cost: preview.cost,
+    before: preview.before,
+    after: preview.after,
+    deltas: preview.deltas,
+    metricDeltas: preview.metricDeltas,
+    tradeoffs: preview.tradeoffs,
+    reason: `${preview.actionLabel}の年間投資を${preview.relationshipLabel}へ適用`,
+    ruleVersion: RULE_VERSION,
+    seed: state.seed,
+  };
   return {
     ...state,
     year: nextYear,
     budget: 100,
     metrics,
-    history: [...state.history, { year: nextYear, action: action.id, project: action.project }],
+    relationships: { ...state.relationships, [preview.relationshipId]: nextRelationship },
+    history: [...state.history, { year: nextYear, action: preview.actionId, project: preview.project, relationshipId: preview.relationshipId, ledgerId }],
+    ledger: [...state.ledger, ledgerEntry],
+  };
+}
+
+export function getRelationshipContribution(state, relationshipId) {
+  const relationship = state.relationships[relationshipId];
+  const definition = RELATIONSHIPS.find((item) => item.id === relationshipId);
+  if (!relationship || !definition) return null;
+  const current = relationship.state;
+  const initial = definition.initialState;
+  const delta = (key) => current[key] - initial[key];
+  return {
+    relationshipId,
+    relationshipLabel: relationship.label,
+    attributionSafety: clamp(Math.round(delta("verificationAgreement") * 0.28 + delta("trust") * 0.14 - delta("disclosureCost") * 0.08), -20, 25),
+    coordinationSurvival: clamp(Math.round(delta("maturity") * 0.12 + delta("interoperability") * 0.18 + delta("coOwnership") * 0.2 + delta("alternateRoutes") * 1.5 - delta("dependency") * 0.12), -20, 25),
+    civilianProtection: clamp(Math.round(delta("interoperability") * 0.15 + delta("trust") * 0.1 + delta("alternateRoutes") * 1.2 - delta("dependency") * 0.12 - delta("disclosureCost") * 0.05), -20, 25),
   };
 }
 
 export function runStressTest(state) {
   const { metrics } = state;
-  const attributionSafety = clamp(Math.round(
-    metrics.verification * 0.45 + metrics.coordinationCapital * 0.25 +
-    metrics.autonomy * 0.2 - metrics.surveillance * 0.1,
-  ));
-  const coordinationSurvival = clamp(Math.round(
-    metrics.interoperability * 0.3 + metrics.continuity * 0.35 +
-    metrics.legitimacy * 0.25 - metrics.concentration * 0.1,
-  ));
-  const civilianProtection = clamp(Math.round(
-    metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 +
-    metrics.verification * 0.2 - metrics.dependency * 0.15,
-  ));
-  const result = {
-    year: state.year,
-    durationDays: CRISIS_DAYS,
-    turnHours: CRISIS_TURN_HOURS,
-    turns: CRISIS_TURNS,
-    attributionSafety,
-    coordinationSurvival,
-    civilianProtection,
-    verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地",
-  };
-  return {
-    ...state,
-    stressTests: { ...state.stressTests, [state.year]: result },
-  };
+  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => getRelationshipContribution(state, relationship.id));
+  const contribution = relationshipContributions.reduce((total, item) => ({
+    attributionSafety: total.attributionSafety + item.attributionSafety,
+    coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,
+    civilianProtection: total.civilianProtection + item.civilianProtection,
+  }), { attributionSafety: 0, coordinationSurvival: 0, civilianProtection: 0 });
+  const attributionSafety = clamp(Math.round(metrics.verification * 0.45 + metrics.coordinationCapital * 0.25 + metrics.autonomy * 0.2 - metrics.surveillance * 0.1 + contribution.attributionSafety));
+  const coordinationSurvival = clamp(Math.round(metrics.interoperability * 0.3 + metrics.continuity * 0.35 + metrics.legitimacy * 0.25 - metrics.concentration * 0.1 + contribution.coordinationSurvival));
+  const civilianProtection = clamp(Math.round(metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 + metrics.verification * 0.2 - metrics.dependency * 0.15 + contribution.civilianProtection));
+  const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
+  return { ...state, stressTests: { ...state.stressTests, [state.year]: result } };
 }
 
 export function getFinalAssessment(state) {
   const { metrics } = state;
-  const score = clamp(Math.round(
-    metrics.continuity * 0.35 + metrics.coordinationCapital * 0.2 +
-    metrics.verification * 0.15 + metrics.interoperability * 0.15 +
-    metrics.autonomy * 0.15 - metrics.concentration * 0.08 -
-    metrics.surveillance * 0.05 - metrics.dependency * 0.07,
-  ));
-  return {
-    score,
-    passed: state.year === END_YEAR && score >= 70 && metrics.continuity >= 70,
-    label: score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存",
-  };
+  const score = clamp(Math.round(metrics.continuity * 0.35 + metrics.coordinationCapital * 0.2 + metrics.verification * 0.15 + metrics.interoperability * 0.15 + metrics.autonomy * 0.15 - metrics.concentration * 0.08 - metrics.surveillance * 0.05 - metrics.dependency * 0.07));
+  return { score, passed: state.year === END_YEAR && score >= 70 && metrics.continuity >= 70, label: score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存" };
 }
 
 export function createDemoState(year = 2035) {
