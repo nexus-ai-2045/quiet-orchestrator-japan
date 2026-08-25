@@ -121,6 +121,15 @@ test("numeric tradeoffs reflect fatigue and clamping instead of configured value
   assert.equal(preview.tradeoffs.includes("監視化リスク +2"), false);
 });
 
+test("qualitative tradeoffs are omitted when their source delta is clamped to zero", () => {
+  const state = selectAction(createInitialState(), "redundancy");
+  state.relationships["B1-C6"].state.alternateRoutes = 5;
+  const preview = previewRelationshipInvestment(state);
+
+  assert.equal(preview.deltas.alternateRoutes, 0);
+  assert.equal(preview.tradeoffs.includes("維持経路が増える"), false);
+});
+
 test("verification investment deterministically increases verification capacity", () => {
   const initial = selectAction(createInitialState(), "verification");
   const next = advanceYear(initial);

@@ -167,18 +167,28 @@ const NUMERIC_TRADEOFF_SOURCES = {
   "監視化リスク": ["metric", "surveillance"],
 };
 
+const QUALITATIVE_TRADEOFF_SOURCES = {
+  "維持経路が増える": ["relationship", "alternateRoutes"],
+};
+
 function formatSignedDelta(delta) {
   return `${delta > 0 ? "+" : ""}${delta}`;
 }
 
 function materializeTradeoffs(configuredTradeoffs, relationshipDeltas, metricDeltas) {
-  return configuredTradeoffs.map((tradeoff) => {
+  return configuredTradeoffs.flatMap((tradeoff) => {
+    const qualitativeSource = QUALITATIVE_TRADEOFF_SOURCES[tradeoff];
+    if (qualitativeSource) {
+      const [scope, key] = qualitativeSource;
+      const appliedDelta = scope === "relationship" ? relationshipDeltas[key] : metricDeltas[key];
+      return appliedDelta > 0 ? [tradeoff] : [];
+    }
     const match = tradeoff.match(/^(.+?) [+-]\d+$/);
     const source = match ? NUMERIC_TRADEOFF_SOURCES[match[1]] : null;
-    if (!source) return tradeoff;
+    if (!source) return [tradeoff];
     const [scope, key] = source;
     const appliedDelta = scope === "relationship" ? relationshipDeltas[key] : metricDeltas[key];
-    return `${match[1]} ${formatSignedDelta(appliedDelta ?? 0)}`;
+    return [`${match[1]} ${formatSignedDelta(appliedDelta ?? 0)}`];
   });
 }
 

@@ -47,7 +47,7 @@
 | 項目 | 状態 | 備考 |
 |---|---|---|
 | README情報設計 | pass-local / pending-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を確認。main反映はPR merge後 |
-| Webアプリ | pass-local | 決定論テスト14件、build 192 modules、Sites互換テスト4件を確認 |
+| Webアプリ | pass-local | 決定論テスト15件、build 192 modules、Sites互換テスト4件を確認 |
 | ブラウザ操作 | pass-local | 2030未記録checkpointの進行停止・stress記録後の再開、2038 fatigue後の実tradeoff`+1`を確認。既存の逆引き、標準幅・880px、axe violations 0件を維持。実行時error・warning 0件 |
 | デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |
