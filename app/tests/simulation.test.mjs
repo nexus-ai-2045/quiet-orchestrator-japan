@@ -100,10 +100,25 @@ test("preview and ledger record the applied delta after clamping", () => {
   assert.equal(preview.after.maturity, 100);
   assert.equal(preview.deltas.maturity, 2);
   assert.equal(preview.metricDeltas.verification, 3);
+  assert.equal(preview.metricDeltas.continuity, 1);
 
   const next = advanceYear(state);
   assert.equal(next.ledger[0].deltas.maturity, 2);
   assert.equal(next.ledger[0].metricDeltas.verification, 3);
+  assert.equal(next.ledger[0].metricDeltas.continuity, 1);
+  assert.equal(next.metrics.continuity - state.metrics.continuity, 1);
+});
+
+test("numeric tradeoffs reflect fatigue and clamping instead of configured values", () => {
+  const state = selectAction(createDemoState(2038), "verification");
+  const preview = previewRelationshipInvestment(state);
+
+  assert.equal(preview.deltas.disclosureCost, 1);
+  assert.equal(preview.metricDeltas.surveillance, 1);
+  assert.ok(preview.tradeoffs.includes("開示コスト +1"));
+  assert.ok(preview.tradeoffs.includes("監視化リスク +1"));
+  assert.equal(preview.tradeoffs.includes("開示コスト +2"), false);
+  assert.equal(preview.tradeoffs.includes("監視化リスク +2"), false);
 });
 
 test("verification investment deterministically increases verification capacity", () => {
@@ -129,9 +144,26 @@ test("a display-only relationship cannot silently receive the representative inv
 
 test("the strategic simulation cannot advance beyond 2045", () => {
   let state = createInitialState();
-  for (let turn = 0; turn < 30; turn += 1) state = advanceYear(state);
+  for (let turn = 0; turn < 30; turn += 1) {
+    if ([2030, 2035, 2040].includes(state.year)) state = runStressTest(state);
+    state = advanceYear(state);
+  }
   assert.equal(state.year, END_YEAR);
   assert.equal(state.history.length, END_YEAR - 2026);
+});
+
+test("a checkpoint cannot be skipped before its stress result is recorded", () => {
+  let state = createInitialState();
+  while (state.year < 2030) state = advanceYear(state);
+
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /終末の1ヶ月テスト/);
+  assert.strictEqual(advanceYear(state), state);
+
+  const tested = runStressTest(state);
+  const advanced = advanceYear(tested);
+  assert.equal(advanced.year, 2031);
 });
 
 test("the same state always produces the same one-month stress result", () => {

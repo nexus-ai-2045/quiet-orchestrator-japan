@@ -162,6 +162,34 @@ function effectiveDelta(delta, fatigue) {
   return delta > 1 ? delta - fatigue : delta;
 }
 
+const NUMERIC_TRADEOFF_SOURCES = {
+  "開示コスト": ["relationship", "disclosureCost"],
+  "監視化リスク": ["metric", "surveillance"],
+};
+
+function formatSignedDelta(delta) {
+  return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
+function materializeTradeoffs(configuredTradeoffs, relationshipDeltas, metricDeltas) {
+  return configuredTradeoffs.map((tradeoff) => {
+    const match = tradeoff.match(/^(.+?) [+-]\d+$/);
+    const source = match ? NUMERIC_TRADEOFF_SOURCES[match[1]] : null;
+    if (!source) return tradeoff;
+    const [scope, key] = source;
+    const appliedDelta = scope === "relationship" ? relationshipDeltas[key] : metricDeltas[key];
+    return `${match[1]} ${formatSignedDelta(appliedDelta ?? 0)}`;
+  });
+}
+
+function calculateMetricsAfter(state, requestedMetricDeltas) {
+  const metrics = { ...state.metrics };
+  for (const [key, delta] of Object.entries(requestedMetricDeltas)) metrics[key] = clamp(metrics[key] + delta);
+  metrics.legitimacy = clamp(metrics.legitimacy - (metrics.concentration > 55 ? 2 : 0));
+  metrics.continuity = clamp(metrics.continuity + Math.floor(metrics.coordinationCapital / 35));
+  return metrics;
+}
+
 export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
@@ -192,35 +220,34 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
     after[key] = key === "alternateRoutes" ? clamp(after[key] + delta, 0, 5) : clamp(after[key] + delta);
   }
   const deltas = Object.fromEntries(Object.keys(requestedDeltas).map((key) => [key, after[key] - relationship.state[key]]));
-  const metricDeltas = Object.fromEntries(Object.entries(requestedMetricDeltas).map(([key, delta]) => [
-    key,
-    clamp(state.metrics[key] + delta) - state.metrics[key],
-  ]));
+  const metricsAfter = calculateMetricsAfter(state, requestedMetricDeltas);
+  const metricKeys = new Set(Object.keys(requestedMetricDeltas));
+  for (const key of Object.keys(state.metrics)) {
+    if (metricsAfter[key] !== state.metrics[key]) metricKeys.add(key);
+  }
+  const metricDeltas = Object.fromEntries([...metricKeys].map((key) => [key, metricsAfter[key] - state.metrics[key]]));
+  const checkpointPending = state.year < END_YEAR && CHECKPOINTS.includes(state.year) && !state.stressTests[state.year];
   return {
-    eligible: state.year < END_YEAR && state.budget >= action.cost,
+    eligible: state.year < END_YEAR && state.budget >= action.cost && !checkpointPending,
     relationshipId,
     relationshipLabel: relationship.label,
     actionId: action.id,
     actionLabel: action.label,
     cost: action.cost,
     project: action.project,
-    reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : state.budget < action.cost ? "年間ポイントが不足しています" : "実行可能",
+    reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : checkpointPending ? `${state.year}年の終末の1ヶ月テストを先に記録してください` : state.budget < action.cost ? "年間ポイントが不足しています" : "実行可能",
     before: { ...relationship.state },
     after,
     deltas,
     metricDeltas,
-    tradeoffs: [...configured.tradeoffs],
+    metricsAfter,
+    tradeoffs: materializeTradeoffs(configured.tradeoffs, deltas, metricDeltas),
   };
 }
 
 export function advanceYear(state) {
   const preview = previewRelationshipInvestment(state);
   if (!preview.eligible) return state;
-
-  const metrics = { ...state.metrics };
-  for (const [key, delta] of Object.entries(preview.metricDeltas)) metrics[key] = clamp(metrics[key] + delta);
-  metrics.legitimacy = clamp(metrics.legitimacy - (metrics.concentration > 55 ? 2 : 0));
-  metrics.continuity = clamp(metrics.continuity + Math.floor(metrics.coordinationCapital / 35));
 
   const nextYear = state.year + 1;
   const relationship = state.relationships[preview.relationshipId];
@@ -248,7 +275,7 @@ export function advanceYear(state) {
     ...state,
     year: nextYear,
     budget: 100,
-    metrics,
+    metrics: preview.metricsAfter,
     relationships: { ...state.relationships, [preview.relationshipId]: nextRelationship },
     history: [...state.history, { year: nextYear, action: preview.actionId, project: preview.project, relationshipId: preview.relationshipId, ledgerId }],
     ledger: [...state.ledger, ledgerEntry],
