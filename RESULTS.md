@@ -1,6 +1,6 @@
 # 実行結果｜公開基準点 P0 + P1 PR候補
 
-確認日: 2026-08-24
+確認日: 2026-08-25
 
 ## 実行環境
 
@@ -15,13 +15,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境での実測�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 12件pass |
+| `npm test` | 14件pass |
 | `npm run build` | Vite production build pass、192 modules |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-ブラウザでは、標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#4と当時の接続状態への逆引き、現在台帳への復帰を確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。
+ブラウザでは、標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#4と当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。
 
 ## PR reviewへの対応
 
@@ -31,6 +31,12 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 - `relationshipContributions`を持たないlegacy stress resultはschema v2移行時に破棄し、描画クラッシュを防ぐ。
 - stress contributionへcheckpoint年とledger entry IDを保存し、当時の接続状態まで逆引きする。
 - 投資前に集約指標deltaとtradeoffを表示し、監視化等の副作用を隠さない。
+
+`f85baeb`への同一HEAD reviewで追加されたP2 3件は、content HEAD `5f4fd70`で次の契約へ修正した。
+
+- 年次の自動変化を含む最終metricsから実deltaを算出し、preview・台帳・stateを同じ遷移結果へ束縛する。
+- 数値tradeoffをfatigueとclamp後の実deltaから生成し、表示と適用値の不一致を防ぐ。
+- 2030・2035・2040のstress resultが未記録なら年次進行をengineで拒否し、記録後だけ再開する。
 
 この修正HEADはまだpublic branchへpushしていない。remote CIと同一HEAD reviewはpush後に再取得する。
 
