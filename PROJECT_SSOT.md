@@ -11,7 +11,8 @@
 | 主題 | owner file | 正本として持つもの |
 |---|---|---|
 | 作品の入口と中心仮説 | `README.md` | 目的、二重時間軸、5機能、単一危機、比較条件、制約 |
-| 実験仕様 | `simulation-contract.md` | 状態、seed、主体、回線、行動、評価、反証、完了条件 |
+| 事前実験設計 | `EXPERIMENT_DESIGN.md` | 仮説、比較条件、評価軸、反証・縮小条件 |
+| 実行契約 | `simulation-contract.md` | 状態、seed、主体、回線、行動、再現条件、実装完了条件 |
 | 観測根拠 | `evidence.md` | 観測事実、公式評価、設計推論の分離と更新規律 |
 | URLと概念原典 | `official-sources.md` | 公式URL、役割参照、利用規律 |
 | 実装計画 | `ROADMAP.md` | 実装フェーズ、依存関係、マイルストーン |

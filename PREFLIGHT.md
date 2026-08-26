@@ -26,7 +26,7 @@
 | UTF-8 / LF / Markdown相対リンク | pass | Markdown 24件、相対リンク切れ0、conflict marker 0、`git diff --check` pass |
 | GitHub設定ファイル | pass-local | YAML 6件、JSON 1件をparse。workflowのAction参照は公式repositoryのcommit SHAへ固定 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件 |
-| GitHub repository read-back | pass | `nexus-ai-2045/quiet-orchestrator-japan`、visibility `PRIVATE`、default branch `main` |
+| GitHub repository read-back | historical | 当時はvisibility `PRIVATE`。現在値は `PUBLIC_READY.md` のlive確認記録を参照し、外部操作前には再測定する |
 | 公式URL | pass-source-check | 既存HTTP検査に加え、米統合軍の名称復帰と中国海警法の掲載面を公式ソースで再確認・修正 |
 | ブラウザ操作・デザインQA | pass-local | 年次更新、終末の1ヶ月試験、比較、resetを内蔵ブラウザで再確認。実行時error・warning 0件 |
 

@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prepare-sites-build.mjs",
+    "build": "node node_modules/vite/bin/vite.js build && node scripts/prepare-sites-build.mjs",
     "preview": "vite preview",
     "test": "node --test tests/simulation.test.mjs",
-    "test:sites": "node --test tests/sites-worker.test.mjs"
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "simulate": "node scripts/run-baseline.mjs",
+    "verify:docs": "node scripts/verify-doc-boundaries.mjs",
+    "verify": "npm run verify:docs && npm test && npm run build && npm run test:sites && npm run simulate"
   },
   "dependencies": {
     "@vitejs/plugin-react": "5.0.4",
