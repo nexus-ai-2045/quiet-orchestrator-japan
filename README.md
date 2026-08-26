@@ -175,6 +175,8 @@ docs/
 
 ## 文書
 
+- [PROJECT SSOT](PROJECT_SSOT.md): canonical境界、文書ごとのowner、ローカル成果物の移管来歴
+
 - [シミュレーション契約](simulation-contract.md)
 - [ロードマップ](ROADMAP.md)
 - [実行結果](RESULTS.md)
