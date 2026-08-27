@@ -28,7 +28,7 @@ console.log(JSON.stringify({
     stressTest: demo.stressTests[2035],
   },
   limitations: [
-    "relationships-are-not-stateful",
+    "only-one-relationship-is-investable-and-calibrated",
     "actors-do-not-yet-change-behavior",
     "crisis-does-not-yet-execute-120-events",
     "comparison-strategies-are-not-yet-run-by-one-engine",
