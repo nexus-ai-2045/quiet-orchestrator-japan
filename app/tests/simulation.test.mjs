@@ -198,6 +198,25 @@ test("a stress contribution keeps the checkpoint ledger context", () => {
   assert.equal(state.ledger.find((entry) => entry.id === focus.ledgerEntryId).year <= 2035, true);
 });
 
+test("a migrated checkpoint creates a deterministic relationship snapshot when no ledger exists", () => {
+  const migrated = migrateSimulationState({
+    year: 2030,
+    metrics: { verification: 61 },
+    history: [],
+    stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
+  });
+  const tested = runStressTest(migrated);
+  const contribution = tested.stressTests[2030].relationshipContributions[0];
+  const focus = getStressContributionFocus(tested, 2030, contribution.relationshipId);
+
+  assert.equal(tested.ledger.length, 1);
+  assert.equal(tested.ledger[0].action, "checkpoint-snapshot");
+  assert.deepEqual(tested.ledger[0].before, tested.relationships[contribution.relationshipId].state);
+  assert.deepEqual(tested.ledger[0].after, tested.relationships[contribution.relationshipId].state);
+  assert.equal(contribution.ledgerEntryId, tested.ledger[0].id);
+  assert.equal(focus.ledgerEntryId, tested.ledger[0].id);
+});
+
 test("relationship investment is traceable to a larger crisis contribution", () => {
   const initial = createInitialState();
   const invested = advanceYear(selectAction(initial, "verification"));

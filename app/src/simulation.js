@@ -315,10 +315,33 @@ export function getRelationshipContribution(state, relationshipId) {
 
 export function runStressTest(state) {
   const { metrics } = state;
+  let ledger = state.ledger;
   const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id);
-    const ledgerEntry = [...state.ledger].reverse().find((entry) => entry.relationshipId === relationship.id && entry.year <= state.year);
-    return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry?.id ?? null };
+    let ledgerEntry = [...ledger].reverse().find((entry) => entry.relationshipId === relationship.id && entry.year <= state.year);
+    if (!ledgerEntry) {
+      const snapshot = { ...relationship.state };
+      ledgerEntry = {
+        id: `${state.year}:${relationship.id}:checkpoint-snapshot`,
+        year: state.year,
+        relationshipId: relationship.id,
+        relationshipLabel: relationship.label,
+        action: "checkpoint-snapshot",
+        actionLabel: "移行後チェックポイント",
+        project: "既存状態の因果スナップショット",
+        cost: 0,
+        before: snapshot,
+        after: snapshot,
+        deltas: {},
+        metricDeltas: {},
+        tradeoffs: [],
+        reason: "移行済み状態に過去の台帳がないため、危機寄与の逆引き用スナップショットを保存",
+        ruleVersion: RULE_VERSION,
+        seed: state.seed,
+      };
+      ledger = [...ledger, ledgerEntry];
+    }
+    return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id };
   });
   const contribution = relationshipContributions.reduce((total, item) => ({
     attributionSafety: total.attributionSafety + item.attributionSafety,
@@ -329,7 +352,7 @@ export function runStressTest(state) {
   const coordinationSurvival = clamp(Math.round(metrics.interoperability * 0.3 + metrics.continuity * 0.35 + metrics.legitimacy * 0.25 - metrics.concentration * 0.1 + contribution.coordinationSurvival));
   const civilianProtection = clamp(Math.round(metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 + metrics.verification * 0.2 - metrics.dependency * 0.15 + contribution.civilianProtection));
   const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
-  return { ...state, stressTests: { ...state.stressTests, [state.year]: result } };
+  return { ...state, ledger, stressTests: { ...state.stressTests, [state.year]: result } };
 }
 
 export function getStressContributionFocus(state, checkpointYear, relationshipId) {
