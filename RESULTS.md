@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `a13ec1b752c79eaf3ce355b0758421432ea5859d`
+機械検証対象content HEAD: `f3d3581807dfc85f1d6ba7da2f7073ad6b975e2d`
 
 ## 実行環境
 
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 26件pass |
+| `npm test` | 27件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |

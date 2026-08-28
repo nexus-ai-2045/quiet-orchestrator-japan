@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m1-role-equivalence`
-- content HEAD: `a13ec1b752c79eaf3ce355b0758421432ea5859d`（役割同等性回帰と現況SSOT drift detector）
+- content HEAD: `f3d3581807dfc85f1d6ba7da2f7073ad6b975e2d`（役割同等性回帰、未校正ID衝突拒否、現況SSOT drift detector）
 - base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
-| 決定論テスト | pass | `npm test`: 26件pass。改善方向の実現率、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
+| 決定論テスト | pass | `npm test`: 27件pass。改善方向の実現率、未校正ID衝突拒否、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
