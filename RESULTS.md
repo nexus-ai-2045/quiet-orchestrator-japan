@@ -15,13 +15,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 22件pass |
+| `npm test` | 23件pass |
 | `npm run build` | Vite production build pass、192 modules |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-ブラウザでは、標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#4と当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。
+ブラウザでは、標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。
 
 ## PR reviewへの対応
 

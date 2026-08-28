@@ -73,6 +73,17 @@ export const AGGREGATE_ACTION_EFFECTS = deepFreeze({
   coownership: { continuity: 9, coordinationCapital: 6, concentration: -6 },
 });
 
+export const CRISIS_METRIC_WEIGHTS = deepFreeze({
+  attributionSafety: { verification: 0.45, coordinationCapital: 0.25, autonomy: 0.2, surveillance: -0.1 },
+  coordinationSurvival: { interoperability: 0.3, continuity: 0.35, legitimacy: 0.25, concentration: -0.1 },
+  civilianProtection: { legitimacy: 0.35, autonomy: 0.3, verification: 0.2, dependency: -0.15 },
+});
+
+export const FINAL_ASSESSMENT_WEIGHTS = deepFreeze({
+  continuity: 0.35, coordinationCapital: 0.2, verification: 0.15, interoperability: 0.15,
+  autonomy: 0.15, concentration: -0.08, surveillance: -0.05, dependency: -0.07,
+});
+
 export const RELATIONSHIP_CONTRIBUTION_WEIGHTS = deepFreeze({
   attributionSafety: {
     verificationAgreement: 0.28,

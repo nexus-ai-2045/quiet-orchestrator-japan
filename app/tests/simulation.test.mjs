@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   AGGREGATE_ACTION_EFFECTS,
+  CRISIS_METRIC_WEIGHTS,
   CALIBRATION_VERSION,
+  FINAL_ASSESSMENT_WEIGHTS,
   RELATIONSHIP_ACTION_EFFECTS,
   RELATIONSHIP_BENEFIT_DIRECTIONS,
   RELATIONSHIP_CONTRIBUTION_LIMITS,
@@ -99,6 +101,15 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
     reversibility: { autonomy: 6, legitimacy: 4, concentration: -3 },
     redundancy: { interoperability: 6, autonomy: 7, dependency: -8 },
     coownership: { continuity: 9, coordinationCapital: 6, concentration: -6 },
+  });
+  assert.deepEqual(CRISIS_METRIC_WEIGHTS, {
+    attributionSafety: { verification: 0.45, coordinationCapital: 0.25, autonomy: 0.2, surveillance: -0.1 },
+    coordinationSurvival: { interoperability: 0.3, continuity: 0.35, legitimacy: 0.25, concentration: -0.1 },
+    civilianProtection: { legitimacy: 0.35, autonomy: 0.3, verification: 0.2, dependency: -0.15 },
+  });
+  assert.deepEqual(FINAL_ASSESSMENT_WEIGHTS, {
+    continuity: 0.35, coordinationCapital: 0.2, verification: 0.15, interoperability: 0.15,
+    autonomy: 0.15, concentration: -0.08, surveillance: -0.05, dependency: -0.07,
   });
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.dependency, -1);
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.disclosureCost, -1);
@@ -391,4 +402,13 @@ test("2045 assessment cannot pass before the final checkpoint succeeds", () => {
   state.metrics.continuity = 100;
   assert.equal(getFinalAssessment(state).passed, false);
   assert.equal(getFinalAssessment(state).label, "最終検証待ち");
+});
+
+test("a failed final checkpoint cannot show the success label", () => {
+  const state = createDemoState(2045);
+  state.stressTests[2045] = { ...state.stressTests[2045], verdict: "改善余地" };
+  state.metrics.continuity = 100;
+  const assessment = getFinalAssessment(state);
+  assert.equal(assessment.passed, false);
+  assert.equal(assessment.label, "最終検証未達");
 });

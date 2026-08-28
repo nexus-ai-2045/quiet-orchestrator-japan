@@ -1,7 +1,9 @@
 import {
   AGGREGATE_ACTION_EFFECTS,
+  CRISIS_METRIC_WEIGHTS,
   CALIBRATION_VERSION,
   DEFAULT_RELATIONSHIP_STATE,
+  FINAL_ASSESSMENT_WEIGHTS,
   RELATIONSHIP_ACTION_EFFECTS,
   RELATIONSHIP_BENEFIT_DIRECTIONS,
   RELATIONSHIP_CONTRIBUTION_LIMITS,
@@ -373,9 +375,10 @@ export function runStressTest(state) {
     coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,
     civilianProtection: total.civilianProtection + item.civilianProtection,
   }), { attributionSafety: 0, coordinationSurvival: 0, civilianProtection: 0 });
-  const attributionSafety = clamp(Math.round(metrics.verification * 0.45 + metrics.coordinationCapital * 0.25 + metrics.autonomy * 0.2 - metrics.surveillance * 0.1 + contribution.attributionSafety));
-  const coordinationSurvival = clamp(Math.round(metrics.interoperability * 0.3 + metrics.continuity * 0.35 + metrics.legitimacy * 0.25 - metrics.concentration * 0.1 + contribution.coordinationSurvival));
-  const civilianProtection = clamp(Math.round(metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 + metrics.verification * 0.2 - metrics.dependency * 0.15 + contribution.civilianProtection));
+  const weightedMetrics = (weights) => Object.entries(weights).reduce((total, [key, weight]) => total + metrics[key] * weight, 0);
+  const attributionSafety = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.attributionSafety) + contribution.attributionSafety));
+  const coordinationSurvival = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.coordinationSurvival) + contribution.coordinationSurvival));
+  const civilianProtection = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.civilianProtection) + contribution.civilianProtection));
   const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
   return { ...state, ledger, stressTests: { ...state.stressTests, [state.year]: result } };
 }
@@ -405,12 +408,14 @@ export function getStressContributionFocus(state, checkpointYear, relationshipId
 
 export function getFinalAssessment(state) {
   const { metrics } = state;
-  const score = clamp(Math.round(metrics.continuity * 0.35 + metrics.coordinationCapital * 0.2 + metrics.verification * 0.15 + metrics.interoperability * 0.15 + metrics.autonomy * 0.15 - metrics.concentration * 0.08 - metrics.surveillance * 0.05 - metrics.dependency * 0.07));
+  const score = clamp(Math.round(Object.entries(FINAL_ASSESSMENT_WEIGHTS).reduce((total, [key, weight]) => total + metrics[key] * weight, 0)));
   const finalStressPassed = state.stressTests[END_YEAR]?.verdict === "協調継続";
   const passed = state.year === END_YEAR && finalStressPassed && score >= 70 && metrics.continuity >= 70;
   const label = state.year === END_YEAR && !state.stressTests[END_YEAR]
     ? "最終検証待ち"
-    : score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
+    : state.year === END_YEAR && !finalStressPassed
+      ? "最終検証未達"
+      : score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
   return { score, passed, label };
 }
 
