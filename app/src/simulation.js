@@ -9,6 +9,7 @@ import {
   RELATIONSHIP_CONTRIBUTION_LIMITS,
   RELATIONSHIP_CONTRIBUTION_WEIGHTS,
   REPRESENTATIVE_INITIAL_STATE,
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
 } from "./calibration-v0.js";
 
 export const START_YEAR = 2026;
@@ -20,9 +21,14 @@ export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
 export const RULE_VERSION = CALIBRATION_VERSION;
 
-function relationshipCalibrationFingerprint(definition) {
-  return `${CALIBRATION_VERSION}:${JSON.stringify(definition.initialState)}`;
+function relationshipCalibrationFingerprint(definition, version = CALIBRATION_VERSION) {
+  return `${version}:${JSON.stringify(definition.initialState)}`;
 }
+
+const SCHEMA_V2_CALIBRATION_FINGERPRINT = relationshipCalibrationFingerprint(
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION.version,
+);
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -138,13 +144,17 @@ export function migrateSimulationState(candidate) {
   if (candidate?.schemaVersion === 2) {
     const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
       const definition = RELATIONSHIPS.find((item) => item.id === key);
+      const activeCalibrationFingerprint = definition?.investable
+        ? relationshipCalibrationFingerprint(definition)
+        : null;
       const calibrationFingerprint = definition
         && key === relationship?.id
         && relationship.source === definition.source
         && relationship.target === definition.target
         && relationship.investable === definition.investable
         && definition.investable
-        ? relationshipCalibrationFingerprint(definition)
+        && activeCalibrationFingerprint === SCHEMA_V2_CALIBRATION_FINGERPRINT
+        ? SCHEMA_V2_CALIBRATION_FINGERPRINT
         : relationship?.calibrationFingerprint ?? null;
       return [key, { ...relationship, calibrationFingerprint }];
     }));

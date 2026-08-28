@@ -162,7 +162,10 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
 
   const migrated = migrateSimulationState(legacy);
   assert.equal(migrated.schemaVersion, 3);
-  assert.match(migrated.relationships["B1-C6"].calibrationFingerprint, /^relationship-v1\.0\.0:/);
+  assert.equal(
+    migrated.relationships["B1-C6"].calibrationFingerprint,
+    'relationship-v1.0.0:{"maturity":46,"trust":42,"verificationAgreement":38,"interoperability":36,"coOwnership":28,"dependency":48,"alternateRoutes":1,"disclosureCost":12}',
+  );
   assert.equal(previewRelationshipInvestment(migrated).eligible, true);
   assert.notEqual(advanceYear(migrated), migrated);
   assert.ok(runStressTest(migrated).stressTests[migrated.year]);

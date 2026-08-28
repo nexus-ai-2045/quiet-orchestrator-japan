@@ -28,6 +28,8 @@
 
 係数を変える場合は、感度分析または利用者テストの証拠を添え、ADR-0008の追記または置換ADRを作成し、`CALIBRATION_VERSION`を更新する。結果だけを都合よく動かす変更は採用しない。
 
+state schema v2の移行用校正snapshotは`SCHEMA_V2_REPRESENTATIVE_CALIBRATION`として不変に保持する。将来の係数変更時にこのsnapshotを書き換えず、active calibrationと一致しない旧saveは新baselineへ自動昇格させない。
+
 ### Evidence
 
 - unit testで同一seed・状態・施策から同一結果になることを確認する。
