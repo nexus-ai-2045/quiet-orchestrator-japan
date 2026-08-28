@@ -6,11 +6,12 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap] = await Promise.all([
+const [design, contract, results, roadmap, packageJson] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
   read("ROADMAP.md"),
+  read("app/package.json"),
 ]);
 
 const requirements = [
@@ -36,6 +37,21 @@ if (contract.includes("| A ブロック分断")) {
 
 if (!results.includes("EXPERIMENT_DESIGN.md") || !results.includes("結論に使えない")) {
   throw new Error("RESULTS.md must link the frozen design and state its limits");
+}
+
+const testTargets = JSON.parse(packageJson).scripts.test.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
+const testSources = await Promise.all(testTargets.map((target) => read(`app/${target}`)));
+const registeredTestCount = testSources.reduce(
+  (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
+  0,
+);
+const documentedTestCount = Number(
+  results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN,
+);
+if (documentedTestCount !== registeredTestCount) {
+  throw new Error(
+    `RESULTS.md npm test count drift: documented=${documentedTestCount}, registered=${registeredTestCount}`,
+  );
 }
 
 if (/公開前review中|visibility変更/.test(roadmap)) {
