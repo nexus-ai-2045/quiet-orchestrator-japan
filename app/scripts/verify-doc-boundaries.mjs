@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,23 +48,38 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-for (const [name, content] of [["PREFLIGHT", preflight], ["PUBLIC_READY", publicReady]]) {
-  if (!content.includes("history-only-pr4") || !content.includes("現在branchのsame-HEAD evidenceではなく")) {
-    throw new Error(`${name} must classify inherited browser evidence as historical`);
-  }
+const historicalEvidenceRows = [
+  ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY design QA", publicReady, /^\| デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+];
+for (const [name, content, pattern] of historicalEvidenceRows) {
+  if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
 }
 
 const scripts = JSON.parse(packageJson).scripts;
-async function getRegisteredTestCount(scriptName) {
+function getTestResult(scriptName) {
   const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
-  const sources = await Promise.all(targets.map((target) => read(`app/${target}`)));
-  return sources.reduce(
-    (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
-    0,
-  );
+  if (targets.length === 0) throw new Error(`no test targets found for ${scriptName}`);
+  const result = spawnSync(process.execPath, ["--test", "--test-reporter=tap", ...targets], {
+    cwd: resolve(repoRoot, "app"),
+    encoding: "utf8",
+  });
+  if (result.status !== 0) throw new Error(`${scriptName} failed while measuring evidence:\n${result.stdout}\n${result.stderr}`);
+  const readSummary = (label) => Number(result.stdout.match(new RegExp(`^# ${label} (\\d+)$`, "m"))?.[1] ?? Number.NaN);
+  const summary = {
+    pass: readSummary("pass"),
+    skipped: readSummary("skipped"),
+    todo: readSummary("todo"),
+    cancelled: readSummary("cancelled"),
+  };
+  if (!Number.isFinite(summary.pass) || summary.skipped !== 0 || summary.todo !== 0 || summary.cancelled !== 0) {
+    throw new Error(`${scriptName} evidence is not all-pass: ${JSON.stringify(summary)}`);
+  }
+  return summary.pass;
 }
 
-const registeredTestCount = await getRegisteredTestCount("test");
+const registeredTestCount = getTestResult("test");
 const recordedTestCounts = {
   RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
@@ -76,7 +92,7 @@ if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCo
   );
 }
 
-const registeredSitesTestCount = await getRegisteredTestCount("test:sites");
+const registeredSitesTestCount = getTestResult("test:sites");
 const recordedSitesTestCounts = {
   RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),

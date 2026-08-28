@@ -473,6 +473,19 @@ test("a persisted relationship cannot use a different calibration baseline", () 
   assert.equal(advanceYear(state, changedDefinitions), state);
 });
 
+test("a calibrated relationship cannot be duplicated under another map key", () => {
+  const state = createInitialState();
+  state.relationships.duplicate = structuredClone(state.relationships["B1-C6"]);
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(state), state);
+});
+
 test("role-equivalent stress still responds to a genuinely different relationship state", () => {
   const baseline = createInitialState();
   const changed = structuredClone(baseline);
