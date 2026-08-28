@@ -4,6 +4,7 @@ import {
   CALIBRATION_VERSION,
   RELATIONSHIP_ACTION_EFFECTS,
   RELATIONSHIP_BENEFIT_DIRECTIONS,
+  RELATIONSHIP_CONTRIBUTION_LIMITS,
   RELATIONSHIP_CONTRIBUTION_WEIGHTS,
   REPRESENTATIVE_INITIAL_STATE,
 } from "../src/calibration-v0.js";
@@ -69,7 +70,28 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
       tradeoffs: ["日本の単独編集権を縮小"],
     },
   });
-  assert.equal(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival.coOwnership, 0.2);
+  assert.deepEqual(RELATIONSHIP_CONTRIBUTION_WEIGHTS, {
+    attributionSafety: {
+      verificationAgreement: 0.28,
+      trust: 0.14,
+      disclosureCost: -0.08,
+    },
+    coordinationSurvival: {
+      maturity: 0.12,
+      interoperability: 0.18,
+      coOwnership: 0.2,
+      alternateRoutes: 1.5,
+      dependency: -0.12,
+    },
+    civilianProtection: {
+      interoperability: 0.15,
+      trust: 0.1,
+      alternateRoutes: 1.2,
+      dependency: -0.12,
+      disclosureCost: -0.05,
+    },
+  });
+  assert.deepEqual(RELATIONSHIP_CONTRIBUTION_LIMITS, { min: -20, max: 25 });
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.dependency, -1);
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.disclosureCost, -1);
   for (const action of Object.values(RELATIONSHIP_ACTION_EFFECTS)) {
