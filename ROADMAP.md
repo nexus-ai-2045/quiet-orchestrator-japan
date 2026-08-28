@@ -6,7 +6,7 @@
 
 設計の正本は[プロダクト設計](docs/product-architecture.md)、実験上の不変条件は[シミュレーション契約](simulation-contract.md)に置く。
 
-## 現在地｜P0 公開基準点 + P1 ローカル候補
+## 現在地｜P0・P1 `main`統合済み + M1公平性強化
 
 状態: **P0・P1因果縦切りは`main`へ統合済み / M1公平性回帰を強化中**
 

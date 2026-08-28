@@ -1,6 +1,8 @@
 # 実行結果｜P0 baseline + P1因果縦切り 実測スナップショット
 
-確認日: 2026-08-28
+確認日: 2026-08-29
+
+機械検証対象content HEAD: `a13ec1b752c79eaf3ce355b0758421432ea5859d`
 
 ## 実行環境
 
@@ -13,6 +15,8 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 ## 機械検証
 
+次の結果は上記content HEADをcommit後にcheckoutした状態で再実行した。同じcommitへ証拠文書を自己参照させず、この文書更新は後続evidence commitとして記録する。
+
 | コマンド | 結果 |
 |---|---|
 | `npm test` | 26件pass |
@@ -21,7 +25,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-ブラウザでは、標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。
+ブラウザ確認は2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。現在branchはUI差分を含まないが、この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
 ## PR reviewへの対応
 

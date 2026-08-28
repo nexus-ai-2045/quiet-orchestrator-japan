@@ -77,6 +77,7 @@ const staleLifecyclePhrases = [
   "どのPRへ統合HEADを反映するか",
   "public push前のローカル候補",
   "P1 ローカル統合候補",
+  "P1 ローカル候補",
   "P1はPR #4でreview中",
   "main反映はPR merge後",
   "SSOT統合HEADは未push",
