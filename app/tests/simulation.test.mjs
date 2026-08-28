@@ -411,4 +411,21 @@ test("a failed final checkpoint cannot show the success label", () => {
   const assessment = getFinalAssessment(state);
   assert.equal(assessment.passed, false);
   assert.equal(assessment.label, "最終検証未達");
+
+  state.stressTests[2045].verdict = "協調継続";
+  state.japanRemovalStressTest = { verdict: "協調継続" };
+  Object.assign(state.metrics, {
+    continuity: 69,
+    coordinationCapital: 100,
+    verification: 100,
+    interoperability: 100,
+    autonomy: 100,
+    concentration: 0,
+    surveillance: 0,
+    dependency: 0,
+  });
+  const lowContinuity = getFinalAssessment(state);
+  assert.ok(lowContinuity.score >= 70);
+  assert.equal(lowContinuity.passed, false);
+  assert.equal(lowContinuity.label, "移行途上");
 });

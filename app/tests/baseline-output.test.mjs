@@ -18,4 +18,33 @@ test("baseline output identifies the frozen design and implementation inputs", (
   assert.equal(typeof baseline.provenance.workingTreeDirty, "boolean");
   assert.equal(baseline.provenance.seed, "baseline-0");
   assert.equal(baseline.provenance.ruleVersion, "relationship-v1.0.0");
+  assert.deepEqual(baseline.oneYearDeltas, {
+    translation: { coordinationCapital: 7, legitimacy: 3, continuity: 1, dependency: -2 },
+    verification: { coordinationCapital: 4, verification: 10, continuity: 1, surveillance: 2 },
+    reversibility: { autonomy: 6, legitimacy: 4, continuity: 1, concentration: -3 },
+    redundancy: { interoperability: 6, autonomy: 7, continuity: 1, dependency: -8 },
+    coownership: { coordinationCapital: 6, continuity: 10, concentration: -6 },
+  });
+  assert.deepEqual(baseline.demo2035.metrics, {
+    coordinationCapital: 76,
+    verification: 58,
+    interoperability: 47,
+    autonomy: 68,
+    legitimacy: 65,
+    continuity: 58,
+    concentration: 7,
+    surveillance: 22,
+    dependency: 28,
+  });
+  assert.deepEqual({
+    attributionSafety: baseline.demo2035.stressTest.attributionSafety,
+    coordinationSurvival: baseline.demo2035.stressTest.coordinationSurvival,
+    civilianProtection: baseline.demo2035.stressTest.civilianProtection,
+    verdict: baseline.demo2035.stressTest.verdict,
+  }, {
+    attributionSafety: 66,
+    coordinationSurvival: 71,
+    civilianProtection: 64,
+    verdict: "改善余地",
+  });
 });

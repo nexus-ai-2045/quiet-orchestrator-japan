@@ -418,7 +418,7 @@ export function getFinalAssessment(state) {
       ? "最終検証未達"
       : state.year === END_YEAR && !japanRemovalPassed
         ? "撤退検証待ち"
-      : score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
+      : passed ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
   return { score, passed, label };
 }
 
