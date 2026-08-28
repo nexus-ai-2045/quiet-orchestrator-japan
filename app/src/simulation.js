@@ -21,8 +21,36 @@ export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
 export const RULE_VERSION = CALIBRATION_VERSION;
 
+function canonicalizeJsonValue(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalizeJsonValue(item)).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalizeJsonValue(value[key])}`).join(",")}}`;
+}
+
 function relationshipCalibrationFingerprint(definition, version = CALIBRATION_VERSION) {
-  return `${version}:${JSON.stringify(definition.initialState)}`;
+  return `${version}:${canonicalizeJsonValue(definition.initialState)}`;
+}
+
+function parseCalibrationFingerprint(fingerprint) {
+  if (typeof fingerprint !== "string") return null;
+  const separator = fingerprint.indexOf(":");
+  if (separator <= 0) return null;
+  try {
+    return {
+      version: fingerprint.slice(0, separator),
+      initialState: JSON.parse(fingerprint.slice(separator + 1)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function calibrationFingerprintsMatch(left, right) {
+  const parsedLeft = parseCalibrationFingerprint(left);
+  const parsedRight = parseCalibrationFingerprint(right);
+  if (!parsedLeft || !parsedRight) return left === right;
+  return parsedLeft.version === parsedRight.version
+    && canonicalizeJsonValue(parsedLeft.initialState) === canonicalizeJsonValue(parsedRight.initialState);
 }
 
 const SCHEMA_V2_CALIBRATION_FINGERPRINT = relationshipCalibrationFingerprint(
@@ -147,15 +175,25 @@ export function migrateSimulationState(candidate) {
       const activeCalibrationFingerprint = definition?.investable
         ? relationshipCalibrationFingerprint(definition)
         : null;
-      const calibrationFingerprint = definition
+      const existingFingerprint = relationship?.calibrationFingerprint ?? null;
+      const canBackfillKnownV2 = Boolean(
+        definition
         && key === relationship?.id
         && relationship.source === definition.source
         && relationship.target === definition.target
         && relationship.investable === definition.investable
         && definition.investable
         && activeCalibrationFingerprint === SCHEMA_V2_CALIBRATION_FINGERPRINT
-        ? SCHEMA_V2_CALIBRATION_FINGERPRINT
-        : relationship?.calibrationFingerprint ?? null;
+      );
+      let calibrationFingerprint = existingFingerprint;
+      if (canBackfillKnownV2) {
+        if (existingFingerprint == null || existingFingerprint === "") {
+          // Absent provenance only: never overwrite an explicit conflicting baseline.
+          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
+        } else if (calibrationFingerprintsMatch(existingFingerprint, SCHEMA_V2_CALIBRATION_FINGERPRINT)) {
+          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
+        }
+      }
       return [key, { ...relationship, calibrationFingerprint }];
     }));
     return {
@@ -261,7 +299,10 @@ function matchesCalibratedRelationship(relationship, definition) {
     && relationship.id === definition.id
     && relationship.source === definition.source
     && relationship.target === definition.target
-    && relationship.calibrationFingerprint === relationshipCalibrationFingerprint(definition)
+    && calibrationFingerprintsMatch(
+      relationship.calibrationFingerprint,
+      relationshipCalibrationFingerprint(definition),
+    )
   );
 }
 
@@ -272,12 +313,22 @@ function hasUniqueCalibratedRelationship(state, definition) {
   return matches.length === 1 && matches[0][0] === definition.id;
 }
 
+function hasUnresolvedInvestableRelationships(state, relationshipDefinitions = RELATIONSHIPS) {
+  const investableDefinitions = relationshipDefinitions.filter((definition) => definition.investable);
+  const investableEntries = Object.entries(state.relationships).filter(([, relationship]) => relationship.investable);
+  return investableDefinitions.some((definition) => (
+    !hasUniqueCalibratedRelationship(state, definition)
+  )) || investableEntries.some(([key, relationship]) => (
+    key !== relationship.id
+    || !investableDefinitions.some((definition) => matchesCalibratedRelationship(relationship, definition))
+  ));
+}
+
 export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
-  const relationshipDefinition = relationshipDefinitions.find((definition) => definition.id === relationshipId);
-  if (relationship.investable && !hasUniqueCalibratedRelationship(state, relationshipDefinition)) {
+  if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
   }
   if (!relationship.investable) {
@@ -407,15 +458,7 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
-  const investableDefinitions = relationshipDefinitions.filter((definition) => definition.investable);
-  const investableEntries = Object.entries(state.relationships).filter(([, relationship]) => relationship.investable);
-  const unresolvedInvestable = investableDefinitions.some((definition) => (
-    !hasUniqueCalibratedRelationship(state, definition)
-  )) || investableEntries.some(([key, relationship]) => (
-    key !== relationship.id
-    || !investableDefinitions.some((definition) => matchesCalibratedRelationship(relationship, definition))
-  ));
-  if (unresolvedInvestable) return state;
+  if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) return state;
   let ledger = state.ledger;
   const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).flatMap((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);

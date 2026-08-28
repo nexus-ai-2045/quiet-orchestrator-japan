@@ -164,11 +164,73 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   assert.equal(migrated.schemaVersion, 3);
   assert.equal(
     migrated.relationships["B1-C6"].calibrationFingerprint,
-    'relationship-v1.0.0:{"maturity":46,"trust":42,"verificationAgreement":38,"interoperability":36,"coOwnership":28,"dependency":48,"alternateRoutes":1,"disclosureCost":12}',
+    'relationship-v1.0.0:{"alternateRoutes":1,"coOwnership":28,"dependency":48,"disclosureCost":12,"interoperability":36,"maturity":46,"trust":42,"verificationAgreement":38}',
   );
   assert.equal(previewRelationshipInvestment(migrated).eligible, true);
   assert.notEqual(advanceYear(migrated), migrated);
   assert.ok(runStressTest(migrated).stressTests[migrated.year]);
+});
+
+test("calibration fingerprints ignore initialState key insertion order", () => {
+  const state = createInitialState();
+  const original = state.relationships["B1-C6"].state;
+  const reorderedInitialState = {
+    disclosureCost: 12,
+    alternateRoutes: 1,
+    dependency: 48,
+    coOwnership: 28,
+    interoperability: 36,
+    verificationAgreement: 38,
+    trust: 42,
+    maturity: 46,
+  };
+  const reorderedDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: reorderedInitialState }
+      : definition
+  ));
+
+  assert.notEqual(JSON.stringify(reorderedInitialState), JSON.stringify(original));
+  assert.equal(previewRelationshipInvestment(state, state.selectedAction, state.selectedRelationshipId, reorderedDefinitions).eligible, true);
+  assert.notEqual(advanceYear(state, reorderedDefinitions), state);
+  assert.ok(runStressTest(state, reorderedDefinitions).stressTests[state.year]);
+});
+
+test("an extra unresolved investable blocks preview and advance", () => {
+  const state = createInitialState();
+  state.relationships["unknown-extra"] = {
+    ...structuredClone(state.relationships["B1-C6"]),
+    id: "unknown-extra",
+    label: "Unknown extra investable",
+    source: "actor-x",
+    target: "actor-y",
+    calibrationFingerprint: "relationship-v0.9.0:{\"maturity\":0}",
+  };
+
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.strictEqual(advanceYear(state), state);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("schema-v2 migration preserves a conflicting calibration fingerprint", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 2;
+  for (const relationship of Object.values(legacy.relationships)) {
+    if (!relationship.investable) {
+      delete relationship.calibrationFingerprint;
+      continue;
+    }
+    relationship.calibrationFingerprint = 'relationship-v0.9.0:{"maturity":0}';
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.relationships["B1-C6"].calibrationFingerprint, 'relationship-v0.9.0:{"maturity":0}');
+  assert.equal(previewRelationshipInvestment(migrated).eligible, false);
+  assert.strictEqual(advanceYear(migrated), migrated);
+  assert.strictEqual(runStressTest(migrated), migrated);
 });
 
 test("the selected yearly investment previews an exact relationship delta", () => {
