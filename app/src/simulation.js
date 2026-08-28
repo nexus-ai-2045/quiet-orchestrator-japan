@@ -410,11 +410,14 @@ export function getFinalAssessment(state) {
   const { metrics } = state;
   const score = clamp(Math.round(Object.entries(FINAL_ASSESSMENT_WEIGHTS).reduce((total, [key, weight]) => total + metrics[key] * weight, 0)));
   const finalStressPassed = state.stressTests[END_YEAR]?.verdict === "協調継続";
-  const passed = state.year === END_YEAR && finalStressPassed && score >= 70 && metrics.continuity >= 70;
+  const japanRemovalPassed = state.japanRemovalStressTest?.verdict === "協調継続";
+  const passed = state.year === END_YEAR && finalStressPassed && japanRemovalPassed && score >= 70 && metrics.continuity >= 70;
   const label = state.year === END_YEAR && !state.stressTests[END_YEAR]
     ? "最終検証待ち"
     : state.year === END_YEAR && !finalStressPassed
       ? "最終検証未達"
+      : state.year === END_YEAR && !japanRemovalPassed
+        ? "撤退検証待ち"
       : score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
   return { score, passed, label };
 }

@@ -387,13 +387,13 @@ test("relationship investment is traceable to a larger crisis contribution", () 
   assert.equal(cumulativeEntry.deltas.verificationAgreement, 12);
 });
 
-test("2045 assessment rewards continuity rather than Japanese centrality", () => {
+test("2045 assessment remains pending until Japan-removal is actually tested", () => {
   const state = createDemoState(2045);
   const assessment = getFinalAssessment(state);
   assert.ok(state.metrics.continuity >= 70);
   assert.ok(assessment.score >= 70 && assessment.score <= 100);
-  assert.equal(assessment.passed, true);
-  assert.equal(assessment.label, "自律継続圏");
+  assert.equal(assessment.passed, false);
+  assert.equal(assessment.label, "撤退検証待ち");
 });
 
 test("2045 assessment cannot pass before the final checkpoint succeeds", () => {
