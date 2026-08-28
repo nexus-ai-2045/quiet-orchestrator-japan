@@ -16,7 +16,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 | コマンド | 結果 |
 |---|---|
 | `npm test` | 26件pass |
-| `npm run build` | Vite production build pass、173 modules |
+| `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |

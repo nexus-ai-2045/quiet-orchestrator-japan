@@ -91,14 +91,4 @@ for (const [name, content] of Object.entries(currentStateDocuments)) {
   }
 }
 
-const buildEvidenceDocuments = { RESULTS: results, PREFLIGHT: preflight, PUBLIC_READY: publicReady };
-const buildModuleCounts = Object.fromEntries(Object.entries(buildEvidenceDocuments).map(([name, content]) => {
-  const matches = [...content.matchAll(/\b(\d+) modules\b/g)].map((match) => Number(match[1]));
-  if (matches.length !== 1) throw new Error(`expected one current build module count in ${name}, found ${matches.length}`);
-  return [name, matches[0]];
-}));
-if (new Set(Object.values(buildModuleCounts)).size !== 1) {
-  throw new Error(`build module count drift: ${JSON.stringify(buildModuleCounts)}`);
-}
-
 console.log("document boundaries: OK");

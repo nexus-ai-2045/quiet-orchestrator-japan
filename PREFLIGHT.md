@@ -5,14 +5,14 @@
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
-- branch: `codex/consolidate-quiet-orchestrator-ssot`
-- content: `main@d702f81`を基点に、役割同等性回帰と現況SSOT drift detectorを統合。exact HEADはcommit後に固定する
+- branch: `codex/m1-role-equivalence`
+- content HEAD: `a13ec1b752c79eaf3ce355b0758421432ea5859d`（役割同等性回帰と現況SSOT drift detector）
 - base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
-- inspected date: `2026-08-27`（live再測定）
+- inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
 
-この記録自体はcontent HEADの後続commitとして追加する。content HEADと記録commitを同一とみなさず、外部操作の直前に最終HEADでpreflightを再実行する。
+この記録は上記content HEADの後続evidence commitとして追加する。content HEADと記録commitを同一とみなさず、外部操作の直前に最終HEADでpreflightを再実行する。
 
 ## 機械検査
 
@@ -21,7 +21,7 @@
 | repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
 | 決定論テスト | pass | `npm test`: 26件pass。改善方向の実現率、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
-| production build | pass-current-branch | Vite 8.2.2、173 modules、Sites package生成 |
+| production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | pass-local | 2030未記録checkpointで進行停止、stress記録後の再開、2038 fatigue後の開示コスト・監視化リスク`+1`表示を実操作。console error/warning 0件。既存の標準幅・880px確認とaxe violations 0件も維持 |
