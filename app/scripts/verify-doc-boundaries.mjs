@@ -6,11 +6,13 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap, packageJson] = await Promise.all([
+const [design, contract, results, roadmap, preflight, publicReady, packageJson] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
   read("ROADMAP.md"),
+  read("PREFLIGHT.md"),
+  read("PUBLIC_READY.md"),
   read("app/package.json"),
 ]);
 
@@ -45,15 +47,15 @@ const registeredTestCount = testSources.reduce(
   (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
   0,
 );
-const resultsTestCount = Number(
-  results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN,
-);
-const roadmapTestCount = Number(
-  roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN,
-);
-if (resultsTestCount !== registeredTestCount || roadmapTestCount !== registeredTestCount) {
+const recordedTestCounts = {
+  RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+  ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
+  PREFLIGHT: Number(preflight.match(/`npm test`: (\d+)件pass/)?.[1] ?? Number.NaN),
+  PUBLIC_READY: Number(publicReady.match(/決定論テスト(\d+)件/)?.[1] ?? Number.NaN),
+};
+if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCount)) {
   throw new Error(
-    `npm test count drift: RESULTS=${resultsTestCount}, ROADMAP=${roadmapTestCount}, registered=${registeredTestCount}`,
+    `npm test count drift: ${JSON.stringify(recordedTestCounts)}, registered=${registeredTestCount}`,
   );
 }
 

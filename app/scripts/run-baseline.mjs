@@ -13,6 +13,7 @@ import {
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const git = (...args) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" }).trim();
 const implementationRevision = process.env.GITHUB_SHA || git("rev-parse", "HEAD");
+const designRevision = git("rev-parse", "HEAD:EXPERIMENT_DESIGN.md");
 const workingTreeDirty = git("status", "--porcelain", "--untracked-files=no") !== "";
 
 const oneYearDeltas = Object.fromEntries(ACTIONS.map((action) => {
@@ -31,7 +32,7 @@ console.log(JSON.stringify({
   runType: "P0-baseline",
   deterministic: true,
   provenance: {
-    designRevision: implementationRevision,
+    designRevision,
     implementationRevision,
     workingTreeDirty,
     seed: demo.seed,
