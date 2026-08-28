@@ -1,11 +1,19 @@
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   ACTIONS,
+  RULE_VERSION,
   createDemoState,
   createInitialState,
   advanceYear,
   runStressTest,
   selectAction,
 } from "../src/simulation.js";
+
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const git = (...args) => execFileSync("git", args, { cwd: repoRoot, encoding: "utf8" }).trim();
+const implementationRevision = process.env.GITHUB_SHA || git("rev-parse", "HEAD");
+const workingTreeDirty = git("status", "--porcelain", "--untracked-files=no") !== "";
 
 const oneYearDeltas = Object.fromEntries(ACTIONS.map((action) => {
   const initial = createInitialState();
@@ -22,6 +30,13 @@ console.log(JSON.stringify({
   schemaVersion: 1,
   runType: "P0-baseline",
   deterministic: true,
+  provenance: {
+    designRevision: implementationRevision,
+    implementationRevision,
+    workingTreeDirty,
+    seed: demo.seed,
+    ruleVersion: RULE_VERSION,
+  },
   oneYearDeltas,
   demo2035: {
     metrics: demo.metrics,
