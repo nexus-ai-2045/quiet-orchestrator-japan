@@ -419,6 +419,24 @@ test("an unknown investable id cannot silently inherit representative calibratio
   assert.equal(advanceYear(tested), tested);
 });
 
+test("an investable relationship cannot collide with a display-only definition id", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "J1-B1";
+  relationship.label = "Colliding investable";
+  state.relationships[relationship.id] = relationship;
+  state.selectedRelationshipId = relationship.id;
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(tested), tested);
+});
+
 test("role-equivalent stress still responds to a genuinely different relationship state", () => {
   const baseline = createInitialState();
   const changed = structuredClone(baseline);

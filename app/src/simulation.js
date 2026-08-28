@@ -221,7 +221,8 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
-  if (!relationshipDefinitions.some((definition) => definition.id === relationshipId)) {
+  const relationshipDefinition = relationshipDefinitions.find((definition) => definition.id === relationshipId);
+  if (relationship.investable && !relationshipDefinition?.investable) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
   }
   if (!relationship.investable) {
@@ -352,7 +353,7 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
   const unresolvedInvestable = Object.values(state.relationships).some((relationship) => (
-    relationship.investable && !relationshipDefinitions.some((definition) => definition.id === relationship.id)
+    relationship.investable && !relationshipDefinitions.some((definition) => definition.id === relationship.id && definition.investable)
   ));
   if (unresolvedInvestable) return state;
   let ledger = state.ledger;
