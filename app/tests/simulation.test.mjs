@@ -17,6 +17,7 @@ import {
   getFinalAssessment,
   getRelationshipContribution,
   getStressContributionFocus,
+  getStressTestDisplayYears,
   migrateSimulationState,
   previewRelationshipInvestment,
   RELATIONSHIPS,
@@ -186,6 +187,21 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(CRISIS_DAYS, 30);
   assert.equal(CRISIS_TURNS, 120);
   assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
+});
+
+test("the latest arbitrary-year stress result remains visible beside standard checkpoints", () => {
+  const initialTest = runStressTest(createInitialState());
+  assert.equal(initialTest.ledger[0].actionLabel, "危機テスト時点スナップショット");
+  assert.doesNotMatch(initialTest.ledger[0].reason, /移行/);
+
+  let state = advanceYear(createInitialState());
+  state = runStressTest(state);
+  assert.deepEqual(getStressTestDisplayYears(state), [2027, 2030, 2035, 2040, 2045]);
+
+  state = advanceYear(state);
+  state = runStressTest(state);
+  assert.deepEqual(getStressTestDisplayYears(state), [2028, 2030, 2035, 2040, 2045]);
+  assert.ok(state.stressTests[2027]);
 });
 
 test("a stress contribution keeps the checkpoint ledger context", () => {

@@ -327,15 +327,15 @@ export function runStressTest(state) {
         relationshipId: relationship.id,
         relationshipLabel: relationship.label,
         action: "checkpoint-snapshot",
-        actionLabel: "移行後チェックポイント",
-        project: "既存状態の因果スナップショット",
+        actionLabel: "危機テスト時点スナップショット",
+        project: "危機テスト時点の因果スナップショット",
         cost: 0,
         before: snapshot,
         after: snapshot,
         deltas: {},
         metricDeltas: {},
         tradeoffs: [],
-        reason: "移行済み状態に過去の台帳がないため、危機寄与の逆引き用スナップショットを保存",
+        reason: "過去の台帳がないため、危機寄与の逆引き用スナップショットを保存",
         ruleVersion: RULE_VERSION,
         seed: state.seed,
       };
@@ -353,6 +353,16 @@ export function runStressTest(state) {
   const civilianProtection = clamp(Math.round(metrics.legitimacy * 0.35 + metrics.autonomy * 0.3 + metrics.verification * 0.2 - metrics.dependency * 0.15 + contribution.civilianProtection));
   const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
   return { ...state, ledger, stressTests: { ...state.stressTests, [state.year]: result } };
+}
+
+export function getStressTestDisplayYears(state) {
+  const latestExploratoryYear = Object.keys(state.stressTests)
+    .map(Number)
+    .filter((year) => !CHECKPOINTS.includes(year))
+    .sort((left, right) => right - left)[0];
+  return latestExploratoryYear === undefined
+    ? CHECKPOINTS
+    : [latestExploratoryYear, ...CHECKPOINTS];
 }
 
 export function getStressContributionFocus(state, checkpointYear, relationshipId) {

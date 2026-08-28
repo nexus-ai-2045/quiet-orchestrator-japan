@@ -4,7 +4,8 @@ import "@xyflow/react/dist/style.css";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
-  getSelectedRelationship, getStressContributionFocus, previewRelationshipInvestment, runStressTest,
+  getSelectedRelationship, getStressContributionFocus, getStressTestDisplayYears,
+  previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
 
@@ -214,14 +215,16 @@ function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus })
 }
 
 function StressStrip({ state, onSelectContribution }) {
+  const displayYears = getStressTestDisplayYears(state);
   return (
-    <section className="stress-strip" aria-label="終末の1ヶ月ストレステスト">
+    <section className={`stress-strip ${displayYears.length > CHECKPOINTS.length ? "has-exploratory" : ""}`} aria-label="終末の1ヶ月ストレステスト">
       <div className="stress-heading"><strong>終末の1ヶ月</strong><span>{CRISIS_DAYS}日間、長期投資が持ちこたえるか確かめる</span></div>
-      {CHECKPOINTS.map((year) => {
+      {displayYears.map((year) => {
         const result = state.stressTests[year];
+        const exploratory = !CHECKPOINTS.includes(year);
         return (
           <article key={year} className={state.year === year ? "current" : ""}>
-            <div><strong>{year}</strong><span>{result ? result.verdict : "未実施"}</span></div>
+            <div><strong>{year}{exploratory ? " 任意" : ""}</strong><span>{result ? result.verdict : "未実施"}</span></div>
             {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, result.relationshipContributions[0])}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
           </article>
         );

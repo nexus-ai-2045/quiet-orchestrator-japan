@@ -177,6 +177,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .final-condition div span { color: var(--muted); font: 8px var(--mono); line-height: 1.4; }
 
 .stress-strip { min-height: 128px; margin-top: 8px; padding: 8px; display: grid; grid-template-columns: 120px repeat(4, minmax(160px, 1fr)) 220px; gap: 8px; }
+.stress-strip.has-exploratory { grid-template-columns: 120px repeat(5, minmax(150px, 1fr)) 220px; }
 .stress-heading { padding: 8px; border-right: 1px solid var(--line); }
 .stress-heading strong, .stress-heading span { display: block; }
 .stress-heading strong { font-size: 12px; }
@@ -243,7 +244,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .center-stack { grid-row: 1; grid-template-rows: 460px auto; }
   .action-rail { grid-template-columns: 70px 1fr; }
   .selected-action { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
-  .stress-strip { grid-template-columns: repeat(2, 1fr); }
+  .stress-strip, .stress-strip.has-exploratory { grid-template-columns: repeat(2, 1fr); }
   .stress-heading, .evidence-legend { grid-column: 1 / -1; border: 0; }
   .metric-rail { grid-template-columns: repeat(2, 1fr); }
   .metric-heading { grid-column: 1 / -1; }
