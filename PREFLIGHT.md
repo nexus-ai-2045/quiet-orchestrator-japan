@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m1-role-equivalence`
-- content HEAD: `57f2645dbec972d6b1e78159cdcc4df000f90cf3`（schema-v2校正backfill、校正fingerprint・一対一entry、役割同等性回帰、CI接続済みtest-count・browser evidence drift detector）
+- content HEAD: `17703b103ab92f6ea1946f0a82a210bcbdde5a9e`（不変schema-v2校正snapshot/backfill、校正fingerprint・一対一entry、役割同等性回帰、CI接続済みtest-count・browser evidence drift detector）
 - base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
