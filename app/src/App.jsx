@@ -4,7 +4,9 @@ import "@xyflow/react/dist/style.css";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
-  runStressTest, selectAction, selectActor,
+  getSelectedRelationship, getStressContributionFocus, getStressTestDisplayYears,
+  previewRelationshipInvestment, runStressTest,
+  selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
@@ -20,6 +22,19 @@ const RISK_META = [
   ["concentration", "権力集中", "編集権の集中リスク"],
   ["surveillance", "監視化", "過剰監視のリスク"],
   ["dependency", "単一依存", "依存・脆弱性のリスク"],
+];
+const METRIC_DELTA_LABELS = new Map([
+  ...METRIC_META.map(([key, label]) => [key, label]),
+  ...RISK_META.map(([key, label]) => [key, label]),
+  ["continuity", "日本不在時の継続性"],
+]);
+const RELATIONSHIP_FIELD_META = [
+  ["maturity", "成熟度"],
+  ["trust", "信頼"],
+  ["verificationAgreement", "検証合意"],
+  ["interoperability", "相互運用"],
+  ["coOwnership", "共同所有"],
+  ["dependency", "単一依存"],
 ];
 
 function actorClass(group) {
@@ -38,21 +53,23 @@ function buildNodes(selectedActor) {
   }));
 }
 
-function buildEdges(selectedActor, year) {
-  const maturity = Math.min(1, 0.38 + (year - START_YEAR) * 0.025);
-  return RELATIONSHIPS.map(([source, target], index) => {
-    const active = source === selectedActor || target === selectedActor;
-    const contested = [7, 11, 16].includes(index);
+function buildEdges(state) {
+  return RELATIONSHIPS.map(({ id, source, target }) => {
+    const relationship = state.relationships[id];
+    const actorActive = source === state.selectedActor || target === state.selectedActor;
+    const selected = id === state.selectedRelationshipId;
+    const maturity = relationship.state.maturity;
     return {
-      id: `${source}-${target}`,
+      id,
       source,
       target,
-      animated: active,
+      animated: selected,
+      className: selected ? "relationship-selected" : "",
       style: {
-        stroke: contested ? "#d98b43" : active ? "#66d4dc" : "#4b7f94",
-        strokeWidth: active ? 2.5 : 1 + maturity,
-        opacity: active ? 0.95 : 0.48,
-        strokeDasharray: contested ? "5 6" : undefined,
+        stroke: relationship.contested ? "#d98b43" : selected ? "#8ce7ec" : relationship.investable ? "#65c59b" : actorActive ? "#66d4dc" : "#4b7f94",
+        strokeWidth: selected ? 4 : 1 + maturity / 50,
+        opacity: selected ? 1 : actorActive ? 0.82 : relationship.investable ? 0.75 : 0.42,
+        strokeDasharray: relationship.contested ? "5 6" : relationship.investable ? undefined : "3 4",
       },
     };
   });
@@ -60,7 +77,7 @@ function buildEdges(selectedActor, year) {
 
 function StrategicTimeline({ year }) {
   return (
-    <div className="strategic-timeline" aria-label={`戦略時間軸、現在${year}年`}>
+    <div className="strategic-timeline" role="group" aria-label={`戦略時間軸、現在${year}年`}>
       <div className="timeline-label">戦略時間軸 <span>2026 → 2045</span></div>
       <div className="year-track">
         {YEARS.map((item) => (
@@ -73,19 +90,20 @@ function StrategicTimeline({ year }) {
   );
 }
 
-function Header({ state, onAdvance, onStress, onCompare, onReset, comparing }) {
+function Header({ state, preview, onAdvance, onStress, onCompare, onReset, comparing }) {
+  const atCheckpoint = CHECKPOINTS.includes(state.year);
   return (
     <>
       <header className="app-header">
         <div className="identity"><h1>静かなオーケストレーターとしての日本</h1><span>2026 → 2045 戦略シミュレーション</span></div>
-        <div className="thesis" aria-label="中心命題"><p>日本は終末の1ヶ月に何をするか、ではない。</p><strong>その1ヶ月に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
+        <div className="thesis" role="note" aria-label="中心命題"><p>日本は終末の1ヶ月に何をするか、ではない。</p><strong>その1ヶ月に世界が壊れないよう、20年前から何を接続しておけるか。</strong></div>
         <div className="boundary"><span>社会シミュレーション / 公式方針・外交提言ではありません</span><strong>架空シナリオ / 現実の攻撃主体を断定しません</strong></div>
       </header>
       <div className="command-bar">
         <StrategicTimeline year={state.year} />
         <div className="command-actions">
-          <button className="button primary" onClick={onAdvance} disabled={state.year >= END_YEAR}>{state.year >= END_YEAR ? "2045年に到達" : "次の1年へ"}<span aria-hidden="true">→</span></button>
-          <button className="button" onClick={onStress}>終末の1ヶ月テスト</button>
+          <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "代表接続を選択"}<span aria-hidden="true">→</span></button>
+          <button className="button" onClick={onStress} title={`${state.year}年の接続状態を固定して${atCheckpoint ? "標準チェックポイント" : "任意年"}として検証`}>{atCheckpoint ? "終末の1ヶ月テスト" : "任意年テスト"}</button>
           <button className={`button ${comparing ? "active" : ""}`} onClick={onCompare}>比較</button>
           <button className="button quiet" onClick={onReset}>リセット</button>
         </div>
@@ -117,19 +135,22 @@ function ActorRail({ state, onSelect }) {
   );
 }
 
-function NetworkStage({ state, onSelectActor }) {
+function NetworkStage({ state, onSelectActor, onSelectRelationship }) {
   const nodes = useMemo(() => buildNodes(state.selectedActor), [state.selectedActor]);
-  const edges = useMemo(() => buildEdges(state.selectedActor, state.year), [state.selectedActor, state.year]);
+  const edges = useMemo(() => buildEdges(state), [state]);
   return (
     <section className="network-stage" aria-label="長期接続ネットワーク">
-      <div className="stage-title"><strong>長期ポートフォリオ・レイヤー</strong><span>{state.year}年 / 接続成熟度 {Math.min(100, 36 + (state.year - START_YEAR) * 3)}</span></div>
+      <div className="stage-title">
+        <strong>長期ポートフォリオ・レイヤー</strong>
+        <label className="relationship-picker">接続を選択<select value={state.selectedRelationshipId} onChange={(event) => onSelectRelationship(event.target.value)}>{RELATIONSHIPS.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.label}{relationship.investable ? " / P1代表" : " / 表示のみ"}</option>)}</select></label>
+      </div>
       <div className="layer-labels" aria-hidden="true">
         <div><strong>検証基盤</strong><span>共通の事実を確かめる</span></div>
         <div><strong>相互運用</strong><span>仕組みをつなぎ、動かす</span></div>
         <div><strong>共同所有</strong><span>成果と責任を分ち合う</span></div>
       </div>
       <div className="flow-wrap">
-        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, node) => onSelectActor(node.id)} fitView fitViewOptions={{ padding: 0.13 }} minZoom={0.65} maxZoom={1.3} panOnDrag={false} zoomOnScroll={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}>
+        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, node) => onSelectActor(node.id)} onEdgeClick={(_, edge) => onSelectRelationship(edge.id)} fitView fitViewOptions={{ padding: 0.13 }} minZoom={0.65} maxZoom={1.3} panOnDrag={false} zoomOnScroll={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}>
           <Background color="#27475a" gap={34} size={1} />
         </ReactFlow>
       </div>
@@ -137,31 +158,43 @@ function NetworkStage({ state, onSelectActor }) {
   );
 }
 
-function Inspector({ state }) {
-  const actor = ACTORS.find((item) => item.id === state.selectedActor) ?? ACTORS.at(-1);
-  const maturity = Math.min(100, 28 + (state.year - START_YEAR) * 4);
+function Inspector({ state, focusedLedgerEntry }) {
+  const relationship = getSelectedRelationship(state);
+  const historicalEntry = focusedLedgerEntry?.relationshipId === relationship.id ? focusedLedgerEntry : null;
+  const relationshipState = historicalEntry?.after ?? relationship.state;
+  const source = ACTORS.find((item) => item.id === relationship.source);
+  const target = ACTORS.find((item) => item.id === relationship.target);
+  const preview = previewRelationshipInvestment(state);
   const final = getFinalAssessment(state);
   return (
-    <aside className="inspector" aria-label="選択中の接続詳細">
-      <div className="panel-heading"><strong>選択中</strong><span>{actor.id} / {actor.group}</span></div>
+    <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
+        <div className="panel-heading"><strong>{historicalEntry ? `${historicalEntry.year}年の接続` : "選択中の接続"}</strong><span>{relationship.label}</span></div>
       <div className="inspector-body">
-        <h2>{actor.name}</h2>
+        <div className={`scope-badge ${relationship.investable ? "active" : ""}`}>{relationship.investable ? "P1 代表接続 / 投資可能" : "P1 表示のみ / 未校正"}</div>
+        <h2>{source.name}<span> ↔ </span>{target.name}</h2>
         <dl>
-          <div><dt>関係の目的</dt><dd>公開可能な事実と検証手順を、政策判断より先に共有する。</dd></div>
-          <div><dt>所有形態</dt><dd>共同所有 / 多元ガバナンス</dd></div>
-          <div><dt>検証プロトコル</dt><dd>独立2ソース + 異論記録 + 期限付き再検証</dd></div>
-          <div><dt>可逆性</dt><dd>データ・手順・権限を分離して撤回可能</dd></div>
-          <div><dt>依存リスク</dt><dd>{state.metrics.dependency > 55 ? "高" : state.metrics.dependency > 35 ? "中" : "低"} / 代替経路を{Math.max(1, Math.round((100 - state.metrics.dependency) / 25))}本確保</dd></div>
+          <div><dt>関係の目的</dt><dd>{relationship.purpose}</dd></div>
+          <div><dt>接続チャネル</dt><dd>{relationship.channel}</dd></div>
+          <div><dt>所有形態</dt><dd>{relationship.ownership}</dd></div>
         </dl>
-        <div className="maturity"><div><span>現在の成熟度</span><strong>{maturity}%</strong></div><div className="maturity-bar"><i style={{ width: `${maturity}%` }} /></div><div className="maturity-steps"><span>初期</span><span>形成</span><span>運用</span><span>成熟</span></div></div>
+        <div className="relationship-grid">
+          {RELATIONSHIP_FIELD_META.map(([key, label]) => <div key={key} className={key === "dependency" ? "risk" : ""}><span>{label}</span><strong>{relationshipState[key]}</strong>{!historicalEntry && preview.eligible && preview.deltas[key] ? <small>{preview.deltas[key] > 0 ? "+" : ""}{preview.deltas[key]}</small> : null}</div>)}
+          <div><span>代替経路</span><strong>{relationshipState.alternateRoutes}</strong><small>本</small></div>
+          <div className="risk"><span>開示コスト</span><strong>{relationshipState.disclosureCost}</strong>{!historicalEntry && preview.eligible && preview.deltas.disclosureCost ? <small>+{preview.deltas.disclosureCost}</small> : null}</div>
+        </div>
+        {historicalEntry && <p className="scope-note">終末の1ヶ月テストから、因果台帳 {historicalEntry.id} 適用後の状態を表示しています。</p>}
+        {!preview.eligible && <p className="scope-note">{preview.reason}</p>}
         <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{state.metrics.continuity}</b><span>/100<br />日本不在時の継続性<br />{final.label}</span></div></div>
       </div>
     </aside>
   );
 }
 
-function ActionRail({ state, onChoose }) {
+function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus }) {
   const selected = ACTIONS.find((item) => item.id === state.selectedAction) ?? ACTIONS[0];
+  const preview = previewRelationshipInvestment(state);
+  const latest = focusedLedgerEntry ?? state.ledger.at(-1);
+  const ledgerIndex = latest ? state.ledger.findIndex((entry) => entry.id === latest.id) + 1 : 0;
   return (
     <section className="action-rail" aria-label="年間アクション">
       <div className="action-budget"><span>年間アクション</span><strong>100</strong><small>ポイント</small></div>
@@ -172,21 +205,27 @@ function ActionRail({ state, onChoose }) {
           </button>
         ))}
       </div>
-      <div className="selected-action"><span>選択中のアクション</span><strong>{selected.project}</strong><p>{selected.summary}。効果は次の年へ進むと反映されます。</p></div>
+      <div className="selected-action" tabIndex={0}>
+        <div className="preview-heading"><span>{preview.relationshipId} への投資プレビュー</span>{focusedLedgerEntry && <button className="ledger-current" onClick={onClearLedgerFocus}>現在の台帳へ戻る</button>}</div><strong>{selected.project}</strong>
+        {preview.eligible ? <><div className="delta-list">{Object.entries(preview.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">集約指標への副作用</span><div className="delta-list metric-deltas">{Object.entries(preview.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">構造上の注意</span><div className="tradeoff-list">{preview.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div></> : <p>{preview.reason}</p>}
+        {latest && <div className="ledger-latest"><span>{focusedLedgerEntry ? "チェックポイントで選択中" : "最新"}の因果台帳 #{ledgerIndex} / {latest.ruleVersion}</span><b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b><div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div></div>}
+      </div>
     </section>
   );
 }
 
-function StressStrip({ state }) {
+function StressStrip({ state, onSelectContribution }) {
+  const displayYears = getStressTestDisplayYears(state);
   return (
-    <section className="stress-strip" aria-label="終末の1ヶ月ストレステスト">
+    <section className={`stress-strip ${displayYears.length > CHECKPOINTS.length ? "has-exploratory" : ""}`} aria-label="終末の1ヶ月ストレステスト">
       <div className="stress-heading"><strong>終末の1ヶ月</strong><span>{CRISIS_DAYS}日間、長期投資が持ちこたえるか確かめる</span></div>
-      {CHECKPOINTS.map((year) => {
+      {displayYears.map((year) => {
         const result = state.stressTests[year];
+        const exploratory = !CHECKPOINTS.includes(year);
         return (
           <article key={year} className={state.year === year ? "current" : ""}>
-            <div><strong>{year}</strong><span>{result ? result.verdict : "未実施"}</span></div>
-            {result ? <ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
+            <div><strong>{year}{exploratory ? " 任意" : ""}</strong><span>{result ? result.verdict : "未実施"}</span></div>
+            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, result.relationshipContributions[0])}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
           </article>
         );
       })}
@@ -225,15 +264,27 @@ export function App() {
   const [state, setState] = useState(() => createDemoState(2035));
   const [comparing, setComparing] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
-  const handleAdvance = () => setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? "2045年の最終評価に到達しています" : `${next.year}年へ進みました`); return next; });
+  const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
+  const preview = previewRelationshipInvestment(state);
+  const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
+  const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
+  const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
-  const handleReset = () => { setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
+  const handleContributionSelect = (checkpointYear, contribution) => {
+    const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
+    if (!focus) return;
+    setState((current) => selectRelationship(current, focus.relationshipId));
+    setFocusedLedgerEntryId(focus.ledgerEntryId);
+    setNotice(`${checkpointYear}年チェックポイントを生んだ因果台帳を表示しています`);
+  };
 
   return (
     <main className="app-shell">
-      <Header state={state} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => setComparing((value) => !value)} onReset={handleReset} comparing={comparing} />
-      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} /><ActionRail state={state} onChoose={(id) => setState((current) => selectAction(current, id))} /></div><Inspector state={state} /></div>
-      <StressStrip state={state} /><MetricRail state={state} />
+      <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => setComparing((value) => !value)} onReset={handleReset} comparing={comparing} />
+      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
+      <StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
     </main>

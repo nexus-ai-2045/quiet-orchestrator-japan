@@ -13,4 +13,6 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - The primary horizon is 2026–2045. “終末の1ヶ月” is a 30-day, 6-hour-step nested stress test, not the main simulation.
 - The final success condition is that the coordination network still functions when Japan leaves the center.
 - The visual source of truth is the selected dark-indigo 2026–2045 hybrid mock generated on 2026-08-24.
+- The primary interaction for P1 is a causal vertical slice: choose one relationship, preview a yearly investment, execute it, then trace the relationship delta and its crisis contribution. Do not treat aggregate metric movement as sufficient explanation.
+- The normal screen should prioritize the selected relationship and its latest change. Full actor details, the complete ledger, comparisons, and 120-turn playback use progressive disclosure instead of competing at equal visual weight.
 - The simulation is deterministic and local-only. Do not add live attribution, external API calls, or model-generated policy decisions without a separate ADR and review.
