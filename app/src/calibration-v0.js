@@ -65,6 +65,14 @@ export const RELATIONSHIP_ACTION_EFFECTS = deepFreeze({
   },
 });
 
+export const AGGREGATE_ACTION_EFFECTS = deepFreeze({
+  translation: { coordinationCapital: 7, legitimacy: 3, dependency: -2 },
+  verification: { verification: 10, coordinationCapital: 4, surveillance: 2 },
+  reversibility: { autonomy: 6, legitimacy: 4, concentration: -3 },
+  redundancy: { interoperability: 6, autonomy: 7, dependency: -8 },
+  coownership: { continuity: 9, coordinationCapital: 6, concentration: -6 },
+});
+
 export const RELATIONSHIP_CONTRIBUTION_WEIGHTS = deepFreeze({
   attributionSafety: {
     verificationAgreement: 0.28,

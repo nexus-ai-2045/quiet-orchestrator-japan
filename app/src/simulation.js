@@ -1,4 +1,5 @@
 import {
+  AGGREGATE_ACTION_EFFECTS,
   CALIBRATION_VERSION,
   DEFAULT_RELATIONSHIP_STATE,
   RELATIONSHIP_ACTION_EFFECTS,
@@ -70,11 +71,11 @@ export const RELATIONSHIPS = RELATIONSHIP_PAIRS.map(([source, target]) => {
 });
 
 export const ACTIONS = [
-  { id: "translation", label: "翻訳", cost: 20, summary: "制度・用語・意図を共通言語へ変換する", project: "日米中研究機関の危機用語クロスウォーク", effects: { coordinationCapital: 7, legitimacy: 3, dependency: -2 } },
-  { id: "verification", label: "検証", cost: 25, summary: "事実を共同で十分に確かめる", project: "日米中研究機関の共同検証プロトコル", effects: { verification: 10, coordinationCapital: 4, surveillance: 2 } },
-  { id: "reversibility", label: "可逆化", cost: 20, summary: "いつでも戻せる対応手順を設計する", project: "段階的対応と共同停止条件の標準化", effects: { autonomy: 6, legitimacy: 4, concentration: -3 } },
-  { id: "redundancy", label: "複線化", cost: 20, summary: "供給・通信・判断経路の単一依存を減らす", project: "宇宙・海洋・エネルギー情報経路の複線化", effects: { interoperability: 6, autonomy: 7, dependency: -8 } },
-  { id: "coownership", label: "共同所有", cost: 15, summary: "成果とガバナンスを多元的に持つ", project: "共同検証ハブの多元ガバナンス移行", effects: { continuity: 9, coordinationCapital: 6, concentration: -6 } },
+  { id: "translation", label: "翻訳", cost: 20, summary: "制度・用語・意図を共通言語へ変換する", project: "日米中研究機関の危機用語クロスウォーク", effects: AGGREGATE_ACTION_EFFECTS.translation },
+  { id: "verification", label: "検証", cost: 25, summary: "事実を共同で十分に確かめる", project: "日米中研究機関の共同検証プロトコル", effects: AGGREGATE_ACTION_EFFECTS.verification },
+  { id: "reversibility", label: "可逆化", cost: 20, summary: "いつでも戻せる対応手順を設計する", project: "段階的対応と共同停止条件の標準化", effects: AGGREGATE_ACTION_EFFECTS.reversibility },
+  { id: "redundancy", label: "複線化", cost: 20, summary: "供給・通信・判断経路の単一依存を減らす", project: "宇宙・海洋・エネルギー情報経路の複線化", effects: AGGREGATE_ACTION_EFFECTS.redundancy },
+  { id: "coownership", label: "共同所有", cost: 15, summary: "成果とガバナンスを多元的に持つ", project: "共同検証ハブの多元ガバナンス移行", effects: AGGREGATE_ACTION_EFFECTS.coownership },
 ];
 
 function createRelationshipState() {
@@ -343,29 +344,28 @@ export function runStressTest(state) {
   let ledger = state.ledger;
   const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id);
-    let ledgerEntry = [...ledger].reverse().find((entry) => entry.relationshipId === relationship.id && entry.year <= state.year);
-    if (!ledgerEntry) {
-      const snapshot = { ...relationship.state };
-      ledgerEntry = {
-        id: `${state.year}:${relationship.id}:checkpoint-snapshot`,
+    const definition = RELATIONSHIPS.find((item) => item.id === relationship.id);
+    const before = { ...definition.initialState };
+    const after = { ...relationship.state };
+    const ledgerEntry = {
+        id: `${state.year}:${relationship.id}:cumulative-checkpoint-snapshot`,
         year: state.year,
         relationshipId: relationship.id,
         relationshipLabel: relationship.label,
         action: "checkpoint-snapshot",
-        actionLabel: "危機テスト時点スナップショット",
-        project: "危機テスト時点の因果スナップショット",
+        actionLabel: "危機テスト累積スナップショット",
+        project: "初期状態から危機テスト時点までの累積因果スナップショット",
         cost: 0,
-        before: snapshot,
-        after: snapshot,
-        deltas: {},
+        before,
+        after,
+        deltas: Object.fromEntries(Object.keys(after).map((key) => [key, after[key] - before[key]])),
         metricDeltas: {},
         tradeoffs: [],
-        reason: "過去の台帳がないため、危機寄与の逆引き用スナップショットを保存",
+        reason: "危機寄与と同じ初期状態からの累積変化を保存",
         ruleVersion: RULE_VERSION,
         seed: state.seed,
       };
-      ledger = [...ledger, ledgerEntry];
-    }
+    ledger = [...ledger.filter((entry) => entry.id !== ledgerEntry.id), ledgerEntry];
     return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id };
   });
   const contribution = relationshipContributions.reduce((total, item) => ({
@@ -406,7 +406,12 @@ export function getStressContributionFocus(state, checkpointYear, relationshipId
 export function getFinalAssessment(state) {
   const { metrics } = state;
   const score = clamp(Math.round(metrics.continuity * 0.35 + metrics.coordinationCapital * 0.2 + metrics.verification * 0.15 + metrics.interoperability * 0.15 + metrics.autonomy * 0.15 - metrics.concentration * 0.08 - metrics.surveillance * 0.05 - metrics.dependency * 0.07));
-  return { score, passed: state.year === END_YEAR && score >= 70 && metrics.continuity >= 70, label: score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存" };
+  const finalStressPassed = state.stressTests[END_YEAR]?.verdict === "協調継続";
+  const passed = state.year === END_YEAR && finalStressPassed && score >= 70 && metrics.continuity >= 70;
+  const label = state.year === END_YEAR && !state.stressTests[END_YEAR]
+    ? "最終検証待ち"
+    : score >= 70 ? "自律継続圏" : score >= 50 ? "移行途上" : "日本依存";
+  return { score, passed, label };
 }
 
 export function createDemoState(year = 2035) {

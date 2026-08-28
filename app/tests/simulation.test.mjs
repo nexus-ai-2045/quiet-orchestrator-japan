@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  AGGREGATE_ACTION_EFFECTS,
   CALIBRATION_VERSION,
   RELATIONSHIP_ACTION_EFFECTS,
   RELATIONSHIP_BENEFIT_DIRECTIONS,
@@ -92,6 +93,13 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
     },
   });
   assert.deepEqual(RELATIONSHIP_CONTRIBUTION_LIMITS, { min: -20, max: 25 });
+  assert.deepEqual(AGGREGATE_ACTION_EFFECTS, {
+    translation: { coordinationCapital: 7, legitimacy: 3, dependency: -2 },
+    verification: { verification: 10, coordinationCapital: 4, surveillance: 2 },
+    reversibility: { autonomy: 6, legitimacy: 4, concentration: -3 },
+    redundancy: { interoperability: 6, autonomy: 7, dependency: -8 },
+    coownership: { continuity: 9, coordinationCapital: 6, concentration: -6 },
+  });
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.dependency, -1);
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.disclosureCost, -1);
   for (const action of Object.values(RELATIONSHIP_ACTION_EFFECTS)) {
@@ -300,7 +308,7 @@ test("the same state always produces the same one-month stress result", () => {
 
 test("the latest arbitrary-year stress result remains visible beside standard checkpoints", () => {
   const initialTest = runStressTest(createInitialState());
-  assert.equal(initialTest.ledger[0].actionLabel, "危機テスト時点スナップショット");
+  assert.equal(initialTest.ledger[0].actionLabel, "危機テスト累積スナップショット");
   assert.doesNotMatch(initialTest.ledger[0].reason, /移行/);
 
   let state = advanceYear(createInitialState());
@@ -361,7 +369,11 @@ test("relationship investment is traceable to a larger crisis contribution", () 
     after,
   );
   assert.equal(result.relationshipContributions[0].checkpointYear, 2027);
-  assert.equal(result.relationshipContributions[0].ledgerEntryId, invested.ledger[0].id);
+  const tested = runStressTest(invested);
+  const cumulativeEntry = tested.ledger.find((entry) => entry.id === result.relationshipContributions[0].ledgerEntryId);
+  assert.deepEqual(cumulativeEntry.before, initial.relationships["B1-C6"].state);
+  assert.deepEqual(cumulativeEntry.after, invested.relationships["B1-C6"].state);
+  assert.equal(cumulativeEntry.deltas.verificationAgreement, 12);
 });
 
 test("2045 assessment rewards continuity rather than Japanese centrality", () => {
@@ -371,4 +383,12 @@ test("2045 assessment rewards continuity rather than Japanese centrality", () =>
   assert.ok(assessment.score >= 70 && assessment.score <= 100);
   assert.equal(assessment.passed, true);
   assert.equal(assessment.label, "自律継続圏");
+});
+
+test("2045 assessment cannot pass before the final checkpoint succeeds", () => {
+  const state = createDemoState(2045);
+  delete state.stressTests[2045];
+  state.metrics.continuity = 100;
+  assert.equal(getFinalAssessment(state).passed, false);
+  assert.equal(getFinalAssessment(state).label, "最終検証待ち");
 });
