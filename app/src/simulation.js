@@ -217,12 +217,22 @@ function calculateEffectRealization(requestedDeltas, appliedDeltas) {
   return requestedBenefit === 0 ? 0 : clamp(appliedBenefit / requestedBenefit, 0, 1);
 }
 
+function matchesCalibratedRelationship(relationship, definition) {
+  return Boolean(
+    relationship?.investable
+    && definition?.investable
+    && relationship.id === definition.id
+    && relationship.source === definition.source
+    && relationship.target === definition.target
+  );
+}
+
 export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
   const relationshipDefinition = relationshipDefinitions.find((definition) => definition.id === relationshipId);
-  if (relationship.investable && !relationshipDefinition?.investable) {
+  if (relationship.investable && !matchesCalibratedRelationship(relationship, relationshipDefinition)) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
   }
   if (!relationship.investable) {
@@ -332,7 +342,7 @@ export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
 export function getRelationshipContribution(state, relationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const definition = relationshipDefinitions.find((item) => item.id === relationshipId);
-  if (!relationship || !definition) return null;
+  if (!matchesCalibratedRelationship(relationship, definition)) return null;
   const current = relationship.state;
   const initial = definition.initialState;
   const delta = (key) => current[key] - initial[key];
@@ -353,7 +363,8 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
   const unresolvedInvestable = Object.values(state.relationships).some((relationship) => (
-    relationship.investable && !relationshipDefinitions.some((definition) => definition.id === relationship.id && definition.investable)
+    relationship.investable
+    && !relationshipDefinitions.some((definition) => matchesCalibratedRelationship(relationship, definition))
   ));
   if (unresolvedInvestable) return state;
   let ledger = state.ledger;

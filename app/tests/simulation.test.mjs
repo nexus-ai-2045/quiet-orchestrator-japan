@@ -437,6 +437,20 @@ test("an investable relationship cannot collide with a display-only definition i
   assert.equal(advanceYear(tested), tested);
 });
 
+test("a calibrated id cannot authorize a different relationship role", () => {
+  const state = createInitialState();
+  state.relationships["B1-C6"].source = "J1";
+  state.relationships["B1-C6"].target = "B1";
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(tested), tested);
+});
+
 test("role-equivalent stress still responds to a genuinely different relationship state", () => {
   const baseline = createInitialState();
   const changed = structuredClone(baseline);
