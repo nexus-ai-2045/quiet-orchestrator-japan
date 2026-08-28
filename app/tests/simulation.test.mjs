@@ -122,7 +122,7 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
 
 test("relationship v1 gives every connection a stable schema", () => {
   const state = createInitialState();
-  assert.equal(state.schemaVersion, 2);
+  assert.equal(state.schemaVersion, 3);
   assert.equal(RELATIONSHIPS.length, 20);
   assert.equal(Object.keys(state.relationships).length, 20);
   assert.equal(state.selectedRelationshipId, "B1-C6");
@@ -145,12 +145,27 @@ test("legacy aggregate state has an explicit migration path", () => {
     history: [],
     stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
   });
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.year, 2030);
   assert.equal(migrated.metrics.verification, 61);
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
   assert.deepEqual(migrated.ledger, []);
   assert.deepEqual(migrated.stressTests, {});
+});
+
+test("a legitimate schema-v2 save is backfilled with the known calibration", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 2;
+  for (const relationship of Object.values(legacy.relationships)) {
+    delete relationship.calibrationFingerprint;
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.match(migrated.relationships["B1-C6"].calibrationFingerprint, /^relationship-v1\.0\.0:/);
+  assert.equal(previewRelationshipInvestment(migrated).eligible, true);
+  assert.notEqual(advanceYear(migrated), migrated);
+  assert.ok(runStressTest(migrated).stressTests[migrated.year]);
 });
 
 test("the selected yearly investment previews an exact relationship delta", () => {

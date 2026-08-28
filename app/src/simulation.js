@@ -106,7 +106,7 @@ function createRelationshipState() {
 
 export function createInitialState() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     seed: "baseline-0",
     year: START_YEAR,
     budget: 100,
@@ -132,14 +132,34 @@ function normalizeStressTests(stressTests) {
 }
 
 export function migrateSimulationState(candidate) {
-  if (candidate?.schemaVersion === 2) {
+  if (candidate?.schemaVersion === 3) {
     return { ...candidate, stressTests: normalizeStressTests(candidate.stressTests) };
+  }
+  if (candidate?.schemaVersion === 2) {
+    const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
+      const definition = RELATIONSHIPS.find((item) => item.id === key);
+      const calibrationFingerprint = definition
+        && key === relationship?.id
+        && relationship.source === definition.source
+        && relationship.target === definition.target
+        && relationship.investable === definition.investable
+        && definition.investable
+        ? relationshipCalibrationFingerprint(definition)
+        : relationship?.calibrationFingerprint ?? null;
+      return [key, { ...relationship, calibrationFingerprint }];
+    }));
+    return {
+      ...candidate,
+      schemaVersion: 3,
+      relationships,
+      stressTests: normalizeStressTests(candidate.stressTests),
+    };
   }
   const initial = createInitialState();
   return {
     ...initial,
     ...(candidate ?? {}),
-    schemaVersion: 2,
+    schemaVersion: 3,
     seed: candidate?.seed ?? initial.seed,
     metrics: { ...initial.metrics, ...(candidate?.metrics ?? {}) },
     relationships: createRelationshipState(),

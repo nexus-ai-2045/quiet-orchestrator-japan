@@ -44,6 +44,9 @@ jobs:
       - name: Build production package
         run: npm run build
 
+      - name: Verify Sites evidence count
+        run: npm run verify:sites-evidence
+
       - name: Test Sites compatibility
         run: npm run test:sites
 
