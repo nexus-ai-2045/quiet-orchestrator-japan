@@ -47,6 +47,12 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
+for (const [name, content] of [["PREFLIGHT", preflight], ["PUBLIC_READY", publicReady]]) {
+  if (!content.includes("history-only-pr4") || !content.includes("現在branchのsame-HEAD evidenceではなく")) {
+    throw new Error(`${name} must classify inherited browser evidence as historical`);
+  }
+}
+
 const scripts = JSON.parse(packageJson).scripts;
 async function getRegisteredTestCount(scriptName) {
   const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];

@@ -48,8 +48,8 @@
 |---|---|---|
 | README情報設計 | pass-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を`main`で確認 |
 | Webアプリ | pass-current-branch | 決定論テスト29件、production build、Sites互換テスト4件を確認 |
-| ブラウザ操作 | pass-local | 2030未記録checkpointの進行停止・stress記録後の再開、2038 fatigue後の実tradeoff`+1`を確認。既存の逆引き、標準幅・880px、axe violations 0件を維持。実行時error・warning 0件 |
-| デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
+| ブラウザ操作 | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
+| デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |
 | 既知secret形式 / 個人絶対パス | pass-local | 成果物内の既知secret候補0、個人絶対パス0。worktree管理用`.git`は公開対象外 |
 | 公式URL | pass-source-check | 23件のHTTP到達に加え、bot拒否3件を公式検索結果と掲載面で確認。米統合軍の名称復帰と海警法URLを修正 |

@@ -24,7 +24,7 @@
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
-| ブラウザ操作・デザインQA | pass-local | 2030未記録checkpointで進行停止、stress記録後の再開、2038 fatigue後の開示コスト・監視化リスク`+1`表示を実操作。console error/warning 0件。既存の標準幅・880px確認とaxe violations 0件も維持 |
+| ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
 | GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@d702f81`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | PR #4・#2・#3はmerge済み。現在branchはpush前で、同一HEAD CI・reviewは未取得 |
