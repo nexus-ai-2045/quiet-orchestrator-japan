@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   CALIBRATION_VERSION,
   RELATIONSHIP_ACTION_EFFECTS,
+  RELATIONSHIP_BENEFIT_DIRECTIONS,
   RELATIONSHIP_CONTRIBUTION_WEIGHTS,
   REPRESENTATIVE_INITIAL_STATE,
 } from "../src/calibration-v0.js";
@@ -47,6 +48,13 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
     disclosureCost: 2,
   });
   assert.equal(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival.coOwnership, 0.2);
+  assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.dependency, -1);
+  assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.disclosureCost, -1);
+  for (const action of Object.values(RELATIONSHIP_ACTION_EFFECTS)) {
+    for (const key of Object.keys(action.deltas)) {
+      assert.ok([1, -1].includes(RELATIONSHIP_BENEFIT_DIRECTIONS[key]), `${key} must declare its benefit direction`);
+    }
+  }
 });
 
 test("relationship v1 gives every connection a stable schema", () => {
@@ -127,6 +135,44 @@ test("a fully clamped relationship cannot create aggregate or crisis gains", () 
   assert.equal(preview.metricDeltas.surveillance ?? 0, 0);
   assert.equal(preview.eligible, false);
   assert.strictEqual(advanceYear(state), state);
+});
+
+test("an adverse-only relationship delta cannot unlock aggregate gains", () => {
+  const state = selectAction(createInitialState(), "verification");
+  Object.assign(state.relationships["B1-C6"].state, {
+    maturity: 100,
+    trust: 100,
+    verificationAgreement: 100,
+    dependency: 0,
+    disclosureCost: 99,
+  });
+
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.deltas.disclosureCost, 1);
+  assert.equal(preview.metricDeltas.verification ?? 0, 0);
+  assert.equal(preview.metricDeltas.coordinationCapital ?? 0, 0);
+  assert.equal(preview.metricDeltas.continuity ?? 0, 0);
+  assert.equal(preview.eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("partially clamped beneficial progress scales aggregate effects", () => {
+  const state = selectAction(createInitialState(), "verification");
+  Object.assign(state.relationships["B1-C6"].state, {
+    maturity: 98,
+    trust: 100,
+    verificationAgreement: 100,
+    dependency: 0,
+    disclosureCost: 99,
+  });
+
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.effectRealization, 2 / 22);
+  assert.equal(preview.metricDeltas.verification, 1);
+  assert.equal(preview.metricDeltas.coordinationCapital, 0);
+  assert.equal(preview.metricDeltas.surveillance, 0);
+  assert.equal(preview.eligible, true);
+  assert.equal(advanceYear(state).ledger[0].effectRealization, 2 / 22);
 });
 
 test("numeric tradeoffs reflect fatigue and clamping instead of configured values", () => {

@@ -29,6 +29,19 @@ export const REPRESENTATIVE_INITIAL_STATE = deepFreeze({
   disclosureCost: 12,
 });
 
+// Positive means an increase is beneficial; negative means a decrease is beneficial.
+// Aggregate effects are realized only in proportion to progress in these directions.
+export const RELATIONSHIP_BENEFIT_DIRECTIONS = deepFreeze({
+  maturity: 1,
+  trust: 1,
+  verificationAgreement: 1,
+  interoperability: 1,
+  coOwnership: 1,
+  dependency: -1,
+  alternateRoutes: 1,
+  disclosureCost: -1,
+});
+
 export const RELATIONSHIP_ACTION_EFFECTS = deepFreeze({
   translation: {
     deltas: { maturity: 6, trust: 5, interoperability: 2, disclosureCost: 1 },
