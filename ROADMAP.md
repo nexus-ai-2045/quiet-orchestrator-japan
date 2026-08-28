@@ -52,7 +52,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 接続選択を主体選択から分離し、表示専用接続では年次進行をfail closedにする。
 - 因果台帳の最新1件と、終末の1ヶ月の接続寄与からInspectorへ戻る導線を実装した。
 - state version 2と旧集約状態のmigration入口を追加した。
-- unit test 28件、Sites test 4件、production buildを同一content HEADで確認した。標準幅・狭幅・console・操作フローは[RESULTS](RESULTS.md)の2026-08-28履歴証拠であり、現在branchの同一HEAD実測には数えない。
+- unit test 29件、Sites test 4件、production buildを同一content HEADで確認した。標準幅・狭幅・console・操作フローは[RESULTS](RESULTS.md)の2026-08-28履歴証拠であり、現在branchの同一HEAD実測には数えない。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。接続ID・表示ラベルを変えた役割同等fixtureの基礎回帰は実装済みだが、日本・中国・米国の国名を入れ替える制約同等fixtureは、主体制約を実装するM3まで未完了である。残るM1機械作業は完全な因果台帳drawerである。
 
