@@ -17,7 +17,7 @@ const [design, contract, results, roadmap, preflight, publicReady, packageJson] 
 ]);
 
 const requirements = [
-  [design, "pre-registered design / 未実証", "design status"],
+  [design, "retrospective design snapshot / 未実証", "design status"],
   [design, "## 反証・縮小条件", "design falsification section"],
   [contract, "EXPERIMENT_DESIGN.md", "contract design pointer"],
   [results, "実測", "results evidence label"],
@@ -39,6 +39,10 @@ if (contract.includes("| A ブロック分断")) {
 
 if (!results.includes("EXPERIMENT_DESIGN.md") || !results.includes("結論に使えない")) {
   throw new Error("RESULTS.md must link the frozen design and state its limits");
+}
+
+if (!design.includes("事前登録証拠ではない") || !results.includes("事前登録証拠ではない")) {
+  throw new Error("design chronology limitation must remain explicit");
 }
 
 const testTargets = JSON.parse(packageJson).scripts.test.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];

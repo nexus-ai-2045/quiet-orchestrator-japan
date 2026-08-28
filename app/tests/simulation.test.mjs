@@ -47,6 +47,28 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
     dependency: -1,
     disclosureCost: 2,
   });
+  assert.deepEqual(RELATIONSHIP_ACTION_EFFECTS, {
+    translation: {
+      deltas: { maturity: 6, trust: 5, interoperability: 2, disclosureCost: 1 },
+      tradeoffs: ["開示コスト +1"],
+    },
+    verification: {
+      deltas: { maturity: 5, trust: 4, verificationAgreement: 12, dependency: -1, disclosureCost: 2 },
+      tradeoffs: ["開示コスト +2", "監視化リスク +2"],
+    },
+    reversibility: {
+      deltas: { maturity: 3, interoperability: 4, dependency: -4, alternateRoutes: 1 },
+      tradeoffs: ["合意形成の速度を優先しない"],
+    },
+    redundancy: {
+      deltas: { maturity: 4, interoperability: 7, dependency: -8, alternateRoutes: 1, disclosureCost: 1 },
+      tradeoffs: ["開示コスト +1", "維持経路が増える"],
+    },
+    coownership: {
+      deltas: { maturity: 4, trust: 3, coOwnership: 10, dependency: -5 },
+      tradeoffs: ["日本の単独編集権を縮小"],
+    },
+  });
   assert.equal(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival.coOwnership, 0.2);
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.dependency, -1);
   assert.equal(RELATIONSHIP_BENEFIT_DIRECTIONS.disclosureCost, -1);
