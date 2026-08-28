@@ -45,12 +45,15 @@ const registeredTestCount = testSources.reduce(
   (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
   0,
 );
-const documentedTestCount = Number(
+const resultsTestCount = Number(
   results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN,
 );
-if (documentedTestCount !== registeredTestCount) {
+const roadmapTestCount = Number(
+  roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN,
+);
+if (resultsTestCount !== registeredTestCount || roadmapTestCount !== registeredTestCount) {
   throw new Error(
-    `RESULTS.md npm test count drift: documented=${documentedTestCount}, registered=${registeredTestCount}`,
+    `npm test count drift: RESULTS=${resultsTestCount}, ROADMAP=${roadmapTestCount}, registered=${registeredTestCount}`,
   );
 }
 
