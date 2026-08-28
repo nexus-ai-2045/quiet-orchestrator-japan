@@ -47,12 +47,17 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-const testTargets = JSON.parse(packageJson).scripts.test.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
-const testSources = await Promise.all(testTargets.map((target) => read(`app/${target}`)));
-const registeredTestCount = testSources.reduce(
-  (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
-  0,
-);
+const scripts = JSON.parse(packageJson).scripts;
+async function getRegisteredTestCount(scriptName) {
+  const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
+  const sources = await Promise.all(targets.map((target) => read(`app/${target}`)));
+  return sources.reduce(
+    (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
+    0,
+  );
+}
+
+const registeredTestCount = await getRegisteredTestCount("test");
 const recordedTestCounts = {
   RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
@@ -62,6 +67,19 @@ const recordedTestCounts = {
 if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCount)) {
   throw new Error(
     `npm test count drift: ${JSON.stringify(recordedTestCounts)}, registered=${registeredTestCount}`,
+  );
+}
+
+const registeredSitesTestCount = await getRegisteredTestCount("test:sites");
+const recordedSitesTestCounts = {
+  RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+  ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
+  PREFLIGHT: Number(preflight.match(/`npm run test:sites`: (\d+)件pass/)?.[1] ?? Number.NaN),
+  PUBLIC_READY: Number(publicReady.match(/Sites互換テスト(\d+)件/)?.[1] ?? Number.NaN),
+};
+if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
+  throw new Error(
+    `npm run test:sites count drift: ${JSON.stringify(recordedSitesTestCounts)}, registered=${registeredSitesTestCount}`,
   );
 }
 

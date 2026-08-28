@@ -451,6 +451,28 @@ test("a calibrated id cannot authorize a different relationship role", () => {
   assert.equal(advanceYear(tested), tested);
 });
 
+test("a persisted relationship cannot use a different calibration baseline", () => {
+  const state = createInitialState();
+  const changedDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: { ...definition.initialState, maturity: 0 } }
+      : definition
+  ));
+
+  const preview = previewRelationshipInvestment(
+    state,
+    state.selectedAction,
+    state.selectedRelationshipId,
+    changedDefinitions,
+  );
+  const tested = runStressTest(state, changedDefinitions);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(state, changedDefinitions), state);
+});
+
 test("role-equivalent stress still responds to a genuinely different relationship state", () => {
   const baseline = createInitialState();
   const changed = structuredClone(baseline);

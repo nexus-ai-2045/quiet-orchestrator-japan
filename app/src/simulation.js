@@ -20,6 +20,10 @@ export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
 export const RULE_VERSION = CALIBRATION_VERSION;
 
+function relationshipCalibrationFingerprint(definition) {
+  return `${CALIBRATION_VERSION}:${JSON.stringify(definition.initialState)}`;
+}
+
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
 export const ACTORS = [
@@ -91,6 +95,9 @@ function createRelationshipState() {
     purpose: definition.purpose,
     channel: definition.channel,
     ownership: definition.ownership,
+    calibrationFingerprint: definition.investable
+      ? relationshipCalibrationFingerprint(definition)
+      : null,
     state: { ...definition.initialState },
     lastChangedYear: null,
     lastAction: null,
@@ -224,6 +231,7 @@ function matchesCalibratedRelationship(relationship, definition) {
     && relationship.id === definition.id
     && relationship.source === definition.source
     && relationship.target === definition.target
+    && relationship.calibrationFingerprint === relationshipCalibrationFingerprint(definition)
   );
 }
 
