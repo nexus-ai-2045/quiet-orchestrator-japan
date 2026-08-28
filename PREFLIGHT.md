@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m1-role-equivalence`
-- content HEAD: `17703b103ab92f6ea1946f0a82a210bcbdde5a9e`（不変schema-v2校正snapshot/backfill、校正fingerprint・一対一entry、役割同等性回帰、CI接続済みtest-count・browser evidence drift detector）
+- content HEAD: `f97e124cb21ac3966380e00dc7cdc7ba1b8fb848`（校正fingerprint正規化、preview前の全investable検証、schema-v2競合fingerprint非上書き、役割同等性回帰、CI接続済みtest-count・browser evidence drift detector）
 - base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
-| 決定論テスト | pass | `npm test`: 31件pass。schema-v2校正backfill、改善方向の実現率、校正baseline変更・重複entry・未校正ID・役割衝突拒否、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
+| 決定論テスト | pass | `npm test`: 34件pass。fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、schema-v2校正backfill、改善方向の実現率、校正baseline変更・重複entry・未校正ID・役割衝突拒否、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
@@ -27,7 +27,7 @@
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
 | GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@d702f81`、archived `false` |
-| GitHub PR / Codex review | pending-current-branch | PR #4・#2・#3はmerge済み。現在branchはpush前で、同一HEAD CI・reviewは未取得 |
+| GitHub PR / Codex review | pending-current-branch | PR #5で同一HEAD CI・reviewを回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
 ## 採用済みの人間判断

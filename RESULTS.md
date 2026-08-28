@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `17703b103ab92f6ea1946f0a82a210bcbdde5a9e`
+機械検証対象content HEAD: `f97e124cb21ac3966380e00dc7cdc7ba1b8fb848`
 
 ## 実行環境
 
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 31件pass |
+| `npm test` | 34件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -28,6 +28,14 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 ブラウザ確認は2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。現在branchはUI差分を含まないが、この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
 ## PR reviewへの対応
+
+PR #5の同一HEAD Codex reviewで未解決だったP2 3件は、content HEAD `f97e124`で次の運用保証へ根因修正した。
+
+- 校正fingerprintは`initialState`キーの挿入順に依存せず、値の正規化比較で一致判定する。
+- preview / advanceは選択接続だけでなく、state全体の未解決investableをstressと同じ条件で拒否する。
+- schema-v2 migrationはfingerprint欠落時だけ既知校正をbackfillし、明示された競合fingerprintは保持してfail closedにする。
+
+これらの修正は後続evidence commitで34件の同一content HEAD実測として固定する。
 
 PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の契約へ修正した。
 
