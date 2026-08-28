@@ -91,7 +91,6 @@ function StrategicTimeline({ year }) {
 
 function Header({ state, preview, onAdvance, onStress, onCompare, onReset, comparing }) {
   const atCheckpoint = CHECKPOINTS.includes(state.year);
-  const nextCheckpoint = CHECKPOINTS.find((year) => year > state.year);
   return (
     <>
       <header className="app-header">
@@ -103,7 +102,7 @@ function Header({ state, preview, onAdvance, onStress, onCompare, onReset, compa
         <StrategicTimeline year={state.year} />
         <div className="command-actions">
           <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "代表接続を選択"}<span aria-hidden="true">→</span></button>
-          <button className="button" onClick={onStress} disabled={!atCheckpoint} title={atCheckpoint ? `${state.year}年の接続状態を固定して検証` : `${nextCheckpoint ?? END_YEAR}年のチェックポイントで実行`}>{atCheckpoint ? "終末の1ヶ月テスト" : `次回 ${nextCheckpoint ?? END_YEAR}`}</button>
+          <button className="button" onClick={onStress} title={`${state.year}年の接続状態を固定して${atCheckpoint ? "標準チェックポイント" : "任意年"}として検証`}>{atCheckpoint ? "終末の1ヶ月テスト" : "任意年テスト"}</button>
           <button className={`button ${comparing ? "active" : ""}`} onClick={onCompare}>比較</button>
           <button className="button quiet" onClick={onReset}>リセット</button>
         </div>

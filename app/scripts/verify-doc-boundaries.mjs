@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = resolve(import.meta.dirname, "..", "..");
+const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
+const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
 const [design, contract, results, roadmap] = await Promise.all([
