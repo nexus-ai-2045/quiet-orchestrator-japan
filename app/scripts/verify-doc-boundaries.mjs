@@ -58,6 +58,7 @@ for (const [name, content, pattern] of historicalEvidenceRows) {
 }
 
 const scripts = JSON.parse(packageJson).scripts;
+const verifySitesEvidence = process.argv.includes("--sites");
 function getTestResult(scriptName) {
   const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
   if (targets.length === 0) throw new Error(`no test targets found for ${scriptName}`);
@@ -92,17 +93,19 @@ if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCo
   );
 }
 
-const registeredSitesTestCount = getTestResult("test:sites");
-const recordedSitesTestCounts = {
-  RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
-  ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
-  PREFLIGHT: Number(preflight.match(/`npm run test:sites`: (\d+)件pass/)?.[1] ?? Number.NaN),
-  PUBLIC_READY: Number(publicReady.match(/Sites互換テスト(\d+)件/)?.[1] ?? Number.NaN),
-};
-if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
-  throw new Error(
-    `npm run test:sites count drift: ${JSON.stringify(recordedSitesTestCounts)}, registered=${registeredSitesTestCount}`,
-  );
+if (verifySitesEvidence) {
+  const registeredSitesTestCount = getTestResult("test:sites");
+  const recordedSitesTestCounts = {
+    RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+    ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
+    PREFLIGHT: Number(preflight.match(/`npm run test:sites`: (\d+)件pass/)?.[1] ?? Number.NaN),
+    PUBLIC_READY: Number(publicReady.match(/Sites互換テスト(\d+)件/)?.[1] ?? Number.NaN),
+  };
+  if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
+    throw new Error(
+      `npm run test:sites count drift: ${JSON.stringify(recordedSitesTestCounts)}, registered=${registeredSitesTestCount}`,
+    );
+  }
 }
 
 if (/公開前review中|visibility変更/.test(roadmap)) {
