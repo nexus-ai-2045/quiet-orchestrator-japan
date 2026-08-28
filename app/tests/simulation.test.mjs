@@ -317,6 +317,118 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
 });
 
+test("role-equivalent labels and ids cannot change preview or stress outcomes", () => {
+  const original = createInitialState();
+  const relabeled = structuredClone(original);
+  const relationship = relabeled.relationships["B1-C6"];
+  delete relabeled.relationships["B1-C6"];
+  Object.assign(relationship, {
+    id: "neutral-role-pair",
+    source: "actor-alpha",
+    target: "actor-beta",
+    label: "Actor Alpha ↔ Actor Beta",
+  });
+  relabeled.relationships[relationship.id] = relationship;
+  relabeled.selectedRelationshipId = relationship.id;
+  relabeled.selectedActor = "actor-alpha";
+  const roleEquivalentDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? {
+        ...definition,
+        id: relationship.id,
+        source: relationship.source,
+        target: relationship.target,
+        label: relationship.label,
+      }
+      : definition
+  ));
+
+  const originalPreview = previewRelationshipInvestment(original);
+  const relabeledPreview = previewRelationshipInvestment(
+    relabeled,
+    relabeled.selectedAction,
+    relabeled.selectedRelationshipId,
+    roleEquivalentDefinitions,
+  );
+  assert.deepEqual(
+    {
+      eligible: relabeledPreview.eligible,
+      cost: relabeledPreview.cost,
+      before: relabeledPreview.before,
+      after: relabeledPreview.after,
+      deltas: relabeledPreview.deltas,
+      metricDeltas: relabeledPreview.metricDeltas,
+      metricsAfter: relabeledPreview.metricsAfter,
+      tradeoffs: relabeledPreview.tradeoffs,
+    },
+    {
+      eligible: originalPreview.eligible,
+      cost: originalPreview.cost,
+      before: originalPreview.before,
+      after: originalPreview.after,
+      deltas: originalPreview.deltas,
+      metricDeltas: originalPreview.metricDeltas,
+      metricsAfter: originalPreview.metricsAfter,
+      tradeoffs: originalPreview.tradeoffs,
+    },
+  );
+
+  const originalAdvanced = advanceYear(original);
+  const relabeledAdvanced = advanceYear(relabeled, roleEquivalentDefinitions);
+  assert.deepEqual(relabeledAdvanced.metrics, originalAdvanced.metrics);
+  assert.deepEqual(
+    relabeledAdvanced.relationships[relationship.id].state,
+    originalAdvanced.relationships["B1-C6"].state,
+  );
+  assert.deepEqual(relabeledAdvanced.ledger[0].deltas, originalAdvanced.ledger[0].deltas);
+
+  const relabeledStress = runStressTest(relabeledAdvanced, roleEquivalentDefinitions).stressTests[relabeledAdvanced.year];
+  const originalStressAfterAdvance = runStressTest(originalAdvanced).stressTests[originalAdvanced.year];
+  assert.deepEqual(
+    {
+      attributionSafety: relabeledStress.attributionSafety,
+      coordinationSurvival: relabeledStress.coordinationSurvival,
+      civilianProtection: relabeledStress.civilianProtection,
+      verdict: relabeledStress.verdict,
+    },
+    {
+      attributionSafety: originalStressAfterAdvance.attributionSafety,
+      coordinationSurvival: originalStressAfterAdvance.coordinationSurvival,
+      civilianProtection: originalStressAfterAdvance.civilianProtection,
+      verdict: originalStressAfterAdvance.verdict,
+    },
+  );
+});
+
+test("an unknown investable id cannot silently inherit representative calibration", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "unknown-investable";
+  relationship.label = "Unknown investable";
+  state.relationships[relationship.id] = relationship;
+  state.selectedRelationshipId = relationship.id;
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(tested.ledger.length, 0);
+  assert.equal(advanceYear(tested), tested);
+});
+
+test("role-equivalent stress still responds to a genuinely different relationship state", () => {
+  const baseline = createInitialState();
+  const changed = structuredClone(baseline);
+  changed.relationships["B1-C6"].state.verificationAgreement += 20;
+
+  const baselineResult = runStressTest(baseline).stressTests[baseline.year];
+  const changedResult = runStressTest(changed).stressTests[changed.year];
+  assert.notEqual(changedResult.attributionSafety, baselineResult.attributionSafety);
+});
+
 test("the latest arbitrary-year stress result remains visible beside standard checkpoints", () => {
   const initialTest = runStressTest(createInitialState());
   assert.equal(initialTest.ledger[0].actionLabel, "危機テスト累積スナップショット");

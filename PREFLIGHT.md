@@ -6,8 +6,8 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/consolidate-quiet-orchestrator-ssot`
-- content: PR #4 `c2eeaf3`と事前設計SSOTをlocal統合。記録commit前のためexact HEADは後続で固定する
-- base: `origin/main@105e67f7b5bf76d4375d65f1c0d66fb5bec17d6e`
+- content: `main@d702f81`を基点に、役割同等性回帰と現況SSOT drift detectorを統合。exact HEADはcommit後に固定する
+- base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
 - inspected date: `2026-08-27`（live再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
@@ -19,16 +19,16 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
-| 決定論テスト | pass | `npm test`: 23件pass。改善方向の実現率、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
+| 決定論テスト | pass | `npm test`: 26件pass。改善方向の実現率、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
-| production build | pass-integrated-local | Vite 6.4.3、192 modules、Sites package生成 |
+| production build | pass-current-branch | Vite 8.2.2、173 modules、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | pass-local | 2030未記録checkpointで進行停止、stress記録後の再開、2038 fatigue後の開示コスト・監視化リスク`+1`表示を実操作。console error/warning 0件。既存の標準幅・880px確認とaxe violations 0件も維持 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@105e67f`、archived `false` |
-| GitHub PR / Codex review | pass-pr4 / pending-integrated-head | PR #4は`c2eeaf3`でOPEN / CLEAN。review thread全8件resolved、最新Codex reviewは重大指摘なし |
-| remote CI | pass-pr4 / pending-integrated-head | `c2eeaf3`のvalidate、CodeQL workflow、CodeQL checkは成功。SSOT統合HEADは未push |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@d702f81`、archived `false` |
+| GitHub PR / Codex review | pending-current-branch | PR #4・#2・#3はmerge済み。現在branchはpush前で、同一HEAD CI・reviewは未取得 |
+| remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
 ## 採用済みの人間判断
 
@@ -59,7 +59,7 @@
 
 ## 次の停止線
 
-1. 統合commitを固定し、公開branchへ反映する方式を人間が選ぶ。
+1. 現在branchのcommitを固定し、push前preflightを再実行する。
 2. 承認されたpush後、同一HEADのremote CI、CodeQL、Codex再review、GitHub差分、権利・免責を回収する。
 3. unresolved thread 0件と通常ruleset充足を確認してmergeする。branch/worktree削除、release、告知は対象外。
 

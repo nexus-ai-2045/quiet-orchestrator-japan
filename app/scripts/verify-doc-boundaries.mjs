@@ -6,11 +6,13 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap, preflight, publicReady, packageJson] = await Promise.all([
+const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
   read("ROADMAP.md"),
+  read("PROJECT_SSOT.md"),
+  read("README.md"),
   read("PREFLIGHT.md"),
   read("PUBLIC_READY.md"),
   read("app/package.json"),
@@ -65,6 +67,38 @@ if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCo
 
 if (/公開前review中|visibility変更/.test(roadmap)) {
   throw new Error("stale publication state remains in ROADMAP.md");
+}
+
+const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady };
+const staleLifecyclePhrases = [
+  "mergeされるまで現行SSOTではなく",
+  "本SSOT統合HEADはローカルのみ",
+  "現在HEADはlocalのみ",
+  "どのPRへ統合HEADを反映するか",
+  "public push前のローカル候補",
+  "P1 ローカル統合候補",
+  "P1はPR #4でreview中",
+  "main反映はPR merge後",
+  "SSOT統合HEADは未push",
+  "PR #4はremote `codex/design-roadmap-2045",
+  "PR #4は`c2eeaf3`でOPEN",
+];
+for (const [name, content] of Object.entries(currentStateDocuments)) {
+  for (const phrase of staleLifecyclePhrases) {
+    if (content.includes(phrase)) {
+      throw new Error(`stale merge lifecycle claim in ${name}: ${phrase}`);
+    }
+  }
+}
+
+const buildEvidenceDocuments = { RESULTS: results, PREFLIGHT: preflight, PUBLIC_READY: publicReady };
+const buildModuleCounts = Object.fromEntries(Object.entries(buildEvidenceDocuments).map(([name, content]) => {
+  const matches = [...content.matchAll(/\b(\d+) modules\b/g)].map((match) => Number(match[1]));
+  if (matches.length !== 1) throw new Error(`expected one current build module count in ${name}, found ${matches.length}`);
+  return [name, matches[0]];
+}));
+if (new Set(Object.values(buildModuleCounts)).size !== 1) {
+  throw new Error(`build module count drift: ${JSON.stringify(buildModuleCounts)}`);
 }
 
 console.log("document boundaries: OK");

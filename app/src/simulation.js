@@ -217,10 +217,13 @@ function calculateEffectRealization(requestedDeltas, appliedDeltas) {
   return requestedBenefit === 0 ? 0 : clamp(appliedBenefit / requestedBenefit, 0, 1);
 }
 
-export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId) {
+export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
+  if (!relationshipDefinitions.some((definition) => definition.id === relationshipId)) {
+    return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
+  }
   if (!relationship.investable) {
     return {
       eligible: false,
@@ -282,8 +285,13 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   };
 }
 
-export function advanceYear(state) {
-  const preview = previewRelationshipInvestment(state);
+export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
+  const preview = previewRelationshipInvestment(
+    state,
+    state.selectedAction,
+    state.selectedRelationshipId,
+    relationshipDefinitions,
+  );
   if (!preview.eligible) return state;
 
   const nextYear = state.year + 1;
@@ -320,9 +328,9 @@ export function advanceYear(state) {
   };
 }
 
-export function getRelationshipContribution(state, relationshipId) {
+export function getRelationshipContribution(state, relationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
-  const definition = RELATIONSHIPS.find((item) => item.id === relationshipId);
+  const definition = relationshipDefinitions.find((item) => item.id === relationshipId);
   if (!relationship || !definition) return null;
   const current = relationship.state;
   const initial = definition.initialState;
@@ -341,12 +349,17 @@ export function getRelationshipContribution(state, relationshipId) {
   };
 }
 
-export function runStressTest(state) {
+export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
+  const unresolvedInvestable = Object.values(state.relationships).some((relationship) => (
+    relationship.investable && !relationshipDefinitions.some((definition) => definition.id === relationship.id)
+  ));
+  if (unresolvedInvestable) return state;
   let ledger = state.ledger;
-  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => {
-    const contribution = getRelationshipContribution(state, relationship.id);
-    const definition = RELATIONSHIPS.find((item) => item.id === relationship.id);
+  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).flatMap((relationship) => {
+    const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);
+    const definition = relationshipDefinitions.find((item) => item.id === relationship.id);
+    if (!contribution || !definition) return [];
     const before = { ...definition.initialState };
     const after = { ...relationship.state };
     const ledgerEntry = {
@@ -368,7 +381,7 @@ export function runStressTest(state) {
         seed: state.seed,
       };
     ledger = [...ledger.filter((entry) => entry.id !== ledgerEntry.id), ledgerEntry];
-    return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id };
+    return [{ ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id }];
   });
   const contribution = relationshipContributions.reduce((total, item) => ({
     attributionSafety: total.attributionSafety + item.attributionSafety,

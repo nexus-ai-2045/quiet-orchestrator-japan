@@ -8,7 +8,7 @@
 - 表示タイトル: 「静かなオーケストレーターとしての日本」
 - 現在のvisibility: `PUBLIC`（2026-08-24 live確認）
 - 準備branch: `codex/design-roadmap-2045`
-- default branch: `main@105e67f`（P0公開基準点）。P1はPR #4でreview中
+- default branch: `main@d702f81`（P0・P1因果縦切りと依存更新を統合済み）
 - merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
 
 ## 公開候補ファイル
@@ -46,8 +46,8 @@
 
 | 項目 | 状態 | 備考 |
 |---|---|---|
-| README情報設計 | pass-local / pending-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を確認。main反映はPR merge後 |
-| Webアプリ | pass-local | 決定論テスト23件、build 192 modules、Sites互換テスト4件を確認 |
+| README情報設計 | pass-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を`main`で確認 |
+| Webアプリ | pass-current-branch | 決定論テスト26件、build 173 modules、Sites互換テスト4件を確認 |
 | ブラウザ操作 | pass-local | 2030未記録checkpointの進行停止・stress記録後の再開、2038 fatigue後の実tradeoff`+1`を確認。既存の逆引き、標準幅・880px、axe violations 0件を維持。実行時error・warning 0件 |
 | デザインQA | pass-local | 実装スクリーンショットと`design-qa.md`を確認。主要操作と1265px表示のP2修正済み |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |
@@ -56,16 +56,16 @@
 | 第三者原典 | scoped | 公式URLと帰属のみ。原典ファイルを同梱しない |
 | LICENSE / NOTICE | ready-for-review | MITと第三者原典の非再配布境界を確認する |
 | SECURITY / threat model | pass-local / pass-remote | secret scanning、push protection、vulnerability alerts、Private Vulnerability Reportingを有効化してread-back済み |
-| CI / repository設定 | pass-pr4 / pending-integrated-head | PR #4 `c2eeaf3`はvalidate / CodeQL workflow / CodeQL check成功。SSOT統合HEADは未push |
-| repo-preflight | pending-integrated-final | PR #4実装と事前設計SSOTのlocal統合後、secret、個人path、公開名義、CI設定を最終HEADで再確認する |
+| CI / repository設定 | pass-main / pending-current-branch | PR #4・#2・#3はmerge済み。現在branchはpush後に同一HEADのvalidate / CodeQLを確認する |
+| repo-preflight | pending-current-branch-final | 現在branchのsecret、個人path、公開名義、CI設定をpush前の最終HEADで再確認する |
 | ai-ratchet-gate | pass-local | baseline 0件、現存0件、新規0件 |
-| 人間目視review | pending-integrated-final | PR #4のreview thread全8件はresolved、`c2eeaf3`への最新Codex reviewは重大指摘なし。SSOT統合HEADの同一HEAD reviewと公開差分は未確認 |
+| 人間目視review | pending-current-branch | PR #4はmerge済み。現在branchはPR作成後に同一HEAD reviewと公開差分を確認する |
 
 ## public化後の実測と停止線
 
 - repository visibilityは`PUBLIC`。
-- `main@105e67f`はP0公開基準点。PR #4はremote `codex/design-roadmap-2045@c2eeaf3`でOPEN / CLEAN。
-- PR #4のreview threadは全8件resolvedし、最新Codex reviewは重大指摘なし。事前設計SSOTを統合したlocal HEADのpublic pushと同一HEAD再reviewは未実施。
+- `main@d702f81`はP0・P1因果縦切りと依存更新を含む現行公開基準点。PR #4・#2・#3はmerge済み。
+- 現在branchのpublic push、CI、同一HEAD reviewは未実施であり、既存merge済みPRの証拠で代替しない。
 - secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reportingは有効化・read-back済み。
 - ActionsはGitHub公式Actionだけを許可し、full commit SHA固定を必須化済み。
 - merge方式はsquashだけを許可し、merge後のremote branch自動削除を有効化済み。

@@ -15,8 +15,8 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 23件pass |
-| `npm run build` | Vite production build pass、192 modules |
+| `npm test` | 26件pass |
+| `npm run build` | Vite production build pass、173 modules |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
@@ -38,7 +38,7 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 - 数値tradeoffをfatigueとclamp後の実deltaから生成し、表示と適用値の不一致を防ぐ。
 - 2030・2035・2040のstress resultが未記録なら年次進行をengineで拒否し、記録後だけ再開する。
 
-これらの修正と、上限時の定性tradeoff抑止を含むremote PR #4 HEAD `c2eeaf3`はCI・CodeQLに成功し、review thread全8件がresolved、最新Codex reviewは重大指摘なしである。事前設計SSOTを統合した現在HEADはlocalのみで、remote CIと同一HEAD reviewは未取得である。
+これらの修正と、上限時の定性tradeoff抑止を含むremote PR #4 HEAD `c2eeaf3`はCI・CodeQLに成功し、review thread全8件がresolved、最新Codex reviewは重大指摘なしだった。その後の事前設計SSOT・実装・検証差分もPR #4で`main`へ統合済みであり、現行状態のcanonicalは`main`である。この段落のcommit・review記録は当時の履歴証拠であり、後続HEADの検証結果を代替しない。
 
 ## 初期状態から1年投資した差
 
