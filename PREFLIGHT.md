@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
-| 決定論テスト | pass | `npm test`: 18件pass。最終metric状態からの実delta、fatigue/clamp後の数値・定性tradeoff、未記録checkpointの進行停止、移行後checkpoint snapshotを回帰固定 |
+| 決定論テスト | pass | `npm test`: 19件pass。最終metric状態からの実delta、fatigue/clamp後の数値・定性tradeoff、未記録checkpointの進行停止、移行後checkpoint snapshotを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-integrated-local | Vite 6.4.3、192 modules、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

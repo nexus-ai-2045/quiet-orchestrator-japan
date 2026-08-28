@@ -110,6 +110,25 @@ test("preview and ledger record the applied delta after clamping", () => {
   assert.equal(next.metrics.continuity - state.metrics.continuity, 1);
 });
 
+test("a fully clamped relationship cannot create aggregate or crisis gains", () => {
+  const state = selectAction(createInitialState(), "verification");
+  Object.assign(state.relationships["B1-C6"].state, {
+    maturity: 100,
+    trust: 100,
+    verificationAgreement: 100,
+    dependency: 0,
+    disclosureCost: 100,
+  });
+
+  const preview = previewRelationshipInvestment(state);
+  assert.deepEqual(Object.values(preview.deltas), [0, 0, 0, 0, 0]);
+  assert.equal(preview.metricDeltas.verification ?? 0, 0);
+  assert.equal(preview.metricDeltas.coordinationCapital ?? 0, 0);
+  assert.equal(preview.metricDeltas.surveillance ?? 0, 0);
+  assert.equal(preview.eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
 test("numeric tradeoffs reflect fatigue and clamping instead of configured values", () => {
   const state = selectAction(createDemoState(2038), "verification");
   const preview = previewRelationshipInvestment(state);

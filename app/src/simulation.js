@@ -224,12 +224,15 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const fatigue = yearsElapsed >= 12 ? 1 : 0;
   const configured = RELATIONSHIP_ACTION_EFFECTS[action.id];
   const requestedDeltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
-  const requestedMetricDeltas = Object.fromEntries(Object.entries(action.effects).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
   const after = { ...relationship.state };
   for (const [key, delta] of Object.entries(requestedDeltas)) {
     after[key] = key === "alternateRoutes" ? clamp(after[key] + delta, 0, 5) : clamp(after[key] + delta);
   }
   const deltas = Object.fromEntries(Object.keys(requestedDeltas).map((key) => [key, after[key] - relationship.state[key]]));
+  const relationshipChanged = Object.values(deltas).some((delta) => delta !== 0);
+  const requestedMetricDeltas = relationshipChanged
+    ? Object.fromEntries(Object.entries(action.effects).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]))
+    : {};
   const metricsAfter = calculateMetricsAfter(state, requestedMetricDeltas);
   const metricKeys = new Set(Object.keys(requestedMetricDeltas));
   for (const key of Object.keys(state.metrics)) {
@@ -238,14 +241,14 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const metricDeltas = Object.fromEntries([...metricKeys].map((key) => [key, metricsAfter[key] - state.metrics[key]]));
   const checkpointPending = state.year < END_YEAR && CHECKPOINTS.includes(state.year) && !state.stressTests[state.year];
   return {
-    eligible: state.year < END_YEAR && state.budget >= action.cost && !checkpointPending,
+    eligible: state.year < END_YEAR && state.budget >= action.cost && !checkpointPending && relationshipChanged,
     relationshipId,
     relationshipLabel: relationship.label,
     actionId: action.id,
     actionLabel: action.label,
     cost: action.cost,
     project: action.project,
-    reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : checkpointPending ? `${state.year}年の終末の1ヶ月テストを先に記録してください` : state.budget < action.cost ? "年間ポイントが不足しています" : "実行可能",
+    reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : checkpointPending ? `${state.year}年の終末の1ヶ月テストを先に記録してください` : state.budget < action.cost ? "年間ポイントが不足しています" : !relationshipChanged ? "この接続への施策効果はすべて上限または下限に達しています" : "実行可能",
     before: { ...relationship.state },
     after,
     deltas,
