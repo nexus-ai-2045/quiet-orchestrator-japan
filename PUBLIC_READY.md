@@ -8,7 +8,7 @@
 - 表示タイトル: 「静かなオーケストレーターとしての日本」
 - 現在のvisibility: `PUBLIC`（2026-08-24 live確認）
 - 準備branch: `cursor/m1-ledger-drawer-e44b`
-- default branch: `main@6be43bee`（P0・P1因果縦切り、依存更新、M1公平性強化を統合済み）
+- default branch: `main@7fa6df89`（P0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawerを統合済み）
 - merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
 
 ## 公開候補ファイル
@@ -64,7 +64,7 @@
 ## public化後の実測と停止線
 
 - repository visibilityは`PUBLIC`。
-- `main@6be43bee`はP0・P1因果縦切り、依存更新、M1公平性強化を含む現行公開基準点。PR #5・#4・#2・#3はmerge済み。
+- `main@7fa6df89`はP0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawerを含む現行公開基準点。PR #6・#5・#4・#2・#3はmerge済み。
 - 現在branchのpublic push、CI、同一HEAD reviewは未実施であり、既存merge済みPRの証拠で代替しない。
 - secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reportingは有効化・read-back済み。
 - ActionsはGitHub公式Actionだけを許可し、full commit SHA固定を必須化済み。

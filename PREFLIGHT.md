@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/ai-simulation-mvp`
-- content HEAD: `48fd7fe6b561e668605417cf4eda4f470994e1fb`（scripted PDCA、完全receipt/state入力、canonical output boundary、horizon gate、checkpoint再試行証拠、因果台帳drawerのfocus controller・320px幅）
+- content HEAD: `9a11564d3d583a7f1b4b95125e7faf1bd5440fba`（scripted PDCA、完全receipt/state入力、canonical output boundary、horizon gate、checkpoint再試行証拠、因果台帳drawerのfocus controller・320px幅）
 - base: `origin/main@7fa6df89fa064938adf6263f3c84bd144f369b2e`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -26,7 +26,7 @@
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@6be43bee`、archived `false` |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@7fa6df89`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
