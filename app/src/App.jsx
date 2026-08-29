@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { createModalFocusController } from "./modal-focus.js";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
@@ -244,10 +245,20 @@ function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus, o
 
 function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
   const titleId = useId();
+  const dialogRef = useRef(null);
   const listRef = useRef(null);
+  const focusController = useMemo(() => createModalFocusController({
+    getDialog: () => dialogRef.current,
+    getActiveElement: () => document.activeElement,
+  }), []);
   const ordered = useMemo(() => [...listLedgerTrail(state)].reverse(), [state]);
   const initialIndex = Math.max(0, ordered.findIndex((item) => item.entry.id === focusedLedgerEntryId));
   const [activeIndex, setActiveIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
+
+  useEffect(() => {
+    focusController.rememberOpener();
+    return () => focusController.restoreOpener();
+  }, [focusController]);
 
   useEffect(() => {
     const node = listRef.current?.querySelector(`[data-ledger-index="${activeIndex}"]`);
@@ -261,6 +272,12 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         onClose();
         return;
       }
+      if (event.key === "Tab") {
+        focusController.handleTab(event);
+        return;
+      }
+      const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
+      if (!row) return;
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setActiveIndex((current) => Math.min(ordered.length - 1, current + 1));
@@ -274,8 +291,6 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         event.preventDefault();
         setActiveIndex(Math.max(0, ordered.length - 1));
       } else if (event.key === "Enter" || event.key === " ") {
-        const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
-        if (!row) return;
         const item = ordered[Number(row.getAttribute("data-ledger-index"))];
         if (!item) return;
         event.preventDefault();
@@ -284,11 +299,12 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, onSelect, ordered]);
+  }, [focusController, onClose, onSelect, ordered]);
 
   return (
     <div className="ledger-drawer-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
         className="ledger-drawer"
         role="dialog"
         aria-modal="true"

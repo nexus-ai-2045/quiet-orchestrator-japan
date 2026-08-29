@@ -78,7 +78,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 終末の1ヶ月の接続寄与からInspectorへ戻る導線と、drawer選択は同じ`ledgerEntryId` focus契約を共有する。
 - state version 3、schema-v2校正fingerprint backfill、旧集約状態のmigration入口を追加した。
 - 校正fingerprintはキー挿入順に依存せず、preview前に全investableを検証し、schema-v2の競合fingerprintは上書きせずfail closedにする。
-- unit test 59件、Sites test 4件、production buildを同一content HEADで確認する。標準幅・狭幅・console・操作フローは[RESULTS](RESULTS.md)の2026-08-28履歴証拠であり、現在branchの同一HEAD実測には数えない。
+- unit test 65件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは同一content HEADで確認済みである。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。接続ID・表示ラベルを変えた役割同等fixtureの基礎回帰は実装済みだが、日本・中国・米国の国名を入れ替える制約同等fixtureは、主体制約を実装するM3まで未完了である。M1の機械作業だった完全な因果台帳drawerは閉じた。完了条件のうちUIゲート（現行操作・狭幅・キーボード・reduced-motion）は同一HEADのRESULTSへ記録済み。次のMustはM2の全20接続ポートフォリオである。
 
@@ -108,7 +108,7 @@ P0 baselineの再現、文書境界、P1因果縦切りの回帰、build、Sites
 - 同じseed、状態、施策、投資先から同じ結果が返る。
 - 別の投資先fixtureでは結果が変わる。
 - 結果カードから接続差分と理由へ2操作以内で戻れる。
-- 日本、中国、米国の国名を入れ替えた制約同等fixtureで、国名だけによる差が出ない。
+- 接続ID・表示ラベルを変えた役割同等fixtureで、表示属性だけによる差が出ない。
 - unit test、UI操作、狭幅、キーボード、reduced motionが通る。
 
 ### 対象外
@@ -153,6 +153,7 @@ M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が�
 
 - 国名を非表示にしても、役割と制約から挙動差を説明できる。
 - 同じ役割・制約型は国をまたいで同じルールを使う。
+- 日本、中国、米国の国名を入れ替えた制約同等fixtureで、国名だけによる差が出ない。
 - 権限のない主体が状態を直接変更できない。
 - 拒否や失敗もレジャーへ残り、成功だけを記録しない。
 
