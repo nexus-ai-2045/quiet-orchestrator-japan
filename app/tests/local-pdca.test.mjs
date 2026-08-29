@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createDemoState } from "../src/simulation.js";
 import { observationFingerprint } from "../src/ai/contract.js";
 import { buildAiStateSummary } from "../src/ai/apply-proposal.js";
-import { runLocalPdcaSimulation, runOneLocalPdcaStep } from "../src/ai/local-pdca.js";
+import { canCompleteLocalPdca, runLocalPdcaSimulation, runOneLocalPdcaStep } from "../src/ai/local-pdca.js";
 
 test("local PDCA runs exact steps 0 through 8 in actor-turn order", () => {
   const result = runLocalPdcaSimulation(createDemoState(2035), { seed: "pdca-order" });
@@ -35,6 +35,13 @@ test("checkpoint rejection records a stress test and retries the same step", () 
   assert.equal(result.do.checkpoint.recorded, true);
   assert.ok(result.state.stressTests[2040]);
   assert.equal(result.state.year, 2041);
+  assert.equal(result.plan.receipt.observationHash, result.do.attempts.at(-1).observationHash);
+});
+
+test("nine-step PDCA refuses a horizon with too few remaining years", () => {
+  assert.equal(canCompleteLocalPdca(createDemoState(2035), 0), true);
+  assert.equal(canCompleteLocalPdca(createDemoState(2037), 0), false);
+  assert.equal(canCompleteLocalPdca(createDemoState(2040), 4), true);
 });
 
 test("AI plan cannot mutate state outside the deterministic core", () => {

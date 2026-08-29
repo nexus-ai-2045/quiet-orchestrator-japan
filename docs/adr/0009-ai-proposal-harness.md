@@ -26,7 +26,7 @@
 - 静的WebアプリはAPIキーを保持せず、検証済みの提案トレースだけを読み込む。
 - policy出力は`fact | claim | inference | proposal`のうち`proposal`であり、シミュレーション結果ではない。
 - 不正JSON、未知ID、権限違反、input hash不一致、timeoutは拒否する。デモ継続が必要な場合は、同じschemaを持つversion固定fixtureへfallbackする。
-- model、prompt version、seed、input/output hash、validation結果、fallback理由をreceiptへ記録する。secretとraw認証情報は記録しない。
+- engine version、model、prompt version、seed、input/output hash、validation結果、fallback理由をreceiptへ記録する。secretとraw認証情報は記録しない。
 
 ## Principle / Invariant / Detector / Repair / Evidence
 

@@ -1,4 +1,4 @@
-import { CHECKPOINTS, runStressTest } from "../simulation.js";
+import { CHECKPOINTS, END_YEAR, runStressTest } from "../simulation.js";
 import { applyValidatedAiProposal, buildAiStateSummary } from "./apply-proposal.js";
 import { observationFingerprint, runFixtureSimulation } from "./contract.js";
 
@@ -36,6 +36,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
   let checkpoint = null;
   let planned = attempt(workingState, step, seed);
   const attempts = [{
+    observationHash: planned.receipt.observationHash,
     stateHash: planned.receipt.observation.stateSummary.stateHash,
     applied: planned.result.applied,
     errors: [...planned.result.errors],
@@ -53,6 +54,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
     workingState = testedState;
     planned = attempt(workingState, step, seed);
     attempts.push({
+      observationHash: planned.receipt.observationHash,
       stateHash: planned.receipt.observation.stateSummary.stateHash,
       applied: planned.result.applied,
       errors: [...planned.result.errors],
@@ -94,6 +96,11 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
       nextStateSummary: buildAiStateSummary(nextState),
     },
   };
+}
+
+export function canCompleteLocalPdca(state, nextStep) {
+  if (!state || !Number.isInteger(state.year) || !Number.isInteger(nextStep)) return false;
+  return END_YEAR - state.year >= LOCAL_PDCA_STEP_COUNT - nextStep;
 }
 
 export function runLocalPdcaSimulation(initialState, { maxSteps = LOCAL_PDCA_STEP_COUNT, seed = "hackathon-mvp-0" } = {}) {

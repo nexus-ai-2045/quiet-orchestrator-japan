@@ -149,6 +149,12 @@ test("receipt envelope is bound to its observation identity", () => {
   }
 });
 
+test("receipt binds the scripted policy engine version", () => {
+  const receipt = runFixtureSimulation()[0];
+  assert.equal(typeof receipt.provider.engineVersion, "string");
+  assert.equal(validateAiReceipt({ ...receipt, provider: { ...receipt.provider, engineVersion: "forged" } }).valid, false);
+});
+
 test("AI summary always binds the fixed execution relationship", () => {
   const state = createDemoState(2035);
   const otherRelationshipId = Object.keys(state.relationships).find((id) => id !== "B1-C6");

@@ -1,6 +1,7 @@
 export const AI_PROPOSAL_VERSION = 1;
 export const AI_RECEIPT_VERSION = 1;
 export const AI_RELATIONSHIP_ID = "B1-C6";
+export const SCRIPTED_POLICY_ENGINE_VERSION = "scripted-policy-v1";
 
 export const AI_ACTORS = Object.freeze({
   B1: Object.freeze({
@@ -108,7 +109,7 @@ function fallbackProposal(observation) {
   return {
     actionId: AI_ACTORS[observation.actorId]?.fallbackActionId ?? "verification",
     relationshipId: AI_RELATIONSHIP_ID,
-    rationale: "不正な提案を採用せず、事前登録済みのscripted policyへフォールバック",
+    rationale: "不正な提案を採用せず、version固定のscripted policyへフォールバック",
     confidence: 0,
   };
 }
@@ -138,6 +139,7 @@ export function createAiReceipt({ observation, proposal, providerStatus = "ok", 
       mode: providerMeta.mode === "live" ? "live" : "fixture",
       model: typeof providerMeta.model === "string" ? providerMeta.model : "recorded-fixture",
       promptVersion: typeof providerMeta.promptVersion === "string" ? providerMeta.promptVersion : "ai-proposal-v1",
+      engineVersion: SCRIPTED_POLICY_ENGINE_VERSION,
       outputHash: observationFingerprint(validation.proposal),
     },
     outcome: accepted ? "accepted" : "fallback",
@@ -172,7 +174,8 @@ export function validateAiReceipt(receipt) {
   if (!proposalValidation.valid && receipt.outcome === "accepted") errors.push("accepted_proposal_invalid");
   if (!receipt.provider || !["live", "fixture"].includes(receipt.provider.mode)
     || typeof receipt.provider.model !== "string" || receipt.provider.model.length === 0
-    || typeof receipt.provider.promptVersion !== "string" || receipt.provider.promptVersion.length === 0) errors.push("provider_meta_invalid");
+    || typeof receipt.provider.promptVersion !== "string" || receipt.provider.promptVersion.length === 0
+    || receipt.provider.engineVersion !== SCRIPTED_POLICY_ENGINE_VERSION) errors.push("provider_meta_invalid");
   if (receipt.provider?.outputHash !== observationFingerprint(receipt.rawProposal)) errors.push("output_hash_mismatch");
   if (!receipt.appliedProposal || typeof receipt.appliedProposal.rationale !== "string"
     || typeof receipt.appliedProposal.confidence !== "number" || !Number.isFinite(receipt.appliedProposal.confidence)) errors.push("applied_proposal_invalid");

@@ -10,7 +10,7 @@ import {
 } from "./simulation.js";
 import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
-import { runOneLocalPdcaStep } from "./ai/local-pdca.js";
+import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -372,17 +372,18 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
   const receipt = previewReceipt;
   const proposal = receipt.appliedProposal;
   const completed = nextStep >= 9;
+  const horizonReady = canCompleteLocalPdca(state, nextStep);
   return (
     <section className="ai-trace" aria-label="ローカルPDCAシミュレーション">
       <div className="ai-trace-heading">
         <div><span>M1.5 LOCAL PDCA</span><strong>Plan → Do → Check → Act を自動反復</strong></div>
         <span className="ai-mode replay">LOCAL / {nextStep} of 9</span>
       </div>
-      <div className="ai-cycle-controls"><button className="button" onClick={onStep} disabled={completed}>PDCAを一手実行</button><button className="button primary" onClick={onAuto} disabled={completed}>残りを自動完走</button></div>
+      <div className="ai-cycle-controls"><button className="button" onClick={onStep} disabled={completed || !horizonReady}>PDCAを一手実行</button><button className="button primary" onClick={onAuto} disabled={completed || !horizonReady}>残りを自動完走</button>{!completed && !horizonReady && <small>残り年数が不足しています。リセットして開始してください。</small>}</div>
       <div className="ai-proposal-body">
         <div><span>Plan / Turn {receipt.turn}</span><strong>{receipt.actorId} {AI_ACTORS[receipt.actorId].label}</strong><code>{receipt.observationHash}</code></div>
         <div><span>Do / 未信頼提案を検証</span><strong>{proposal.actionId} → {proposal.relationshipId}</strong><p>{proposal.rationale}</p></div>
-        <div><span>Check / Act</span><strong>{latestCycle ? latestCycle.completed ? "決定論コア適用・次観測へ" : `停止: ${latestCycle.do.errors.join(", ")}` : "実行待ち"}</strong><small>{latestCycle ? `${latestCycle.check.beforeStateHash} → ${latestCycle.check.afterStateHash}` : "状態はまだ変更していません"}</small></div>
+        <div><span>Check / Act</span><strong>{latestCycle ? latestCycle.completed ? "決定論コア適用・次観測へ" : `停止: ${latestCycle.do.errors.join(", ")}` : "実行待ち"}</strong><small>{latestCycle ? `${latestCycle.check.beforeStateHash} → ${latestCycle.check.afterStateHash}` : "状態はまだ変更していません"}</small>{latestCycle && <code>実行Plan {latestCycle.plan.receipt.observationHash} / attempts {latestCycle.do.attempts.length}</code>}</div>
       </div>
       <p className="ai-boundary">外部APIなし。固定表を使うscripted Policy Engineが提案し、validatorと既存コアが採否・状態遷移を所有します。AI/LLM推論は未実装です。</p>
     </section>
@@ -438,6 +439,7 @@ export function App() {
   };
   const handlePdcaStep = () => {
     if (pdcaStep >= 9) return;
+    if (!canCompleteLocalPdca(state, pdcaStep)) { setNotice("残り年数が不足しています。リセットしてPDCAを開始してください"); return; }
     clearLedgerFocus();
     const cycle = runOneLocalPdcaStep(state, pdcaStep);
     setPdcaCycles((current) => [...current, cycle]);
@@ -450,6 +452,7 @@ export function App() {
     }
   };
   const handlePdcaAuto = () => {
+    if (!canCompleteLocalPdca(state, pdcaStep)) { setNotice("残り年数が不足しています。リセットしてPDCAを開始してください"); return; }
     clearLedgerFocus();
     let currentState = state;
     let currentStep = pdcaStep;

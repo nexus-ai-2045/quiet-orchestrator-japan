@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 53件pass |
+| `npm test` | 55件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -28,6 +28,8 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 ### M1.5 ローカルPDCA実測
 
 外部API・APIキー・ネットワークを使わず、固定seed・固定action表のscripted Policy Engineで3主体×3ターンを実行した。各手は現在stateから観測を再生成し、`Plan → Do → Check → Act`を順に記録する。提案はschema・主体権限・観測hash・state hashを検証後、既存の決定論コアだけが適用する。観測値を使うAI/LLM推論の実測ではない。
+
+Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのprovider metadataへ記録しvalidatorで固定する。checkpoint再試行時は、検査前previewとは別に実際に適用したPlan hashとattempt数をCheck/Actへ残す。
 
 - 9手の主体順序: `B1 → J2 → C6`を3ターン
 - 同じ初期stateとseedの全PDCA出力: 完全一致
