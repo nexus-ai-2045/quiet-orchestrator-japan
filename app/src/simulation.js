@@ -14,6 +14,7 @@ import {
 
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
+const isValidSimulationYear = (year) => Number.isInteger(year) && year >= START_YEAR && year <= END_YEAR;
 export const CHECKPOINTS = [2030, 2035, 2040, 2045];
 export const CRISIS_DAYS = 30;
 export const CRISIS_TURN_HOURS = 6;
@@ -304,7 +305,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
     for (const field of ["label", "purpose", "channel", "ownership", "investable", "contested"]) {
       if (relationship[field] !== definition[field]) errors.push(`${mapKey}: ${field} drift`);
     }
-    for (const field of ["purpose", "channel", "ownership"]) {
+    for (const field of ["label", "purpose", "channel", "ownership"]) {
       if (typeof relationship[field] !== "string" || relationship[field].trim() === "") errors.push(`${mapKey}: ${field} is required`);
     }
     const stateKeys = Object.keys(relationship.state ?? {}).sort();
@@ -332,6 +333,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       }
     }
   }
+  if (calibrated < 1) errors.push("relationship portfolio must contain at least one calibrated relationship");
   return { valid: errors.length === 0, total: entries.length, calibration: { calibrated, uncalibrated }, errors };
 }
 
@@ -524,6 +526,9 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
   ))) {
     return { eligible: false, items: [], totalCost: 0, reason: "配分の接続IDとアクションIDが不正です" };
   }
+  if (!isValidSimulationYear(state?.year)) {
+    return { eligible: false, items: [], totalCost: 0, reason: `${START_YEAR}〜${END_YEAR}の整数年を指定してください` };
+  }
   if (!Number.isFinite(state?.budget) || state.budget < 0 || state.budget > 100) {
     return { eligible: false, items: [], totalCost: 0, reason: "年間予算が不正です" };
   }
@@ -645,6 +650,7 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
+  if (!isValidSimulationYear(state?.year)) return state;
   if (!validateRelationshipPortfolio(state, relationshipDefinitions).valid) return state;
   let ledger = state.ledger;
   const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable === true).flatMap((relationship) => {

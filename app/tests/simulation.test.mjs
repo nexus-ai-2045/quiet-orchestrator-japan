@@ -19,6 +19,7 @@ import {
   CRISIS_TURN_HOURS,
   CRISIS_TURNS,
   END_YEAR,
+  START_YEAR,
   getFinalAssessment,
   getRelationshipEdgePresentation,
   getRelationshipContribution,
@@ -741,6 +742,37 @@ test("non-Boolean investable flags cannot authorize a calibrated relationship", 
     assert.equal(preview.eligible, false, corruptedLayer);
     assert.match(preview.reason, /校正済み/, corruptedLayer);
     assert.equal(runStressTest(state, changedDefinitions), state, corruptedLayer);
+  }
+});
+
+test("portfolio execution rejects missing labels and zero calibrated relationships", () => {
+  const blankLabel = createInitialState();
+  blankLabel.relationships["B1-C6"].label = "";
+  const blankDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, label: "" } : definition
+  ));
+  assert.equal(validateRelationshipPortfolio(blankLabel, blankDefinitions).valid, false);
+  assert.equal(
+    previewInvestmentPortfolio(blankLabel, [{ relationshipId: "B1-C6", actionId: "verification" }], blankDefinitions).eligible,
+    false,
+  );
+
+  const noCalibration = createInitialState();
+  noCalibration.relationships["B1-C6"].investable = false;
+  const noCalibrationDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, investable: false } : definition
+  ));
+  assert.equal(validateRelationshipPortfolio(noCalibration, noCalibrationDefinitions).valid, false);
+  assert.strictEqual(runStressTest(noCalibration, noCalibrationDefinitions), noCalibration);
+});
+
+test("portfolio execution rejects a non-integer or out-of-horizon year", () => {
+  for (const year of ["2026", 2026.5, null, START_YEAR - 1, END_YEAR + 1]) {
+    const state = createInitialState();
+    state.year = year;
+    const plan = previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]);
+    assert.equal(plan.eligible, false, String(year));
+    assert.strictEqual(advanceYear(state), state, String(year));
   }
 });
 
