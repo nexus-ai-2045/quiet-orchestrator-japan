@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `pending-content-commit`
+機械検証対象content HEAD: `795779c9cf3a9a29e4ccdf9be03f43d9133a5727`
 
 ## 実行環境
 
