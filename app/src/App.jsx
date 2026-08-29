@@ -4,9 +4,9 @@ import "@xyflow/react/dist/style.css";
 import { createModalFocusController } from "./modal-focus.js";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
-  advanceYear, createDemoState, createInitialState, getFinalAssessment,
+  advanceYear, createDemoState, createInitialState, getFinalAssessment, getRelationshipEdgePresentation,
   getLedgerEntryFocus, getLedgerSignature, getSelectedRelationship, getStressContributionFocus,
-  getStressTestDisplayYears, listLedgerTrail, previewRelationshipInvestment, runStressTest,
+  getStressTestDisplayYears, listLedgerTrail, previewSelectedInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
 import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
@@ -60,21 +60,15 @@ function buildNodes(selectedActor) {
 function buildEdges(state) {
   return RELATIONSHIPS.map(({ id, source, target }) => {
     const relationship = state.relationships[id];
-    const actorActive = source === state.selectedActor || target === state.selectedActor;
     const selected = id === state.selectedRelationshipId;
-    const maturity = relationship.state.maturity;
+    const presentation = getRelationshipEdgePresentation(relationship);
     return {
       id,
       source,
       target,
       animated: selected,
       className: selected ? "relationship-selected" : "",
-      style: {
-        stroke: relationship.contested ? "#d98b43" : selected ? "#8ce7ec" : relationship.investable ? "#65c59b" : actorActive ? "#66d4dc" : "#4b7f94",
-        strokeWidth: selected ? 4 : 1 + maturity / 50,
-        opacity: selected ? 1 : actorActive ? 0.82 : relationship.investable ? 0.75 : 0.42,
-        strokeDasharray: relationship.contested ? "5 6" : relationship.investable ? undefined : "3 4",
-      },
+      style: presentation,
     };
   });
 }
@@ -170,7 +164,7 @@ function Inspector({ state, focusedLedgerEntry }) {
   const relationshipState = historicalEntry?.after ?? relationship.state;
   const source = ACTORS.find((item) => item.id === relationship.source);
   const target = ACTORS.find((item) => item.id === relationship.target);
-  const preview = previewRelationshipInvestment(state);
+  const preview = previewSelectedInvestment(state);
   const final = getFinalAssessment(state);
   return (
     <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
@@ -198,7 +192,7 @@ function Inspector({ state, focusedLedgerEntry }) {
 
 function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus, onOpenLedger }) {
   const selected = ACTIONS.find((item) => item.id === state.selectedAction) ?? ACTIONS[0];
-  const preview = previewRelationshipInvestment(state);
+  const preview = previewSelectedInvestment(state);
   const latest = focusedLedgerEntry ?? state.ledger.at(-1);
   const ledgerIndex = latest ? state.ledger.findIndex((entry) => entry.id === latest.id) + 1 : 0;
   const signature = getLedgerSignature(latest);
@@ -430,10 +424,10 @@ export function App() {
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
   const [pdcaCycles, setPdcaCycles] = useState([]);
   const [pdcaStep, setPdcaStep] = useState(0);
-  const preview = previewRelationshipInvestment(state);
+  const preview = previewSelectedInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
-  const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
+  const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewSelectedInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
   const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };

@@ -19,7 +19,9 @@ import {
   CRISIS_TURN_HOURS,
   CRISIS_TURNS,
   END_YEAR,
+  START_YEAR,
   getFinalAssessment,
+  getRelationshipEdgePresentation,
   getRelationshipContribution,
   getLedgerEntryFocus,
   getLedgerSignature,
@@ -27,11 +29,15 @@ import {
   getStressTestDisplayYears,
   listLedgerTrail,
   migrateSimulationState,
+  previewInvestmentPortfolio,
   previewRelationshipInvestment,
+  previewSelectedInvestment,
   RELATIONSHIPS,
   runStressTest,
   selectAction,
   selectRelationship,
+  validateRelationshipPortfolio,
+  validateSimulationExecutionState,
 } from "../src/simulation.js";
 
 test("the adopted calibration v0 remains explicit and versioned", () => {
@@ -141,6 +147,162 @@ test("relationship v1 gives every connection a stable schema", () => {
   assert.equal(relationship.investable, true);
 });
 
+test("the M2 portfolio gate validates all 20 relationships without pretending uncalibrated links are ready", () => {
+  const report = validateRelationshipPortfolio(createInitialState());
+  assert.equal(report.valid, true);
+  assert.equal(report.total, 20);
+  assert.deepEqual(report.calibration, { calibrated: 1, uncalibrated: 19 });
+  assert.deepEqual(report.errors, []);
+});
+
+test("the M2 portfolio gate fails closed on map identity and state range drift", () => {
+  const state = createInitialState();
+  state.relationships["J1-B1"].id = "B1-C6";
+  state.relationships["J1-B1"].source = "unknown-actor";
+  state.relationships["J1-B1"].state.trust = 101;
+  state.relationships["J1-B1"].state.alternateRoutes = 1.5;
+  const report = validateRelationshipPortfolio(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("map key")));
+  assert.ok(report.errors.some((error) => error.includes("trust")));
+  assert.ok(report.errors.some((error) => error.includes("unknown actor")));
+  assert.ok(report.errors.some((error) => error.includes("integer")));
+
+  const malformed = createInitialState();
+  malformed.relationships["J1-B1"] = null;
+  assert.equal(validateRelationshipPortfolio(malformed).valid, false);
+
+  const metadataDrift = createInitialState();
+  metadataDrift.relationships["J1-B1"].investable = true;
+  metadataDrift.relationships["J1-B1"].purpose = "forged";
+  metadataDrift.relationships["J1-B1"].contested = true;
+  const metadataReport = validateRelationshipPortfolio(metadataDrift);
+  assert.equal(metadataReport.valid, false);
+  assert.ok(metadataReport.errors.some((error) => error.includes("investable drift")));
+  assert.ok(metadataReport.errors.some((error) => error.includes("purpose drift")));
+  assert.ok(metadataReport.errors.some((error) => error.includes("contested drift")));
+
+  assert.equal(validateRelationshipPortfolio(createInitialState(), null).valid, false);
+  assert.equal(validateRelationshipPortfolio(createInitialState(), [null]).valid, false);
+
+  const fingerprintDrift = createInitialState();
+  fingerprintDrift.relationships["B1-C6"].calibrationFingerprint = "forged";
+  assert.equal(validateRelationshipPortfolio(fingerprintDrift).valid, false);
+
+  const uncalibratedDrift = createInitialState();
+  uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
+
+  const emptyBaselineDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: {} }
+      : definition
+  ));
+  const emptyBaselineState = createInitialState();
+  emptyBaselineState.relationships["B1-C6"].calibrationFingerprint = "relationship-v1.0.0:{}";
+  const emptyBaselineReport = validateRelationshipPortfolio(emptyBaselineState, emptyBaselineDefinitions);
+  assert.equal(emptyBaselineReport.valid, false);
+  assert.ok(emptyBaselineReport.errors.some((error) => error.includes("calibrated definition baseline is invalid")));
+  assert.equal(
+    previewInvestmentPortfolio(
+      emptyBaselineState,
+      [{ relationshipId: "B1-C6", actionId: "verification" }],
+      emptyBaselineDefinitions,
+    ).eligible,
+    false,
+  );
+  assert.equal(getRelationshipContribution(emptyBaselineState, "B1-C6", emptyBaselineDefinitions), null);
+
+  for (const [field, value] of [["contested", "false"], ["investable", 0]]) {
+    const definitions = RELATIONSHIPS.map((definition) => (
+      definition.id === "B1-C6" ? { ...definition, [field]: value } : definition
+    ));
+    const corrupted = createInitialState();
+    corrupted.relationships["B1-C6"][field] = value;
+    const report = validateRelationshipPortfolio(corrupted, definitions);
+    assert.equal(report.valid, false, field);
+    assert.ok(report.errors.some((error) => error.includes("must be boolean")), field);
+    assert.equal(
+      previewInvestmentPortfolio(
+        corrupted,
+        [{ relationshipId: "B1-C6", actionId: "verification" }],
+        definitions,
+      ).eligible,
+      false,
+      field,
+    );
+    assert.strictEqual(advanceYear(corrupted, definitions), corrupted, field);
+  }
+});
+
+test("primary investment flow routes through the portfolio gate", () => {
+  const drifted = createInitialState();
+  drifted.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(drifted).valid, false);
+  assert.equal(previewSelectedInvestment(drifted).eligible, false);
+  assert.equal(previewRelationshipInvestment(drifted).eligible, true);
+  assert.strictEqual(advanceYear(drifted), drifted);
+
+  const malformedBudget = createInitialState();
+  malformedBudget.budget = "100";
+  assert.equal(previewSelectedInvestment(malformedBudget).eligible, false);
+  assert.strictEqual(advanceYear(malformedBudget), malformedBudget);
+
+  const healthy = createInitialState();
+  const preview = previewSelectedInvestment(healthy);
+  assert.equal(preview.eligible, true);
+  assert.equal(preview.relationshipId, "B1-C6");
+  assert.notEqual(advanceYear(healthy), healthy);
+});
+
+test("an investment portfolio enforces one-to-three unique calibrated targets and the annual budget", () => {
+  const state = createInitialState();
+  assert.equal(previewInvestmentPortfolio(state, []).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [null]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [{ relationshipId: "", actionId: "verification" }]).eligible, false);
+  const malformedBudget = structuredClone(state);
+  malformedBudget.budget = "100";
+  assert.equal(previewInvestmentPortfolio(malformedBudget, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
+  malformedBudget.budget = Infinity;
+  assert.equal(previewInvestmentPortfolio(malformedBudget, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "B1-C6", actionId: "translation" },
+  ]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "J1-B1", actionId: "translation" },
+  ]).reason, "年間アクションは全配分で同一にしてください");
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "J1-B1", actionId: "verification" },
+  ]).eligible, false);
+
+  const plan = previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]);
+  assert.equal(plan.eligible, true);
+  assert.equal(plan.totalCost, 25);
+  assert.equal(plan.items.length, 1);
+
+  const expensive = structuredClone(state);
+  expensive.budget = 20;
+  assert.equal(previewInvestmentPortfolio(expensive, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
+});
+
+test("edge presentation is derived from relationship state rather than year or array position", () => {
+  const state = createInitialState();
+  const base = getRelationshipEdgePresentation(state.relationships["J1-B1"]);
+  state.relationships["J1-B1"].state.maturity = 90;
+  state.relationships["J1-B1"].state.trust = 85;
+  state.relationships["J1-B1"].state.dependency = 10;
+  const strengthened = getRelationshipEdgePresentation(state.relationships["J1-B1"]);
+  assert.ok(strengthened.strokeWidth > base.strokeWidth);
+  assert.ok(strengthened.opacity > base.opacity);
+  assert.notEqual(strengthened.stroke, base.stroke);
+  const malformed = getRelationshipEdgePresentation({ state: { maturity: "bad", trust: null, dependency: undefined } });
+  assert.equal(Number.isFinite(malformed.strokeWidth), true);
+  assert.equal(Number.isFinite(malformed.opacity), true);
+});
+
 test("legacy aggregate state has an explicit migration path", () => {
   const migrated = migrateSimulationState({
     year: 2030,
@@ -154,6 +316,8 @@ test("legacy aggregate state has an explicit migration path", () => {
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
   assert.deepEqual(migrated.ledger, []);
   assert.deepEqual(migrated.stressTests, {});
+  assert.equal(validateSimulationExecutionState(migrated).valid, false);
+  assert.strictEqual(runStressTest(migrated), migrated);
 });
 
 test("a legitimate schema-v2 save is backfilled with the known calibration", () => {
@@ -247,7 +411,7 @@ test("the selected yearly investment previews an exact relationship delta", () =
   assert.ok(preview.tradeoffs.includes("開示コスト +2"));
 });
 
-test("preview and ledger record the applied delta after clamping", () => {
+test("preview records clamping but noncanonical starting state cannot execute", () => {
   const state = selectAction(createInitialState(), "verification");
   state.relationships["B1-C6"].state.maturity = 98;
   state.metrics.verification = 97;
@@ -257,11 +421,7 @@ test("preview and ledger record the applied delta after clamping", () => {
   assert.equal(preview.metricDeltas.verification, 3);
   assert.equal(preview.metricDeltas.continuity, 1);
 
-  const next = advanceYear(state);
-  assert.equal(next.ledger[0].deltas.maturity, 2);
-  assert.equal(next.ledger[0].metricDeltas.verification, 3);
-  assert.equal(next.ledger[0].metricDeltas.continuity, 1);
-  assert.equal(next.metrics.continuity - state.metrics.continuity, 1);
+  assert.strictEqual(advanceYear(state), state);
 });
 
 test("a fully clamped relationship cannot create aggregate or crisis gains", () => {
@@ -318,7 +478,7 @@ test("partially clamped beneficial progress scales aggregate effects", () => {
   assert.equal(preview.metricDeltas.coordinationCapital, 0);
   assert.equal(preview.metricDeltas.surveillance, 0);
   assert.equal(preview.eligible, true);
-  assert.equal(advanceYear(state).ledger[0].effectRealization, 2 / 22);
+  assert.strictEqual(advanceYear(state), state);
 });
 
 test("numeric tradeoffs reflect fatigue and clamping instead of configured values", () => {
@@ -353,6 +513,12 @@ test("verification investment deterministically increases verification capacity"
   assert.deepEqual(next.ledger[0].after, next.relationships["B1-C6"].state);
   assert.equal(next.ledger[0].ruleVersion, "relationship-v1.0.0");
   assert.equal(next.ledger[0].seed, "baseline-0");
+  assert.deepEqual(next.ledger[0].effects, {
+    direct: next.ledger[0].deltas,
+    spillover: next.ledger[0].metricDeltas,
+    conflict: [],
+    sideEffects: next.ledger[0].tradeoffs,
+  });
 });
 
 test("a display-only relationship cannot silently receive the representative investment", () => {
@@ -556,6 +722,527 @@ test("a persisted relationship cannot use a different calibration baseline", () 
   assert.equal(advanceYear(state, changedDefinitions), state);
 });
 
+test("non-Boolean investable flags cannot authorize a calibrated relationship", () => {
+  for (const corruptedLayer of ["definition", "state"]) {
+    const state = createInitialState();
+    const changedDefinitions = RELATIONSHIPS.map((definition) => (
+      definition.id === "B1-C6"
+        ? { ...definition, investable: corruptedLayer === "definition" ? "false" : definition.investable }
+        : definition
+    ));
+    if (corruptedLayer === "state") state.relationships["B1-C6"].investable = "false";
+
+    const preview = previewRelationshipInvestment(
+      state,
+      state.selectedAction,
+      state.selectedRelationshipId,
+      changedDefinitions,
+    );
+    assert.equal(preview.eligible, false, corruptedLayer);
+    assert.match(preview.reason, /校正済み/, corruptedLayer);
+    assert.equal(runStressTest(state, changedDefinitions), state, corruptedLayer);
+  }
+});
+
+test("portfolio execution rejects missing labels and zero calibrated relationships", () => {
+  const blankLabel = createInitialState();
+  blankLabel.relationships["B1-C6"].label = "";
+  const blankDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, label: "" } : definition
+  ));
+  assert.equal(validateRelationshipPortfolio(blankLabel, blankDefinitions).valid, false);
+  assert.equal(
+    previewInvestmentPortfolio(blankLabel, [{ relationshipId: "B1-C6", actionId: "verification" }], blankDefinitions).eligible,
+    false,
+  );
+
+  const noCalibration = createInitialState();
+  noCalibration.relationships["B1-C6"].investable = false;
+  const noCalibrationDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, investable: false } : definition
+  ));
+  assert.equal(validateRelationshipPortfolio(noCalibration, noCalibrationDefinitions).valid, false);
+  assert.strictEqual(runStressTest(noCalibration, noCalibrationDefinitions), noCalibration);
+});
+
+test("portfolio execution rejects a blank relationship definition id", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "";
+  state.relationships[""] = relationship;
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, id: "" } : definition
+  ));
+
+  assert.equal(validateRelationshipPortfolio(state, definitions).valid, false);
+  assert.strictEqual(runStressTest(state, definitions), state);
+});
+
+test("portfolio execution rejects malformed aggregate state containers", () => {
+  for (const mutate of [
+    (state) => { state.metrics.verification = "38"; },
+    (state) => { state.metrics.verification = Number.NaN; },
+    (state) => { state.metrics.verification = -1; },
+    (state) => { state.metrics.verification = 101; },
+    (state) => { delete state.metrics.verification; },
+    (state) => { state.metrics.extra = 1; },
+    (state) => { state.ledger = null; },
+    (state) => { state.ledger = {}; },
+    (state) => { state.ledger = [null]; },
+    (state) => {
+      const entry = runStressTest(state).ledger[0];
+      state.ledger = [entry, structuredClone(entry)];
+    },
+    (state) => { state.history = null; },
+    (state) => { state.history = {}; },
+    (state) => { state.stressTests = []; },
+    (state) => { state.stressTests = { 2030: { relationshipContributions: [{}] } }; },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.stressTests[state.year].verdict = "協調継続";
+    },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.stressTests[state.year].relationshipContributions[0].ledgerEntryId = "missing";
+    },
+    (state) => { state.seed = ""; },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.ledger[0].deltas.trust = { forged: true };
+    },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.stressTests[state.year].relationshipContributions[0].attributionSafety += 1;
+    },
+    (state) => {
+      const tested = runStressTest(createDemoState(2030));
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+    },
+    (state) => { state.schemaVersion = 2; },
+  ]) {
+    const state = createInitialState();
+    mutate(state);
+    assert.equal(validateSimulationExecutionState(state).valid, false);
+    assert.equal(
+      previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible,
+      false,
+    );
+    assert.strictEqual(advanceYear(state), state);
+    assert.strictEqual(runStressTest(state), state);
+  }
+  assert.equal(validateSimulationExecutionState(createInitialState()).valid, true);
+});
+
+test("execution state rejects future-dated stress and ledger evidence", () => {
+  const future = createInitialState();
+  const tested = createDemoState(2030);
+  future.ledger = structuredClone(tested.ledger);
+  future.stressTests = structuredClone(tested.stressTests);
+  assert.equal(future.year, 2026);
+  assert.equal(validateSimulationExecutionState(future).valid, false);
+  assert.ok(validateSimulationExecutionState(future).errors.some((error) => error.includes("cannot exceed the current simulation year") || error.includes("elapsed simulation year")));
+  assert.equal(previewSelectedInvestment(future).eligible, false);
+  assert.strictEqual(advanceYear(future), future);
+  assert.strictEqual(runStressTest(future), future);
+});
+
+test("execution state binds stress contributions to checkpoint snapshots", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  const original = contribution.attributionSafety;
+  contribution.attributionSafety = original === 0 ? 1 : original - 1;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("does not match its checkpoint snapshot")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects non-numeric ledger delta values", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].deltas.trust = { forged: true };
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("must be a finite number")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution state requires a nonempty string seed", () => {
+  for (const seed of [null, "", "   ", 0, 12, { value: "baseline-0" }]) {
+    const state = createInitialState();
+    state.seed = seed;
+    assert.equal(validateSimulationExecutionState(state).valid, false, String(seed));
+    assert.equal(previewSelectedInvestment(state).eligible, false, String(seed));
+    assert.strictEqual(advanceYear(state), state, String(seed));
+    assert.strictEqual(runStressTest(state), state, String(seed));
+  }
+});
+
+test("execution state requires ledger deltas for every changed before/after field", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].deltas = {};
+  state.ledger[0].metricDeltas = {};
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("missing required key")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state binds checkpoint snapshots to the canonical relationship baseline", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  const entry = state.ledger.find((item) => item.id === contribution.ledgerEntryId);
+  entry.before = Object.fromEntries(Object.keys(entry.before).map((key) => [key, 0]));
+  entry.deltas = Object.fromEntries(Object.keys(entry.after).map((key) => [key, entry.after[key] - entry.before[key]]));
+  const recalculated = {
+    attributionSafety: contribution.attributionSafety,
+    coordinationSurvival: contribution.coordinationSurvival,
+    civilianProtection: contribution.civilianProtection,
+  };
+  // Keep contribution values in range but detached from the canonical baseline.
+  Object.assign(contribution, recalculated);
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("calibrated baseline")));
+});
+
+test("execution state recomputes persisted stress aggregate scores", () => {
+  const state = runStressTest(createInitialState());
+  const result = state.stressTests[state.year];
+  result.attributionSafety = 99;
+  result.coordinationSurvival = 99;
+  result.verdict = "協調継続";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("does not match recomputed evidence")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state requires ledger entry seeds to match the simulation seed", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].seed = "";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  state.ledger[0].seed = "other-seed";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution state rejects non-string ledger tradeoffs", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].tradeoffs = [{ forged: true }];
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("tradeoffs must be nonempty strings")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state requires exactly one stress contribution per calibrated relationship", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  state.stressTests[state.year].relationshipContributions = [contribution, structuredClone(contribution)];
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => (
+    error.includes("uniquely identify") || error.includes("exactly the calibrated")
+  )));
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects annual ledger entries for display-only relationships", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].relationshipId = "J1-B1";
+  state.ledger[0].relationshipLabel = state.relationships["J1-B1"].label;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("calibrated investable relationship")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state recomputes historical stress scores from their metrics snapshot", () => {
+  let state = runStressTest(createDemoState(2030));
+  state = advanceYear(state);
+  state.stressTests[2030].attributionSafety = 99;
+  state.stressTests[2030].coordinationSurvival = 99;
+  state.stressTests[2030].verdict = "協調継続";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects missing stress metrics snapshots", () => {
+  const state = runStressTest(createInitialState());
+  delete state.stressTests[state.year].metricsSnapshot;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution state binds the current-year stress metrics snapshot to current metrics", () => {
+  const state = runStressTest(createInitialState());
+  state.stressTests[state.year].metricsSnapshot.verification += 1;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("replayed simulation year")));
+});
+
+test("execution state requires a continuous annual relationship timeline", () => {
+  let state = advanceYear(createInitialState());
+  state = advanceYear(state);
+  state.ledger[1].before.trust -= 1;
+  state.ledger[1].deltas.trust = state.ledger[1].after.trust - state.ledger[1].before.trust;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("timeline must be continuous")));
+});
+
+test("schema-v3 migration deterministically backfills persisted execution evidence", () => {
+  const current = runStressTest(advanceYear(createInitialState()));
+  const legacy = structuredClone(current);
+  delete legacy.ledger.find((entry) => entry.action !== "checkpoint-snapshot").effects;
+  delete legacy.stressTests[legacy.year].metricsSnapshot;
+  const migrated = migrateSimulationState(legacy);
+  assert.deepEqual(migrated.ledger.find((entry) => entry.action !== "checkpoint-snapshot").effects.spillover, current.ledger.find((entry) => entry.action !== "checkpoint-snapshot").metricDeltas);
+  assert.deepEqual(migrated.stressTests[migrated.year].metricsSnapshot, current.metrics);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+});
+
+test("schema-v3 backfill cannot launder forged annual metric deltas", () => {
+  const legacy = advanceYear(createInitialState());
+  delete legacy.ledger[0].effects;
+  legacy.ledger[0].metricDeltas.verification = 99;
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(validateSimulationExecutionState(migrated).valid, false);
+  assert.ok(validateSimulationExecutionState(migrated).errors.some((error) => error.includes("spillover effects")));
+});
+
+test("execution state permits exactly one annual action per year", () => {
+  let state = advanceYear(createInitialState());
+  state = advanceYear(state);
+  state.ledger[1].year = state.ledger[0].year;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("one action per year")));
+});
+
+test("annual replay rejects a self-consistent forged action projection", () => {
+  const state = advanceYear(createInitialState());
+  const entry = state.ledger[0];
+  entry.after.trust = 90;
+  entry.deltas.trust = 90 - entry.before.trust;
+  state.relationships[entry.relationshipId].state.trust = 90;
+  entry.metricDeltas.verification = 50;
+  entry.effects.spillover.verification = 50;
+  state.metrics.verification = 88;
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("canonical action replay")));
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("annual replay requires complete elapsed-year and history coverage", () => {
+  const missingYears = createInitialState();
+  missingYears.year = 2030;
+  assert.equal(validateSimulationExecutionState(missingYears).valid, false);
+  assert.strictEqual(runStressTest(missingYears), missingYears);
+
+  const missingHistory = advanceYear(createInitialState());
+  missingHistory.history = [];
+  assert.equal(validateSimulationExecutionState(missingHistory).valid, false);
+  assert.ok(validateSimulationExecutionState(missingHistory).errors.some((error) => error.includes("history")));
+});
+
+test("annual replay rejects invalid years and definition containers before allocation", () => {
+  const hugeYear = createInitialState();
+  hugeYear.year = 1_000_000_000;
+  assert.doesNotThrow(() => validateSimulationExecutionState(hugeYear));
+  assert.equal(validateSimulationExecutionState(hugeYear).valid, false);
+  assert.strictEqual(advanceYear(hugeYear), hugeYear);
+  assert.strictEqual(runStressTest(hugeYear), hugeYear);
+
+  const state = createInitialState();
+  assert.doesNotThrow(() => validateSimulationExecutionState(state, null));
+  assert.equal(validateSimulationExecutionState(state, null).valid, false);
+  assert.strictEqual(advanceYear(state, null), state);
+  assert.strictEqual(runStressTest(state, null), state);
+
+  const malformedDefinitions = [null];
+  assert.doesNotThrow(() => validateSimulationExecutionState(state, malformedDefinitions));
+  assert.equal(validateSimulationExecutionState(state, malformedDefinitions).valid, false);
+  assert.strictEqual(advanceYear(state, malformedDefinitions), state);
+  assert.strictEqual(runStressTest(state, malformedDefinitions), state);
+});
+
+test("checkpoint ledger is the complete canonical stress projection", () => {
+  const canonical = createDemoState(2030);
+  const checkpoint = canonical.ledger.find((entry) => entry.action === "checkpoint-snapshot");
+  for (const [field, forged] of [
+    ["actionLabel", "forged label"],
+    ["project", "forged project"],
+    ["reason", "forged reason"],
+    ["ruleVersion", "forged-rule"],
+    ["cost", 1],
+    ["metricDeltas", { verification: 1 }],
+    ["tradeoffs", ["forged tradeoff"]],
+  ]) {
+    const state = structuredClone(canonical);
+    const entry = state.ledger.find((item) => item.id === checkpoint.id);
+    entry[field] = forged;
+    const report = validateSimulationExecutionState(state);
+    assert.equal(report.valid, false, `${field} must fail closed`);
+    assert.ok(report.errors.some((error) => error.includes("canonical checkpoint projection")));
+  }
+});
+
+test("causal ledger preserves annual action and checkpoint event order", () => {
+  const startCheckpoint = runStressTest(createInitialState());
+  assert.equal(validateSimulationExecutionState(startCheckpoint).valid, true);
+  assert.equal(advanceYear(startCheckpoint).year, 2027);
+
+  const representative = RELATIONSHIPS.find((definition) => definition.id === "B1-C6");
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "J1-B1"
+      ? { ...definition, investable: true, initialState: { ...representative.initialState } }
+      : definition
+  ));
+  const multiRelationshipCheckpoint = runStressTest(createInitialState(definitions), definitions);
+  assert.equal(multiRelationshipCheckpoint.stressTests[START_YEAR].relationshipContributions.length, 2);
+  assert.equal(validateSimulationExecutionState(multiRelationshipCheckpoint, definitions).valid, true);
+
+  const state = createDemoState(2031);
+  const checkpointIndex = state.ledger.findIndex((entry) => entry.year === 2030 && entry.action === "checkpoint-snapshot");
+  const [checkpoint] = state.ledger.splice(checkpointIndex, 1);
+  const annual2031Index = state.ledger.findIndex((entry) => entry.year === 2031 && entry.action !== "checkpoint-snapshot");
+  state.ledger.splice(annual2031Index + 1, 0, checkpoint);
+  const annual2031 = state.ledger.find((entry) => entry.year === 2031 && entry.action !== "checkpoint-snapshot");
+  annual2031.id = annual2031.id.replace(/:\d+$/, `:${state.ledger.indexOf(annual2031) + 1}`);
+  state.history.find((entry) => entry.year === 2031).ledgerId = annual2031.id;
+
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("canonical event order")));
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("annual replay preserves append order and canonical identity fields", () => {
+  let state = advanceYear(createInitialState());
+  state = advanceYear(state);
+  state.ledger.reverse();
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+
+  state = advanceYear(createInitialState());
+  state.ledger[0].id = "forged-ledger-id";
+  state.ledger[0].reason = "forged but nonempty";
+  state.history[0].ledgerId = "forged-ledger-id";
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("canonical action replay")));
+});
+
+test("historical checkpoints are bound to their replayed year snapshots", () => {
+  const state = createDemoState(2031);
+  const result = state.stressTests[2030];
+  const contribution = result.relationshipContributions[0];
+  const entry = state.ledger.find((item) => item.id === contribution.ledgerEntryId);
+  entry.after.trust = 99;
+  entry.deltas.trust = 99 - entry.before.trust;
+  contribution.attributionSafety += 1;
+  result.metricsSnapshot.verification += 1;
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("replayed relationship state") || error.includes("replayed simulation year")));
+});
+
+test("every crossed checkpoint retains its crisis evidence", () => {
+  const state = createDemoState(2031);
+  const checkpointLedgerId = state.stressTests[2030].relationshipContributions[0].ledgerEntryId;
+  delete state.stressTests[2030];
+  state.ledger = state.ledger.filter((entry) => entry.id !== checkpointLedgerId);
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("crossed checkpoint")));
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("checkpoint ledger is an exact projection of stored stress contributions", () => {
+  const state = runStressTest(createInitialState());
+  const orphan = structuredClone(state.ledger[0]);
+  orphan.id = "orphan-checkpoint";
+  state.ledger.push(orphan);
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("exactly match")));
+});
+
+test("execution validation fails closed for malformed relationship references", () => {
+  const malformedRelationship = createInitialState();
+  malformedRelationship.relationships["B1-C6"] = null;
+  assert.doesNotThrow(() => validateSimulationExecutionState(malformedRelationship));
+  assert.equal(validateSimulationExecutionState(malformedRelationship).valid, false);
+
+  const unknownContribution = runStressTest(createInitialState());
+  const contribution = unknownContribution.stressTests[unknownContribution.year].relationshipContributions[0];
+  const ledgerEntry = unknownContribution.ledger.find((entry) => entry.id === contribution.ledgerEntryId);
+  contribution.relationshipId = "missing";
+  ledgerEntry.relationshipId = "missing";
+  assert.doesNotThrow(() => validateSimulationExecutionState(unknownContribution));
+  assert.equal(validateSimulationExecutionState(unknownContribution).valid, false);
+});
+
+test("execution state binds annual metric deltas to recorded spillover effects", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].metricDeltas = {};
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("portfolio execution rejects self-referential relationship endpoints", () => {
+  const state = createInitialState();
+  state.relationships["B1-C6"].target = "B1";
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, target: "B1" } : definition
+  ));
+
+  assert.equal(validateRelationshipPortfolio(state, definitions).valid, false);
+  assert.equal(
+    previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }], definitions).eligible,
+    false,
+  );
+  assert.strictEqual(runStressTest(state, definitions), state);
+});
+
+test("portfolio execution rejects a non-integer or out-of-horizon year", () => {
+  for (const year of ["2026", 2026.5, null, START_YEAR - 1, END_YEAR + 1]) {
+    const state = createInitialState();
+    state.year = year;
+    const plan = previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]);
+    assert.equal(plan.eligible, false, String(year));
+    assert.strictEqual(advanceYear(state), state, String(year));
+  }
+});
+
+test("stress tests refuse malformed portfolio state before recording evidence", () => {
+  const outOfRange = createInitialState();
+  outOfRange.relationships["B1-C6"].state.verificationAgreement = 1000;
+  assert.equal(validateRelationshipPortfolio(outOfRange).valid, false);
+  assert.strictEqual(runStressTest(outOfRange), outOfRange);
+  assert.equal(outOfRange.stressTests[outOfRange.year], undefined);
+
+  const uncalibratedDrift = createInitialState();
+  uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
+  assert.strictEqual(runStressTest(uncalibratedDrift), uncalibratedDrift);
+  assert.equal(uncalibratedDrift.stressTests[uncalibratedDrift.year], undefined);
+
+  const healthy = createInitialState();
+  const tested = runStressTest(healthy);
+  assert.notEqual(tested, healthy);
+  assert.ok(tested.stressTests[healthy.year]);
+});
+
 test("a calibrated relationship cannot be duplicated under another map key", () => {
   const state = createInitialState();
   state.relationships.duplicate = structuredClone(state.relationships["B1-C6"]);
@@ -569,14 +1256,13 @@ test("a calibrated relationship cannot be duplicated under another map key", () 
   assert.equal(advanceYear(state), state);
 });
 
-test("role-equivalent stress still responds to a genuinely different relationship state", () => {
+test("stress refuses a relationship state without a canonical annual transition", () => {
   const baseline = createInitialState();
   const changed = structuredClone(baseline);
   changed.relationships["B1-C6"].state.verificationAgreement += 20;
 
-  const baselineResult = runStressTest(baseline).stressTests[baseline.year];
-  const changedResult = runStressTest(changed).stressTests[changed.year];
-  assert.notEqual(changedResult.attributionSafety, baselineResult.attributionSafety);
+  assert.ok(runStressTest(baseline).stressTests[baseline.year]);
+  assert.strictEqual(runStressTest(changed), changed);
 });
 
 test("the latest arbitrary-year stress result remains visible beside standard checkpoints", () => {
@@ -633,7 +1319,7 @@ test("ledger drawer focus restores an earlier investment without breaking stress
   assert.equal(getLedgerEntryFocus(state, "missing-entry"), null);
 });
 
-test("a migrated checkpoint creates a deterministic relationship snapshot when no ledger exists", () => {
+test("a legacy aggregate checkpoint is preserved but cannot invent missing annual evidence", () => {
   const migrated = migrateSimulationState({
     year: 2030,
     metrics: { verification: 61 },
@@ -641,15 +1327,10 @@ test("a migrated checkpoint creates a deterministic relationship snapshot when n
     stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
   });
   const tested = runStressTest(migrated);
-  const contribution = tested.stressTests[2030].relationshipContributions[0];
-  const focus = getStressContributionFocus(tested, 2030, contribution.relationshipId);
-
-  assert.equal(tested.ledger.length, 1);
-  assert.equal(tested.ledger[0].action, "checkpoint-snapshot");
-  assert.deepEqual(tested.ledger[0].before, tested.relationships[contribution.relationshipId].state);
-  assert.deepEqual(tested.ledger[0].after, tested.relationships[contribution.relationshipId].state);
-  assert.equal(contribution.ledgerEntryId, tested.ledger[0].id);
-  assert.equal(focus.ledgerEntryId, tested.ledger[0].id);
+  assert.strictEqual(tested, migrated);
+  assert.equal(migrated.year, 2030);
+  assert.equal(migrated.metrics.verification, 61);
+  assert.deepEqual(migrated.ledger, []);
 });
 
 test("relationship investment is traceable to a larger crisis contribution", () => {

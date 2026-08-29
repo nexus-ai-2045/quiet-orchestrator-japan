@@ -1,14 +1,14 @@
 # 実行結果｜P0 baseline + P1因果縦切り 実測スナップショット
 
-確認日: 2026-08-29
+確認日: 2026-08-30
 
-機械検証対象content HEAD: `9a11564d3d583a7f1b4b95125e7faf1bd5440fba`
+機械検証対象content HEAD: `48d3cd87a6f6d3767d7f982b3a040909356684de`
 
 ## 実行環境
 
-- Node.js `v22.14.0`
-- npm `10.9.7`
-- Linux / ローカルVite
+- Node.js `v24.14.0`
+- npm `11.14.1`
+- Windows / ローカルworktree
 - 外部API、APIキー、ライブデータなし
 
 READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 65件pass |
+| `npm test` | 107件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -41,17 +41,17 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
-### ブラウザ確認（因果台帳drawer・同一content HEAD）
+### ブラウザ確認（因果台帳drawer・履歴content HEAD）
 
-上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。
+履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このブラウザ証拠は現在のM2 mechanical foundation content HEADのsame-HEAD証拠には数えない。
 
 | gate | status | affirmative observation |
 |---|---|---|
-| standard-width | pass-current-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
-| narrow-880 | pass-current-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
-| narrow-320 | pass-current-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
-| keyboard-modal | pass-current-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
-| reduced-motion | pass-current-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
+| standard-width | pass-historical-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
+| narrow-880 | pass-historical-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
+| narrow-320 | pass-historical-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
+| keyboard-modal | pass-historical-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
+| reduced-motion | pass-historical-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
 
 ## PR reviewへの対応
 
