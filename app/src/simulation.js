@@ -253,6 +253,7 @@ export function getSelectedRelationship(state) {
 
 export function validateRelationshipPortfolio(state, relationshipDefinitions = RELATIONSHIPS) {
   const errors = [];
+  const actorIds = new Set(ACTORS.map((actor) => actor.id));
   if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => (
     !definition || typeof definition !== "object" || Array.isArray(definition) || typeof definition.id !== "string"
   ))) {
@@ -295,6 +296,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
     if (relationship.source !== definition.source || relationship.target !== definition.target) {
       errors.push(`${mapKey}: source/target drift`);
     }
+    if (!actorIds.has(relationship.source) || !actorIds.has(relationship.target)) errors.push(`${mapKey}: unknown actor endpoint`);
     for (const field of ["label", "purpose", "channel", "ownership", "investable", "contested"]) {
       if (relationship[field] !== definition[field]) errors.push(`${mapKey}: ${field} drift`);
     }
@@ -435,8 +437,6 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
-  const portfolioReport = validateRelationshipPortfolio(state, relationshipDefinitions);
-  if (!portfolioReport.valid) return { eligible: false, relationshipId, actionId, reason: "20接続ポートフォリオのschemaが不正です（校正済み接続を確認してください）", errors: portfolioReport.errors };
   if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
   }
