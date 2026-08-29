@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/ai-simulation-mvp`
-- content HEAD: `9a11564d3d583a7f1b4b95125e7faf1bd5440fba`（scripted PDCA、完全receipt/state入力、canonical output boundary、horizon gate、checkpoint再試行証拠、因果台帳drawerのfocus controller・320px幅）
+- content HEAD: `10a4c19f44d505f79e497653b1ef510e8a7e3552`（M2ポートフォリオfail-closed、破損入力拒否、校正fingerprint・budget・definition baseline検証、70件回帰）
 - base: `origin/main@7fa6df89fa064938adf6263f3c84bd144f369b2e`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 69件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 70件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

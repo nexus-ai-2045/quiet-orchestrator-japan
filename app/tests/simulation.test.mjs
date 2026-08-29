@@ -30,6 +30,7 @@ import {
   migrateSimulationState,
   previewInvestmentPortfolio,
   previewRelationshipInvestment,
+  previewSelectedInvestment,
   RELATIONSHIPS,
   runStressTest,
   selectAction,
@@ -189,6 +190,46 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
   const uncalibratedDrift = createInitialState();
   uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
   assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
+
+  const emptyBaselineDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: {} }
+      : definition
+  ));
+  const emptyBaselineState = createInitialState();
+  emptyBaselineState.relationships["B1-C6"].calibrationFingerprint = "relationship-v1.0.0:{}";
+  const emptyBaselineReport = validateRelationshipPortfolio(emptyBaselineState, emptyBaselineDefinitions);
+  assert.equal(emptyBaselineReport.valid, false);
+  assert.ok(emptyBaselineReport.errors.some((error) => error.includes("calibrated definition baseline is invalid")));
+  assert.equal(
+    previewInvestmentPortfolio(
+      emptyBaselineState,
+      [{ relationshipId: "B1-C6", actionId: "verification" }],
+      emptyBaselineDefinitions,
+    ).eligible,
+    false,
+  );
+  assert.equal(getRelationshipContribution(emptyBaselineState, "B1-C6", emptyBaselineDefinitions), null);
+});
+
+test("primary investment flow routes through the portfolio gate", () => {
+  const drifted = createInitialState();
+  drifted.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(drifted).valid, false);
+  assert.equal(previewSelectedInvestment(drifted).eligible, false);
+  assert.equal(previewRelationshipInvestment(drifted).eligible, true);
+  assert.strictEqual(advanceYear(drifted), drifted);
+
+  const malformedBudget = createInitialState();
+  malformedBudget.budget = "100";
+  assert.equal(previewSelectedInvestment(malformedBudget).eligible, false);
+  assert.strictEqual(advanceYear(malformedBudget), malformedBudget);
+
+  const healthy = createInitialState();
+  const preview = previewSelectedInvestment(healthy);
+  assert.equal(preview.eligible, true);
+  assert.equal(preview.relationshipId, "B1-C6");
+  assert.notEqual(advanceYear(healthy), healthy);
 });
 
 test("an investment portfolio enforces one-to-three unique calibrated targets and the annual budget", () => {

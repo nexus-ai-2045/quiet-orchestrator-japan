@@ -50,15 +50,21 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-const currentDrawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
-for (const gate of currentDrawerEvidenceGates) {
-  const row = results.match(new RegExp(`^\\| ${gate} \\| pass-current-head \\| ([^|]+) \\|$`, "m"));
+const historicalDrawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
+for (const gate of historicalDrawerEvidenceGates) {
+  const row = results.match(new RegExp(`^\\| ${gate} \\| pass-historical-head \\| ([^|]+) \\|$`, "m"));
   if (!row || /未確認|pending|未実施/.test(row[1]) || row[1].trim().length < 8) {
-    throw new Error(`RESULTS.md drawer evidence must be affirmative and complete: ${gate}`);
+    throw new Error(`RESULTS.md historical drawer evidence must be affirmative and complete: ${gate}`);
   }
 }
+if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証拠には数えない")) {
+  throw new Error("RESULTS.md drawer evidence must remain historical for the current M2 content HEAD");
+}
+if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
+  throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
+}
 if (!roadmap.includes("M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2")) {
-  throw new Error("ROADMAP.md cannot close M1 without the current drawer same-HEAD evidence");
+  throw new Error("ROADMAP.md cannot close M1 without the recorded drawer same-HEAD evidence");
 }
 const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
 const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
