@@ -155,6 +155,19 @@ test("receipt binds the scripted policy engine version", () => {
   assert.equal(validateAiReceipt({ ...receipt, provider: { ...receipt.provider, engineVersion: "forged" } }).valid, false);
 });
 
+test("fallback audit fields are bound to rebuilt receipt semantics", () => {
+  const observation = buildObservation({ actorId: "B1", turn: 1, seed: "fallback-audit" });
+  const receipt = createAiReceipt({ observation, proposal: "invalid-json", providerStatus: "invalid_json" });
+  assert.equal(validateAiReceipt({ ...receipt, fallbackUsed: false, validationErrors: [] }).valid, false);
+});
+
+test("output hash distinguishes different invalid raw provider responses", () => {
+  const observation = buildObservation({ actorId: "B1", turn: 1, seed: "raw-output" });
+  const first = createAiReceipt({ observation, proposal: "invalid-one", providerStatus: "invalid_json" });
+  const second = createAiReceipt({ observation, proposal: "invalid-two", providerStatus: "invalid_json" });
+  assert.notEqual(first.provider.outputHash, second.provider.outputHash);
+});
+
 test("AI summary always binds the fixed execution relationship", () => {
   const state = createDemoState(2035);
   const otherRelationshipId = Object.keys(state.relationships).find((id) => id !== "B1-C6");
@@ -162,6 +175,13 @@ test("AI summary always binds the fixed execution relationship", () => {
   const summary = buildAiStateSummary(changedSelection);
   assert.equal(summary.relationshipId, "B1-C6");
   assert.deepEqual(summary.relationshipState, state.relationships["B1-C6"].state);
+});
+
+test("AI summary freshness includes budget and checkpoint results", () => {
+  const state = createDemoState(2035);
+  const summary = buildAiStateSummary(state);
+  assert.equal(summary.budget, state.budget);
+  assert.deepEqual(summary.stressTests, state.stressTests);
 });
 
 test("fixture sequencing advances only after a successful AI adoption", () => {

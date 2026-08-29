@@ -4,9 +4,11 @@ import { AI_RELATIONSHIP_ID, canonicalize, observationFingerprint, validateAiRec
 export function buildAiStateSummary(state) {
   const stateProjection = {
     year: state.year,
+    budget: state.budget,
     selectedAction: state.selectedAction,
     selectedRelationshipId: state.selectedRelationshipId,
     metrics: state.metrics,
+    stressTests: state.stressTests,
     relationshipId: AI_RELATIONSHIP_ID,
     relationshipState: state.relationships[AI_RELATIONSHIP_ID]?.state ?? null,
     latestLedgerId: state.ledger.at(-1)?.id ?? null,
