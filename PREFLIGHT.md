@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m2-portfolio-foundation`
-- content HEAD: `02b2296e4b705a46d7c069db2ec60d5679a815db`（annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、107件回帰）
+- content HEAD: `48d3cd87a6f6d3767d7f982b3a040909356684de`（annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、全stress year・全校正接続のCanonical event順序、107件回帰）
 - base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"02b2296e4b705a46d7c069db2ec60d5679a815db","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"48d3cd87a6f6d3767d7f982b3a040909356684de","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
