@@ -988,6 +988,33 @@ test("execution state rejects missing stress metrics snapshots", () => {
   assert.strictEqual(runStressTest(state), state);
 });
 
+test("execution state binds the current-year stress metrics snapshot to current metrics", () => {
+  const state = runStressTest(createInitialState());
+  state.stressTests[state.year].metricsSnapshot.verification += 1;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("current simulation metrics")));
+});
+
+test("execution state requires a continuous annual relationship timeline", () => {
+  let state = advanceYear(createInitialState());
+  state = advanceYear(state);
+  state.ledger[1].before.trust -= 1;
+  state.ledger[1].deltas.trust = state.ledger[1].after.trust - state.ledger[1].before.trust;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("timeline must be continuous")));
+});
+
+test("schema-v3 migration deterministically backfills persisted execution evidence", () => {
+  const current = runStressTest(advanceYear(createInitialState()));
+  const legacy = structuredClone(current);
+  delete legacy.ledger.find((entry) => entry.action !== "checkpoint-snapshot").effects;
+  delete legacy.stressTests[legacy.year].metricsSnapshot;
+  const migrated = migrateSimulationState(legacy);
+  assert.deepEqual(migrated.ledger.find((entry) => entry.action !== "checkpoint-snapshot").effects.spillover, current.ledger.find((entry) => entry.action !== "checkpoint-snapshot").metricDeltas);
+  assert.deepEqual(migrated.stressTests[migrated.year].metricsSnapshot, current.metrics);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+});
+
 test("execution validation fails closed for malformed relationship references", () => {
   const malformedRelationship = createInitialState();
   malformedRelationship.relationships["B1-C6"] = null;

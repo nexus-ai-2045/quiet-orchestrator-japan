@@ -141,6 +141,31 @@ function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATION
     }
     if (!Number.isFinite(entry.cost) || entry.cost < 0) errors.push("ledger entry cost must be a nonnegative finite number");
   }
+  const annualByRelationship = new Map();
+  ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot").forEach((entry) => {
+    const entries = annualByRelationship.get(entry.relationshipId) ?? [];
+    entries.push(entry);
+    annualByRelationship.set(entry.relationshipId, entries);
+  });
+  for (const [relationshipId, entries] of annualByRelationship) {
+    const definition = Array.isArray(relationshipDefinitions)
+      ? relationshipDefinitions.find((item) => item.id === relationshipId)
+      : null;
+    const relationship = state.relationships?.[relationshipId];
+    const ordered = [...entries].sort((left, right) => left.year - right.year);
+    if (!definition || !relationship || ordered.some((entry) => !isValidRelationshipStateShape(entry.before) || !isValidRelationshipStateShape(entry.after))) continue;
+    if (canonicalizeJsonValue(ordered[0].before) !== canonicalizeJsonValue(definition.initialState)) {
+      errors.push("annual ledger timeline must start from the calibrated baseline");
+    }
+    for (let index = 1; index < ordered.length; index += 1) {
+      if (canonicalizeJsonValue(ordered[index].before) !== canonicalizeJsonValue(ordered[index - 1].after)) {
+        errors.push("annual ledger timeline must be continuous");
+      }
+    }
+    if (canonicalizeJsonValue(ordered.at(-1).after) !== canonicalizeJsonValue(relationship.state)) {
+      errors.push("annual ledger timeline must end at the current relationship state");
+    }
+  }
   return errors;
 }
 
@@ -177,6 +202,14 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
       if (!Number.isFinite(value) || value < 0 || value > 100) metricsSnapshotValid = false;
     }
     if (!metricsSnapshotValid) errors.push("stored stress result must contain a canonical metrics snapshot");
+    if (
+      metricsSnapshotValid
+      && Number.isInteger(state?.year)
+      && year === state.year
+      && canonicalizeJsonValue(result.metricsSnapshot) !== canonicalizeJsonValue(state.metrics)
+    ) {
+      errors.push("current-year stress metrics snapshot must match the current simulation metrics");
+    }
     if (!Array.isArray(result.relationshipContributions) || result.relationshipContributions.length === 0) {
       errors.push("stored stress result must contain causal relationship contributions");
       continue;
@@ -463,9 +496,43 @@ function normalizeStressTests(stressTests) {
   )));
 }
 
+function backfillSchemaV3ExecutionEvidence(candidate) {
+  const ledger = Array.isArray(candidate?.ledger) ? candidate.ledger.map((entry) => {
+    if (!isRecord(entry) || entry.action === "checkpoint-snapshot" || isRecord(entry.effects)) return entry;
+    return {
+      ...entry,
+      effects: {
+        direct: isRecord(entry.deltas) ? { ...entry.deltas } : {},
+        spillover: isRecord(entry.metricDeltas) ? { ...entry.metricDeltas } : {},
+        conflict: candidate.relationships?.[entry.relationshipId]?.contested ? ["係争接続への投資"] : [],
+        sideEffects: Array.isArray(entry.tradeoffs) ? [...entry.tradeoffs] : [],
+      },
+    };
+  }) : [];
+  const annualEntries = ledger
+    .filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot" && isValidSimulationYear(entry.year))
+    .sort((left, right) => left.year - right.year);
+  const metricsAtYear = (year) => annualEntries
+    .filter((entry) => entry.year <= year)
+    .reduce((metrics, entry) => {
+      for (const key of SIMULATION_METRIC_KEYS) {
+        const delta = entry.metricDeltas?.[key];
+        if (Number.isFinite(delta)) metrics[key] = clamp(metrics[key] + delta);
+      }
+      return metrics;
+    }, { ...INITIAL_METRICS });
+  const stressTests = Object.fromEntries(Object.entries(normalizeStressTests(candidate?.stressTests)).map(([year, result]) => [
+    year,
+    isRecord(result) && !isRecord(result.metricsSnapshot)
+      ? { ...result, metricsSnapshot: metricsAtYear(Number(year)) }
+      : result,
+  ]));
+  return { ...candidate, ledger, stressTests };
+}
+
 export function migrateSimulationState(candidate) {
   if (candidate?.schemaVersion === 3) {
-    return { ...candidate, stressTests: normalizeStressTests(candidate.stressTests) };
+    return backfillSchemaV3ExecutionEvidence(candidate);
   }
   if (candidate?.schemaVersion === 2) {
     const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
@@ -494,12 +561,12 @@ export function migrateSimulationState(candidate) {
       }
       return [key, { ...relationship, calibrationFingerprint }];
     }));
-    return {
+    return backfillSchemaV3ExecutionEvidence({
       ...candidate,
       schemaVersion: 3,
       relationships,
       stressTests: normalizeStressTests(candidate.stressTests),
-    };
+    });
   }
   const initial = createInitialState();
   return {
