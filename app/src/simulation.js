@@ -119,6 +119,12 @@ function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATION
     }
     errors.push(...validateNumericDeltaMap(entry.deltas, "ledger entry deltas", RELATIONSHIP_STATE_KEYS, entry.before, entry.after));
     errors.push(...validateNumericDeltaMap(entry.metricDeltas, "ledger entry metricDeltas", SIMULATION_METRIC_KEYS));
+    if (entry.action !== "checkpoint-snapshot") {
+      const spillover = entry.effects?.spillover;
+      if (!isRecord(spillover) || canonicalizeJsonValue(entry.metricDeltas) !== canonicalizeJsonValue(spillover)) {
+        errors.push("annual ledger metric deltas must match their recorded spillover effects");
+      }
+    }
     if (!Array.isArray(entry.tradeoffs)) errors.push("ledger entry tradeoffs must be an array");
     else if (entry.tradeoffs.some((item) => !isNonEmptyString(item))) {
       errors.push("ledger entry tradeoffs must be nonempty strings");
@@ -144,6 +150,7 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
   const ledgerById = new Map(Array.isArray(ledger) ? ledger.filter(isRecord).map((entry) => [entry.id, entry]) : []);
   const expectedContributionIds = Object.values(state?.relationships ?? {})
     .filter((relationship) => {
+      if (!isRecord(relationship) || !isNonEmptyString(relationship.id)) return false;
       const definition = Array.isArray(relationshipDefinitions)
         ? relationshipDefinitions.find((item) => item.id === relationship.id)
         : null;
@@ -163,6 +170,13 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
     if (result.durationDays !== CRISIS_DAYS || result.turnHours !== CRISIS_TURN_HOURS || result.turns !== CRISIS_TURNS) {
       errors.push("stored stress result must use the canonical crisis duration");
     }
+    const snapshotKeys = Object.keys(result.metricsSnapshot ?? {}).sort();
+    let metricsSnapshotValid = snapshotKeys.join("|") === [...SIMULATION_METRIC_KEYS].sort().join("|");
+    for (const key of SIMULATION_METRIC_KEYS) {
+      const value = result.metricsSnapshot?.[key];
+      if (!Number.isFinite(value) || value < 0 || value > 100) metricsSnapshotValid = false;
+    }
+    if (!metricsSnapshotValid) errors.push("stored stress result must contain a canonical metrics snapshot");
     if (!Array.isArray(result.relationshipContributions) || result.relationshipContributions.length === 0) {
       errors.push("stored stress result must contain causal relationship contributions");
       continue;
@@ -201,6 +215,11 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         contributionsValid = false;
         continue;
       }
+      if (!definition || !isRecord(relationship)) {
+        errors.push("stored stress contribution relationship definition is missing");
+        contributionsValid = false;
+        continue;
+      }
       if (canonicalizeJsonValue(ledgerEntry.before) !== canonicalizeJsonValue(definition.initialState)) {
         errors.push("checkpoint before must match the calibrated baseline");
         contributionsValid = false;
@@ -236,14 +255,14 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         contributionsValid = false;
       }
     }
-    if (contributionsValid && Number.isInteger(state?.year) && state.year === year) {
+    if (contributionsValid && metricsSnapshotValid) {
       const contributionTotals = result.relationshipContributions.reduce((total, item) => ({
         attributionSafety: total.attributionSafety + item.attributionSafety,
         coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,
         civilianProtection: total.civilianProtection + item.civilianProtection,
       }), { attributionSafety: 0, coordinationSurvival: 0, civilianProtection: 0 });
       const weightedMetrics = (weights) => Object.entries(weights).reduce(
-        (total, [key, weight]) => total + (state.metrics?.[key] ?? Number.NaN) * weight,
+        (total, [key, weight]) => total + result.metricsSnapshot[key] * weight,
         0,
       );
       const expectedScores = {
@@ -942,7 +961,7 @@ export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const attributionSafety = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.attributionSafety) + contribution.attributionSafety));
   const coordinationSurvival = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.coordinationSurvival) + contribution.coordinationSurvival));
   const civilianProtection = clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.civilianProtection) + contribution.civilianProtection));
-  const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
+  const result = { year: state.year, durationDays: CRISIS_DAYS, turnHours: CRISIS_TURN_HOURS, turns: CRISIS_TURNS, metricsSnapshot: { ...metrics }, attributionSafety, coordinationSurvival, civilianProtection, relationshipContributions, verdict: attributionSafety >= 70 && coordinationSurvival >= 70 ? "協調継続" : "改善余地" };
   return { ...state, ledger, stressTests: { ...state.stressTests, [state.year]: result } };
 }
 

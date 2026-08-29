@@ -971,6 +971,45 @@ test("execution state rejects annual ledger entries for display-only relationshi
   assert.strictEqual(advanceYear(state), state);
 });
 
+test("execution state recomputes historical stress scores from their metrics snapshot", () => {
+  let state = runStressTest(createDemoState(2030));
+  state = advanceYear(state);
+  state.stressTests[2030].attributionSafety = 99;
+  state.stressTests[2030].coordinationSurvival = 99;
+  state.stressTests[2030].verdict = "協調継続";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects missing stress metrics snapshots", () => {
+  const state = runStressTest(createInitialState());
+  delete state.stressTests[state.year].metricsSnapshot;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution validation fails closed for malformed relationship references", () => {
+  const malformedRelationship = createInitialState();
+  malformedRelationship.relationships["B1-C6"] = null;
+  assert.doesNotThrow(() => validateSimulationExecutionState(malformedRelationship));
+  assert.equal(validateSimulationExecutionState(malformedRelationship).valid, false);
+
+  const unknownContribution = runStressTest(createInitialState());
+  const contribution = unknownContribution.stressTests[unknownContribution.year].relationshipContributions[0];
+  const ledgerEntry = unknownContribution.ledger.find((entry) => entry.id === contribution.ledgerEntryId);
+  contribution.relationshipId = "missing";
+  ledgerEntry.relationshipId = "missing";
+  assert.doesNotThrow(() => validateSimulationExecutionState(unknownContribution));
+  assert.equal(validateSimulationExecutionState(unknownContribution).valid, false);
+});
+
+test("execution state binds annual metric deltas to recorded spillover effects", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].metricDeltas = {};
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
 test("portfolio execution rejects self-referential relationship endpoints", () => {
   const state = createInitialState();
   state.relationships["B1-C6"].target = "B1";
