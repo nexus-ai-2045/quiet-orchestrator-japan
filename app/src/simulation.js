@@ -210,6 +210,7 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
     relationships: structuredClone(replay.relationships),
   }]]);
   const expectedByLedgerId = new Map();
+  const expectedLedgerOrder = [];
   for (let index = 0; index < annualEntries.length; index += 1) {
     const entry = annualEntries[index];
     const expectedYear = START_YEAR + index + 1;
@@ -228,7 +229,7 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
       sideEffects: preview.tradeoffs,
     };
     const expectedFields = {
-      id: `${expectedYear}:${preview.relationshipId}:${preview.actionId}:${state.ledger.indexOf(entry) + 1}`,
+      id: `${expectedYear}:${preview.relationshipId}:${preview.actionId}:${expectedLedgerOrder.length + 1}`,
       year: expectedYear,
       relationshipLabel: preview.relationshipLabel,
       action: preview.actionId,
@@ -275,10 +276,20 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
       ledger: [...replay.ledger, entry],
     };
     expectedByLedgerId.set(entry.id, { ...expectedFields, effects: expectedEffects });
+    expectedLedgerOrder.push(expectedFields.id);
+    if (isRecord(state.stressTests?.[expectedYear])) {
+      expectedLedgerOrder.push(`${expectedYear}:${preview.relationshipId}:cumulative-checkpoint-snapshot`);
+    }
     snapshotsByYear.set(expectedYear, {
       metrics: { ...replay.metrics },
       relationships: structuredClone(replay.relationships),
     });
+  }
+  const actualLedgerOrder = Array.isArray(state.ledger)
+    ? state.ledger.filter(isRecord).map((entry) => entry.id)
+    : [];
+  if (canonicalizeJsonValue(actualLedgerOrder) !== canonicalizeJsonValue(expectedLedgerOrder)) {
+    errors.push("causal ledger must match canonical event order");
   }
   if (annualEntries.length === expectedYears.length) {
     if (canonicalizeJsonValue(replay.metrics) !== canonicalizeJsonValue(state.metrics)) {

@@ -1097,6 +1097,22 @@ test("checkpoint ledger is the complete canonical stress projection", () => {
   }
 });
 
+test("causal ledger preserves annual action and checkpoint event order", () => {
+  const state = createDemoState(2031);
+  const checkpointIndex = state.ledger.findIndex((entry) => entry.year === 2030 && entry.action === "checkpoint-snapshot");
+  const [checkpoint] = state.ledger.splice(checkpointIndex, 1);
+  const annual2031Index = state.ledger.findIndex((entry) => entry.year === 2031 && entry.action !== "checkpoint-snapshot");
+  state.ledger.splice(annual2031Index + 1, 0, checkpoint);
+  const annual2031 = state.ledger.find((entry) => entry.year === 2031 && entry.action !== "checkpoint-snapshot");
+  annual2031.id = annual2031.id.replace(/:\d+$/, `:${state.ledger.indexOf(annual2031) + 1}`);
+  state.history.find((entry) => entry.year === 2031).ledgerId = annual2031.id;
+
+  const report = validateSimulationExecutionState(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("canonical event order")));
+  assert.strictEqual(advanceYear(state), state);
+});
+
 test("annual replay preserves append order and canonical identity fields", () => {
   let state = advanceYear(createInitialState());
   state = advanceYear(state);
