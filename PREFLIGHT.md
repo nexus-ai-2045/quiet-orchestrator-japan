@@ -18,7 +18,7 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight target diff | pass / ready_after_confirmation | content HEAD `c1648fe` でlive再測定。secret候補0、個人path0、origin pass、clean worktree pass、CI設定2件、effective_identity pass（履歴mismatch 2・effective_mismatch 0）。対話intent `open_pr` は `ready_after_confirmation` |
+| repo-preflight target diff | pass | machine-readable result v1 |
 | 決定論テスト | pass | `npm test`: 41件pass。台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引きの非衝突、記録済み副作用、署名差分、fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、役割同等性、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
@@ -29,6 +29,13 @@
 | GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@6be43bee`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
+
+<!-- repo-preflight-result:v1 -->
+```json
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"c1648feac1afcf42220cbfe0292e91c946dd46fb","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+```
+
+このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
 
 ## 採用済みの人間判断
 

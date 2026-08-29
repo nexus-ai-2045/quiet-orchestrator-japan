@@ -1,23 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertPreflightTargetDiffRow } from "../scripts/preflight-row-gate.mjs";
+import { parseCompletedPreflightEvidence } from "../scripts/preflight-row-gate.mjs";
 
-const completed = "content HEAD `f372376` でlive再測定。secret候補0、個人path0、origin pass、clean worktree pass、CI設定2件、effective_identity pass。対話intent `open_pr` は `ready_after_confirmation`";
+const valid = `<!-- repo-preflight-result:v1 -->
+\`\`\`json
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"c1648feac1afcf42220cbfe0292e91c946dd46fb","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+\`\`\``;
 
-test("completed preflight observation evidence is accepted", () => {
-  assert.doesNotThrow(() => assertPreflightTargetDiffRow("pass / ready_after_confirmation", completed));
+test("fixed completion schema with numeric observations is accepted", () => {
+  assert.equal(parseCompletedPreflightEvidence(valid).ciConfigCount, 2);
 });
 
-test("future-plan prose with bare secret is rejected for passing rows", () => {
-  assert.throws(
-    () => assertPreflightTargetDiffRow("pass / ready_after_confirmation", "secret候補をpush前に確認する"),
-    /future\/pending plan language|completed observation/,
-  );
+test("future-plan prose cannot masquerade as completed evidence", () => {
+  assert.throws(() => parseCompletedPreflightEvidence("pass / ready_after_confirmation | secret候補をpush前に確認する"), /missing repo-preflight-result:v1 marker/);
 });
 
-test("sha-only result cells are rejected", () => {
-  assert.throws(
-    () => assertPreflightTargetDiffRow("f372376a2f4c5a127a66432a6f0ee3cc0f1bf10b", "後で測る"),
-    /not only a content SHA/,
-  );
+test("unknown fields and nonzero risk observations fail closed", () => {
+  assert.throws(() => parseCompletedPreflightEvidence(valid.replace('"secretCandidates":0', '"secretCandidates":1')), /secretCandidates must be 0/);
+  assert.throws(() => parseCompletedPreflightEvidence(valid.replace('"status":"pass"', '"status":"pass","note":"確認する"')), /keys do not match the fixed schema/);
 });

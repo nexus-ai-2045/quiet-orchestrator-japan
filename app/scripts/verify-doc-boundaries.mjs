@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { assertPreflightTargetDiffRow } from "./preflight-row-gate.mjs";
+import { parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
 
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
@@ -76,11 +76,10 @@ for (const [name, content, pattern] of historicalEvidenceRows) {
   if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
 }
 
-const preflightTargetRow = preflight.match(/^\| repo-preflight target diff \| ([^|]+) \| ([^|]+) \|$/m);
-if (!preflightTargetRow) {
-  throw new Error("PREFLIGHT.md missing repo-preflight target diff row");
+if (!/^\| repo-preflight target diff \| pass \| machine-readable result v1 \|$/m.test(preflight)) {
+  throw new Error("PREFLIGHT.md repo-preflight summary row must point to machine-readable result v1");
 }
-assertPreflightTargetDiffRow(preflightTargetRow[1], preflightTargetRow[2]);
+parseCompletedPreflightEvidence(preflight);
 
 const scripts = JSON.parse(packageJson).scripts;
 const verifySitesEvidence = process.argv.includes("--sites");
