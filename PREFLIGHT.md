@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | 795779c9cf3a9a29e4ccdf9be03f43d9133a5727 | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
-| 決定論・AI境界テスト | pass | `npm test`: 50件pass。既存決定論回帰に加え、提案schema、観測hash、主体権限、改ざん拒否、同一state hash再生、0〜8順序、ローカルPDCA完走、checkpoint自動検査・再試行、状態権限を回帰固定 |
+| 決定論・AI境界テスト | pass | `npm test`: 53件pass。既存決定論回帰に加え、提案schema、観測hash、主体権限、receipt外枠束縛、完全state summary一致、固定実行接続、改ざん拒否、同一state hash再生、0〜8順序、ローカルPDCA完走、checkpoint自動検査・再試行、状態権限を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

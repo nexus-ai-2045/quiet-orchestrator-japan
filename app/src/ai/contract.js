@@ -31,7 +31,7 @@ const PROPOSAL_KEYS = Object.freeze([
   "turn",
 ]);
 
-function canonicalize(value) {
+export function canonicalize(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`).join(",")}}`;
@@ -151,6 +151,7 @@ export function createAiReceipt({ observation, proposal, providerStatus = "ok", 
 export function validateAiReceipt(receipt) {
   const errors = [];
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) return { valid: false, errors: ["receipt_not_object"] };
+  if (receipt.receiptVersion !== AI_RECEIPT_VERSION) errors.push("receipt_version_mismatch");
   let expectedObservation;
   try {
     expectedObservation = buildObservation({
@@ -163,6 +164,9 @@ export function validateAiReceipt(receipt) {
     errors.push("observation_invalid");
   }
   if (expectedObservation && canonicalize(expectedObservation) !== canonicalize(receipt.observation)) errors.push("observation_tampered");
+  if (receipt.actorId !== receipt.observation?.actorId || !AI_ACTORS[receipt.actorId]) errors.push("receipt_actor_mismatch");
+  if (receipt.turn !== receipt.observation?.turn) errors.push("receipt_turn_mismatch");
+  if (receipt.seed !== receipt.observation?.seed) errors.push("receipt_seed_mismatch");
   if (receipt.observationHash !== receipt.observation?.observationHash) errors.push("receipt_observation_hash_mismatch");
   const proposalValidation = expectedObservation ? validateAiProposal(receipt.rawProposal, expectedObservation) : { valid: false, errors: [] };
   if (!proposalValidation.valid && receipt.outcome === "accepted") errors.push("accepted_proposal_invalid");

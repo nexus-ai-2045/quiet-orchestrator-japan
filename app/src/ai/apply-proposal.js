@@ -1,5 +1,5 @@
 import { advanceYear, selectAction, selectRelationship } from "../simulation.js";
-import { observationFingerprint, validateAiReceipt } from "./contract.js";
+import { AI_RELATIONSHIP_ID, canonicalize, observationFingerprint, validateAiReceipt } from "./contract.js";
 
 export function buildAiStateSummary(state) {
   const stateProjection = {
@@ -7,7 +7,8 @@ export function buildAiStateSummary(state) {
     selectedAction: state.selectedAction,
     selectedRelationshipId: state.selectedRelationshipId,
     metrics: state.metrics,
-    relationshipState: state.relationships[state.selectedRelationshipId]?.state ?? null,
+    relationshipId: AI_RELATIONSHIP_ID,
+    relationshipState: state.relationships[AI_RELATIONSHIP_ID]?.state ?? null,
     latestLedgerId: state.ledger.at(-1)?.id ?? null,
   };
   return { ...stateProjection, stateHash: observationFingerprint(stateProjection) };
@@ -17,7 +18,7 @@ export function applyValidatedAiProposal(state, receipt) {
   const receiptValidation = validateAiReceipt(receipt);
   if (!receiptValidation.valid) return { applied: false, errors: receiptValidation.errors, state };
   const expectedSummary = buildAiStateSummary(state);
-  if (receipt.observation.stateSummary?.stateHash !== expectedSummary.stateHash) {
+  if (canonicalize(receipt.observation.stateSummary) !== canonicalize(expectedSummary)) {
     return { applied: false, errors: ["stale_state_snapshot"], state };
   }
   const selected = selectAction(selectRelationship(state, receipt.appliedProposal.relationshipId), receipt.appliedProposal.actionId);

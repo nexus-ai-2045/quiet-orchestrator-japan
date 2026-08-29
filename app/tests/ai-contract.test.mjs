@@ -127,6 +127,37 @@ test("a proposal applies only to its exact state snapshot and replays determinis
   assert.deepEqual(applyValidatedAiProposal(first.state, receipt).errors, ["stale_state_snapshot"]);
 });
 
+test("proposal freshness binds the complete canonical state summary", () => {
+  const state = createDemoState(2035);
+  const observation = buildObservation({ actorId: "B1", turn: 1, seed: "summary-0", stateSummary: buildAiStateSummary(state) });
+  const alteredSummary = { ...observation.stateSummary, unboundField: "forged" };
+  const alteredObservation = buildObservation({ actorId: "B1", turn: 1, seed: "summary-0", stateSummary: alteredSummary });
+  const proposal = { proposalVersion: 1, actorId: "B1", turn: 1, observationHash: alteredObservation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "完全な状態要約との一致を要求する", confidence: 0.8 };
+  const receipt = createAiReceipt({ observation: alteredObservation, proposal });
+  assert.deepEqual(applyValidatedAiProposal(state, receipt).errors, ["stale_state_snapshot"]);
+});
+
+test("receipt envelope is bound to its observation identity", () => {
+  const receipt = runFixtureSimulation()[0];
+  for (const forged of [
+    { ...receipt, receiptVersion: 2 },
+    { ...receipt, actorId: "UNKNOWN" },
+    { ...receipt, turn: 2 },
+    { ...receipt, seed: "other-seed" },
+  ]) {
+    assert.equal(validateAiReceipt(forged).valid, false);
+  }
+});
+
+test("AI summary always binds the fixed execution relationship", () => {
+  const state = createDemoState(2035);
+  const otherRelationshipId = Object.keys(state.relationships).find((id) => id !== "B1-C6");
+  const changedSelection = { ...state, selectedRelationshipId: otherRelationshipId };
+  const summary = buildAiStateSummary(changedSelection);
+  assert.equal(summary.relationshipId, "B1-C6");
+  assert.deepEqual(summary.relationshipState, state.relationships["B1-C6"].state);
+});
+
 test("fixture sequencing advances only after a successful AI adoption", () => {
   assert.equal(nextFixtureStep(2, 9, false), 2);
   assert.equal(nextFixtureStep(2, 9, true), 3);
