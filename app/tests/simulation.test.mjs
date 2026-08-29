@@ -1055,6 +1055,21 @@ test("annual replay requires complete elapsed-year and history coverage", () => 
   assert.ok(validateSimulationExecutionState(missingHistory).errors.some((error) => error.includes("history")));
 });
 
+test("annual replay rejects invalid years and definition containers before allocation", () => {
+  const hugeYear = createInitialState();
+  hugeYear.year = 1_000_000_000;
+  assert.doesNotThrow(() => validateSimulationExecutionState(hugeYear));
+  assert.equal(validateSimulationExecutionState(hugeYear).valid, false);
+  assert.strictEqual(advanceYear(hugeYear), hugeYear);
+  assert.strictEqual(runStressTest(hugeYear), hugeYear);
+
+  const state = createInitialState();
+  assert.doesNotThrow(() => validateSimulationExecutionState(state, null));
+  assert.equal(validateSimulationExecutionState(state, null).valid, false);
+  assert.strictEqual(advanceYear(state, null), state);
+  assert.strictEqual(runStressTest(state, null), state);
+});
+
 test("annual replay preserves append order and canonical identity fields", () => {
   let state = advanceYear(createInitialState());
   state = advanceYear(state);

@@ -176,12 +176,26 @@ function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATION
 
 function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { allowMissingDerived = false } = {}) {
   const errors = [];
+  if (!isValidSimulationYear(state?.year)) {
+    return {
+      valid: false,
+      errors: ["annual replay requires a year within the simulation horizon"],
+      snapshotsByYear: new Map(),
+      expectedByLedgerId: new Map(),
+    };
+  }
+  if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => !isRecord(definition))) {
+    return {
+      valid: false,
+      errors: ["annual replay requires a valid relationship definition container"],
+      snapshotsByYear: new Map(),
+      expectedByLedgerId: new Map(),
+    };
+  }
   const annualEntries = Array.isArray(state?.ledger)
     ? state.ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot")
     : [];
-  const expectedYears = Number.isInteger(state?.year) && state.year >= START_YEAR
-    ? Array.from({ length: state.year - START_YEAR }, (_, index) => START_YEAR + index + 1)
-    : [];
+  const expectedYears = Array.from({ length: state.year - START_YEAR }, (_, index) => START_YEAR + index + 1);
   if (canonicalizeJsonValue(annualEntries.map((entry) => entry.year)) !== canonicalizeJsonValue(expectedYears)) {
     errors.push("annual ledger must cover every elapsed simulation year");
   }
