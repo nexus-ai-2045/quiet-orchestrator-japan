@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m2-portfolio-foundation`
-- content HEAD: `0b17e2e12b654c664afedcfe6e118c6a562bc6d1`（M2二層fail-closed、delta必須キー、checkpoint基準束縛、stress再計算、ledger seed/tradeoff、寄与一意、display-only年間台帳拒否、89件回帰）
+- content HEAD: `97c8701a202d7037090fb02fbefb2a4deb459611`（M2二層fail-closed、delta必須キー、checkpoint基準束縛、全年度stress再計算、ledger seed/tradeoff/metric spillover、寄与一意、malformed relationship無例外拒否、93件回帰）
 - base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 89件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 93件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"0b17e2e12b654c664afedcfe6e118c6a562bc6d1","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"97c8701a202d7037090fb02fbefb2a4deb459611","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
