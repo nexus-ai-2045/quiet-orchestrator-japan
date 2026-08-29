@@ -2,13 +2,13 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `9a11564d3d583a7f1b4b95125e7faf1bd5440fba`
+機械検証対象content HEAD: `10a4c19f44d505f79e497653b1ef510e8a7e3552`
 
 ## 実行環境
 
-- Node.js `v22.14.0`
-- npm `10.9.7`
-- Linux / ローカルVite
+- Node.js `v24.14.0`
+- npm `11.14.1`
+- Windows / ローカルworktree
 - 外部API、APIキー、ライブデータなし
 
 READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
@@ -41,9 +41,9 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
-### ブラウザ確認（因果台帳drawer・同一content HEAD）
+### ブラウザ確認（因果台帳drawer・履歴content HEAD）
 
-上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。
+履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このブラウザ証拠は現在のM2 mechanical foundation content HEADのsame-HEAD証拠には数えない。
 
 | gate | status | affirmative observation |
 |---|---|---|
