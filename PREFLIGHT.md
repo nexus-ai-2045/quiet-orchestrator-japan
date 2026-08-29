@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `cursor/m1-ledger-drawer-e44b`
-- content HEAD: `c4ca9af2f8972c91a332ebac7703c1da0646020a`（因果台帳drawer、記録済み副作用表示、modal focus containment・復帰、署名再起動、UI証拠境界drift detector、ROADMAP現況）
+- content HEAD: `c939f31ca929b5768eb66f3dbf6c186e7e0446af`（因果台帳drawer、挙動focus controller・復帰、320px幅、肯定的UI証拠gate、M1/M3 country-equivalence境界）
 - base: `origin/main@6be43bee54312a8f5879d18d8c7895d114c376ab`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -18,8 +18,8 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight target diff | c4ca9af2f8972c91a332ebac7703c1da0646020a | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
-| 決定論テスト | pass | `npm test`: 37件pass。台帳drawer focus containment・呼出元復帰、危機寄与逆引きの非衝突、記録済み副作用、署名差分、fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、役割同等性、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
+| repo-preflight target diff | c939f31ca929b5768eb66f3dbf6c186e7e0446af | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
+| 決定論テスト | pass | `npm test`: 38件pass。台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引きの非衝突、記録済み副作用、署名差分、fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、役割同等性、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `c4ca9af2f8972c91a332ebac7703c1da0646020a`
+機械検証対象content HEAD: `c939f31ca929b5768eb66f3dbf6c186e7e0446af`
 
 ## 実行環境
 
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 37件pass |
+| `npm test` | 38件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -33,10 +33,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。
 
-- 標準幅: 「全台帳を開く」で複数件を一覧し、キーボード（Arrow / Enter）で過去エントリを選択するとInspectorと接続状態へ戻る。危機寄与カードからのfocusとも矛盾しない。選択中エントリの`metricDeltas` / `tradeoffs`を記録済み副作用として表示する。
-- 880px狭幅: drawerの一覧・選択・Inspector更新が破綻しない。
-- キーボード: Escapeでdrawerを閉じる。CloseボタンへSpaceしても行選択へ吸われない。Tab / Shift+Tabはmodal内に留まり、閉じた後は「全台帳を開く」へfocusが戻る。
-- `prefers-reduced-motion: reduce`: 署名差分（例: `2028 検証合意 38→…`形式）が静的テキストとして残り、理解がアニメーションに依存しない。
+| gate | status | affirmative observation |
+|---|---|---|
+| standard-width | pass-current-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
+| narrow-880 | pass-current-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
+| narrow-320 | pass-current-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
+| keyboard-modal | pass-current-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
+| reduced-motion | pass-current-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
 
 ## PR reviewへの対応
 
