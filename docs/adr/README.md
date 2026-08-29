@@ -13,5 +13,6 @@
 | [0007](0007-one-month-crisis-window.md) | accepted | 危機試験を30日・6時間×120ターンの「終末の1ヶ月」にする |
 | [0008](0008-causal-vertical-slice.md) | accepted | 接続投資から危機寄与までを一本の縦切りで実装する |
 | [0009](0009-ai-proposal-harness.md) | accepted | scripted Policy Engineで推論層の安全境界を先に固定する |
+| [0010](0010-run-bundle-and-experience-technology.md) | accepted | 実行bundleを固定し、体験技術は必要時だけ追加する |
 
 状態は `proposed | accepted | superseded | rejected` のいずれかを使う。判断を変更する場合、過去ADRを書き換えず、新しいADRから置換先を示す。
