@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { createModalFocusController } from "./modal-focus.js";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
@@ -243,15 +244,18 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
   const titleId = useId();
   const dialogRef = useRef(null);
   const listRef = useRef(null);
-  const previousFocusRef = useRef(null);
+  const focusController = useMemo(() => createModalFocusController({
+    getDialog: () => dialogRef.current,
+    getActiveElement: () => document.activeElement,
+  }), []);
   const ordered = useMemo(() => [...listLedgerTrail(state)].reverse(), [state]);
   const initialIndex = Math.max(0, ordered.findIndex((item) => item.entry.id === focusedLedgerEntryId));
   const [activeIndex, setActiveIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
 
   useEffect(() => {
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => previousFocusRef.current?.focus();
-  }, []);
+    focusController.rememberOpener();
+    return () => focusController.restoreOpener();
+  }, [focusController]);
 
   useEffect(() => {
     const node = listRef.current?.querySelector(`[data-ledger-index="${activeIndex}"]`);
@@ -266,22 +270,7 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         return;
       }
       if (event.key === "Tab") {
-        const focusable = [...(dialogRef.current?.querySelectorAll(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [])].filter((node) => !node.hasAttribute("hidden"));
-        const first = focusable[0];
-        const last = focusable.at(-1);
-        if (!first || !last) return;
-        if (!dialogRef.current?.contains(document.activeElement)) {
-          event.preventDefault();
-          first.focus();
-        } else if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
+        focusController.handleTab(event);
         return;
       }
       const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
@@ -307,7 +296,7 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, onSelect, ordered]);
+  }, [focusController, onClose, onSelect, ordered]);
 
   return (
     <div className="ledger-drawer-backdrop" role="presentation" onMouseDown={onClose}>

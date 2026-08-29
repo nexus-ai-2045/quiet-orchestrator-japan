@@ -165,7 +165,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 }
 
 .ledger-drawer-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 30px; background: rgba(1, 8, 13, .78); }
-.ledger-drawer { width: min(560px, 92vw); max-height: min(78vh, 720px); display: flex; flex-direction: column; border: 1px solid #537588; background: #0a1c29; box-shadow: 0 28px 80px #000; }
+.ledger-drawer { width: min(560px, 100%); max-height: min(78vh, 720px); display: flex; flex-direction: column; border: 1px solid #537588; background: #0a1c29; box-shadow: 0 28px 80px #000; }
 .ledger-drawer-help { margin: 10px 16px 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .ledger-drawer-list { margin: 10px 0 0; padding: 0 10px 12px; list-style: none; overflow-y: auto; display: grid; gap: 6px; }
 .ledger-drawer-row { width: 100%; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #0b202d; text-align: left; cursor: pointer; }

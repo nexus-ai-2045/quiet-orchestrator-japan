@@ -48,19 +48,21 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-const currentDrawerEvidence = [
-  "### ブラウザ確認（因果台帳drawer・同一content HEAD）",
-  "上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。",
-  "- 標準幅:",
-  "- 880px狭幅:",
-  "- キーボード:",
-  "- `prefers-reduced-motion: reduce`:",
-];
-if (currentDrawerEvidence.some((needle) => !results.includes(needle))) {
-  throw new Error("RESULTS.md must retain the current drawer same-HEAD UI evidence");
+const currentDrawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
+for (const gate of currentDrawerEvidenceGates) {
+  const row = results.match(new RegExp(`^\\| ${gate} \\| pass-current-head \\| ([^|]+) \\|$`, "m"));
+  if (!row || /未確認|pending|未実施/.test(row[1]) || row[1].trim().length < 8) {
+    throw new Error(`RESULTS.md drawer evidence must be affirmative and complete: ${gate}`);
+  }
 }
 if (!roadmap.includes("M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2")) {
   throw new Error("ROADMAP.md cannot close M1 without the current drawer same-HEAD evidence");
+}
+const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
+const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
+const countryEquivalenceGate = "日本、中国、米国の国名を入れ替えた制約同等fixture";
+if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEquivalenceGate)) {
+  throw new Error("country-equivalence completion gate belongs to M3 actor constraints, not closed M1");
 }
 
 const historicalEvidenceRows = [
