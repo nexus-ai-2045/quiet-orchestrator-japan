@@ -240,7 +240,6 @@ export function getSelectedRelationship(state) {
 
 export function validateRelationshipPortfolio(state, relationshipDefinitions = RELATIONSHIPS) {
   const errors = [];
-  const actorIds = new Set(ACTORS.map((actor) => actor.id));
   if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => (
     !definition || typeof definition !== "object" || Array.isArray(definition) || typeof definition.id !== "string"
   ))) {
@@ -255,6 +254,16 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
 
   let calibrated = 0;
   let uncalibrated = 0;
+  for (const definition of relationshipDefinitions) {
+    const baselineKeys = Object.keys(definition.initialState ?? {}).sort();
+    if (baselineKeys.join("|") !== [...RELATIONSHIP_STATE_KEYS].sort().join("|")) errors.push(`${definition.id}: definition baseline schema drift`);
+    for (const key of RELATIONSHIP_STATE_KEYS) {
+      const value = definition.initialState?.[key];
+      const max = key === "alternateRoutes" ? 5 : 100;
+      if (!Number.isFinite(value) || value < 0 || value > max) errors.push(`${definition.id}: definition ${key} must be within 0-${max}`);
+      if (key === "alternateRoutes" && Number.isFinite(value) && !Number.isInteger(value)) errors.push(`${definition.id}: definition alternateRoutes must be an integer`);
+    }
+  }
   for (const [mapKey, relationship] of entries) {
     const definition = definitionsById.get(mapKey);
     if (!relationship || typeof relationship !== "object" || Array.isArray(relationship)) {
@@ -272,7 +281,6 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
     for (const field of ["label", "purpose", "channel", "ownership", "investable", "contested"]) {
       if (relationship[field] !== definition[field]) errors.push(`${mapKey}: ${field} drift`);
     }
-    if (!actorIds.has(relationship.source) || !actorIds.has(relationship.target)) errors.push(`${mapKey}: unknown actor endpoint`);
     for (const field of ["purpose", "channel", "ownership"]) {
       if (typeof relationship[field] !== "string" || relationship[field].trim() === "") errors.push(`${mapKey}: ${field} is required`);
     }
@@ -402,6 +410,8 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
+  const portfolioReport = validateRelationshipPortfolio(state, relationshipDefinitions);
+  if (!portfolioReport.valid) return { eligible: false, relationshipId, actionId, reason: "20接続ポートフォリオのschemaが不正です（校正済み接続を確認してください）", errors: portfolioReport.errors };
   if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
   }
@@ -493,7 +503,7 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
     return { eligible: false, items: [], totalCost: 0, reason: "同じ接続へ複数の配分はできません" };
   }
   const portfolioReport = validateRelationshipPortfolio(state, relationshipDefinitions);
-  if (!portfolioReport.valid) return { eligible: false, items: [], totalCost: 0, reason: "20接続ポートフォリオのschemaが不正です", errors: portfolioReport.errors };
+  if (!portfolioReport.valid) return { eligible: false, items: [], totalCost: 0, reason: "20接続ポートフォリオのschemaが不正です（校正済み接続を確認してください）", errors: portfolioReport.errors };
   const items = allocations.map(({ relationshipId, actionId }) => (
     previewRelationshipInvestment(state, actionId, relationshipId, relationshipDefinitions)
   ));

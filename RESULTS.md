@@ -47,11 +47,11 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 | gate | status | affirmative observation |
 |---|---|---|
-| standard-width | pass-current-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
-| narrow-880 | pass-current-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
-| narrow-320 | pass-current-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
-| keyboard-modal | pass-current-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
-| reduced-motion | pass-current-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
+| standard-width | history-only-9a11564 | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
+| narrow-880 | history-only-9a11564 | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
+| narrow-320 | history-only-9a11564 | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
+| keyboard-modal | history-only-9a11564 | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
+| reduced-motion | history-only-9a11564 | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
 
 ## PR reviewへの対応
 

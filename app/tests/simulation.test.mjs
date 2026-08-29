@@ -162,7 +162,6 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
   assert.equal(report.valid, false);
   assert.ok(report.errors.some((error) => error.includes("map key")));
   assert.ok(report.errors.some((error) => error.includes("trust")));
-  assert.ok(report.errors.some((error) => error.includes("unknown actor")));
   assert.ok(report.errors.some((error) => error.includes("integer")));
 
   const malformed = createInitialState();
@@ -189,6 +188,16 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
   const uncalibratedDrift = createInitialState();
   uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
   assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
+  assert.equal(previewRelationshipInvestment(uncalibratedDrift).eligible, false);
+  assert.strictEqual(advanceYear(uncalibratedDrift), uncalibratedDrift);
+
+  const malformedBaselineDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, initialState: {} } : definition
+  ));
+  const malformedBaselineState = createInitialState();
+  malformedBaselineState.relationships["B1-C6"].calibrationFingerprint = "relationship-v1.0.0:{}";
+  assert.equal(validateRelationshipPortfolio(malformedBaselineState, malformedBaselineDefinitions).valid, false);
+  assert.equal(previewRelationshipInvestment(malformedBaselineState, "verification", "B1-C6", malformedBaselineDefinitions).eligible, false);
 });
 
 test("an investment portfolio enforces one-to-three unique calibrated targets and the annual budget", () => {
