@@ -82,10 +82,18 @@ function validateNumericDeltaMap(deltas, label, allowedKeys, before = null, afte
       errors.push(`${label}.${key} must equal after-before`);
     }
   }
+  if (isRecord(before) && isRecord(after)) {
+    for (const key of allowedKeys) {
+      if (!Number.isFinite(before[key]) || !Number.isFinite(after[key]) || before[key] === after[key]) continue;
+      if (!Object.prototype.hasOwnProperty.call(deltas, key)) {
+        errors.push(`${label} missing required key ${key}`);
+      }
+    }
+  }
   return errors;
 }
 
-function validateLedgerEntries(ledger, state) {
+function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATIONSHIPS) {
   if (!Array.isArray(ledger)) return ["ledger must be an array"];
   const errors = [];
   const ids = new Set();
@@ -103,23 +111,46 @@ function validateLedgerEntries(ledger, state) {
     for (const field of ["relationshipId", "relationshipLabel", "action", "actionLabel", "project", "reason", "ruleVersion"]) {
       if (!isNonEmptyString(entry[field])) errors.push(`ledger entry ${field} must be nonempty`);
     }
+    if (!isNonEmptyString(entry.seed) || entry.seed !== state.seed) {
+      errors.push("ledger entry seed must match the simulation seed");
+    }
     if (!isValidRelationshipStateShape(entry.before) || !isValidRelationshipStateShape(entry.after)) {
       errors.push("ledger entry before/after must match the relationship state schema");
     }
     errors.push(...validateNumericDeltaMap(entry.deltas, "ledger entry deltas", RELATIONSHIP_STATE_KEYS, entry.before, entry.after));
     errors.push(...validateNumericDeltaMap(entry.metricDeltas, "ledger entry metricDeltas", SIMULATION_METRIC_KEYS));
     if (!Array.isArray(entry.tradeoffs)) errors.push("ledger entry tradeoffs must be an array");
+    else if (entry.tradeoffs.some((item) => !isNonEmptyString(item))) {
+      errors.push("ledger entry tradeoffs must be nonempty strings");
+    }
     const relationship = state.relationships?.[entry.relationshipId];
     if (!relationship || relationship.label !== entry.relationshipLabel) errors.push("ledger entry must reference its canonical relationship");
+    if (entry.action !== "checkpoint-snapshot") {
+      const definition = Array.isArray(relationshipDefinitions)
+        ? relationshipDefinitions.find((item) => item.id === entry.relationshipId)
+        : null;
+      if (!matchesCalibratedRelationship(relationship, definition)) {
+        errors.push("annual ledger entry must reference a calibrated investable relationship");
+      }
+    }
     if (!Number.isFinite(entry.cost) || entry.cost < 0) errors.push("ledger entry cost must be a nonnegative finite number");
   }
   return errors;
 }
 
-function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions) {
+function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions = RELATIONSHIPS) {
   if (!isRecord(stressTests)) return ["stressTests must be an object"];
   const errors = [];
   const ledgerById = new Map(Array.isArray(ledger) ? ledger.filter(isRecord).map((entry) => [entry.id, entry]) : []);
+  const expectedContributionIds = Object.values(state?.relationships ?? {})
+    .filter((relationship) => {
+      const definition = Array.isArray(relationshipDefinitions)
+        ? relationshipDefinitions.find((item) => item.id === relationship.id)
+        : null;
+      return matchesCalibratedRelationship(relationship, definition);
+    })
+    .map((relationship) => relationship.id)
+    .sort();
   for (const [yearKey, result] of Object.entries(stressTests)) {
     const year = Number(yearKey);
     if (!isValidSimulationYear(year) || !isRecord(result) || result.year !== year) {
@@ -132,33 +163,61 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
     if (result.durationDays !== CRISIS_DAYS || result.turnHours !== CRISIS_TURN_HOURS || result.turns !== CRISIS_TURNS) {
       errors.push("stored stress result must use the canonical crisis duration");
     }
-    for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
-      if (!Number.isFinite(result[field]) || result[field] < 0 || result[field] > 100) errors.push(`stored stress result ${field} must be within 0-100`);
-    }
-    const expectedVerdict = result.attributionSafety >= 70 && result.coordinationSurvival >= 70 ? "協調継続" : "改善余地";
-    if (result.verdict !== expectedVerdict) errors.push("stored stress result verdict contradicts its scores");
     if (!Array.isArray(result.relationshipContributions) || result.relationshipContributions.length === 0) {
       errors.push("stored stress result must contain causal relationship contributions");
       continue;
     }
+    const contributionIds = result.relationshipContributions.map((contribution) => contribution?.relationshipId);
+    if (contributionIds.some((id) => !isNonEmptyString(id)) || new Set(contributionIds).size !== contributionIds.length) {
+      errors.push("stored stress contributions must uniquely identify each calibrated relationship");
+    }
+    if (canonicalizeJsonValue([...contributionIds].sort()) !== canonicalizeJsonValue(expectedContributionIds)) {
+      errors.push("stored stress contributions must cover exactly the calibrated relationships");
+    }
+    let contributionsValid = true;
     for (const contribution of result.relationshipContributions) {
       if (!isRecord(contribution) || !isNonEmptyString(contribution.relationshipId) || !isNonEmptyString(contribution.relationshipLabel)
         || contribution.checkpointYear !== year || !isNonEmptyString(contribution.ledgerEntryId)) {
         errors.push("stored stress contribution identity is invalid");
+        contributionsValid = false;
         continue;
       }
       const ledgerEntry = ledgerById.get(contribution.ledgerEntryId);
       const relationship = state.relationships?.[contribution.relationshipId];
-      if (!relationship || relationship.label !== contribution.relationshipLabel) errors.push("stored stress contribution relationship is invalid");
+      const definition = Array.isArray(relationshipDefinitions)
+        ? relationshipDefinitions.find((item) => item.id === contribution.relationshipId)
+        : null;
+      if (!relationship || relationship.label !== contribution.relationshipLabel) {
+        errors.push("stored stress contribution relationship is invalid");
+        contributionsValid = false;
+      }
+      if (!matchesCalibratedRelationship(relationship, definition)) {
+        errors.push("stored stress contribution must reference a calibrated investable relationship");
+        contributionsValid = false;
+      }
       if (!ledgerEntry || ledgerEntry.relationshipId !== contribution.relationshipId || ledgerEntry.year !== year
         || ledgerEntry.action !== "checkpoint-snapshot") {
         errors.push("stored stress contribution must reference its checkpoint ledger entry");
+        contributionsValid = false;
         continue;
+      }
+      if (canonicalizeJsonValue(ledgerEntry.before) !== canonicalizeJsonValue(definition.initialState)) {
+        errors.push("checkpoint before must match the calibrated baseline");
+        contributionsValid = false;
+      }
+      if (
+        Number.isInteger(state?.year)
+        && state.year === year
+        && canonicalizeJsonValue(ledgerEntry.after) !== canonicalizeJsonValue(relationship.state)
+      ) {
+        errors.push("checkpoint after must match the current relationship state");
+        contributionsValid = false;
       }
       const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
       for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
         if (!Number.isFinite(contribution[field]) || contribution[field] < min || contribution[field] > max) {
           errors.push(`stored stress contribution ${field} is outside its calibrated limits`);
+          contributionsValid = false;
         }
       }
       const expectedContribution = deriveRelationshipContribution(
@@ -174,6 +233,40 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         || expectedContribution.civilianProtection !== contribution.civilianProtection
       ) {
         errors.push("stored stress contribution does not match its checkpoint snapshot");
+        contributionsValid = false;
+      }
+    }
+    if (contributionsValid && Number.isInteger(state?.year) && state.year === year) {
+      const contributionTotals = result.relationshipContributions.reduce((total, item) => ({
+        attributionSafety: total.attributionSafety + item.attributionSafety,
+        coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,
+        civilianProtection: total.civilianProtection + item.civilianProtection,
+      }), { attributionSafety: 0, coordinationSurvival: 0, civilianProtection: 0 });
+      const weightedMetrics = (weights) => Object.entries(weights).reduce(
+        (total, [key, weight]) => total + (state.metrics?.[key] ?? Number.NaN) * weight,
+        0,
+      );
+      const expectedScores = {
+        attributionSafety: clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.attributionSafety) + contributionTotals.attributionSafety)),
+        coordinationSurvival: clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.coordinationSurvival) + contributionTotals.coordinationSurvival)),
+        civilianProtection: clamp(Math.round(weightedMetrics(CRISIS_METRIC_WEIGHTS.civilianProtection) + contributionTotals.civilianProtection)),
+      };
+      for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
+        if (result[field] !== expectedScores[field]) {
+          errors.push(`stored stress result ${field} does not match recomputed evidence`);
+        }
+      }
+      const expectedVerdict = expectedScores.attributionSafety >= 70 && expectedScores.coordinationSurvival >= 70 ? "協調継続" : "改善余地";
+      if (result.verdict !== expectedVerdict) errors.push("stored stress result verdict contradicts its scores");
+    } else {
+      for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
+        if (!Number.isFinite(result[field]) || result[field] < 0 || result[field] > 100) {
+          errors.push(`stored stress result ${field} must be within 0-100`);
+        }
+      }
+      if (contributionsValid) {
+        const expectedVerdict = result.attributionSafety >= 70 && result.coordinationSurvival >= 70 ? "協調継続" : "改善余地";
+        if (result.verdict !== expectedVerdict) errors.push("stored stress result verdict contradicts its scores");
       }
     }
   }
@@ -186,11 +279,10 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
     return { valid: false, errors: ["simulation state must be an object"], portfolio: null };
   }
   if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
-  if (!isNonEmptyString(state.seed)) errors.push("simulation seed must be a nonempty string");
-  if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
   if (!isNonEmptyString(state.seed)) errors.push("seed must be a nonempty string");
+  if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
-  errors.push(...validateLedgerEntries(state.ledger, state));
+  errors.push(...validateLedgerEntries(state.ledger, state, relationshipDefinitions));
   if (!Array.isArray(state.history)) errors.push("history must be an array");
   errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state, relationshipDefinitions));
   const metricKeys = Object.keys(state.metrics ?? {}).sort();

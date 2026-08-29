@@ -892,6 +892,85 @@ test("execution state requires a nonempty string seed", () => {
   }
 });
 
+test("execution state requires ledger deltas for every changed before/after field", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].deltas = {};
+  state.ledger[0].metricDeltas = {};
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("missing required key")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state binds checkpoint snapshots to the canonical relationship baseline", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  const entry = state.ledger.find((item) => item.id === contribution.ledgerEntryId);
+  entry.before = Object.fromEntries(Object.keys(entry.before).map((key) => [key, 0]));
+  entry.deltas = Object.fromEntries(Object.keys(entry.after).map((key) => [key, entry.after[key] - entry.before[key]]));
+  const recalculated = {
+    attributionSafety: contribution.attributionSafety,
+    coordinationSurvival: contribution.coordinationSurvival,
+    civilianProtection: contribution.civilianProtection,
+  };
+  // Keep contribution values in range but detached from the canonical baseline.
+  Object.assign(contribution, recalculated);
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("calibrated baseline")));
+});
+
+test("execution state recomputes persisted stress aggregate scores", () => {
+  const state = runStressTest(createInitialState());
+  const result = state.stressTests[state.year];
+  result.attributionSafety = 99;
+  result.coordinationSurvival = 99;
+  result.verdict = "協調継続";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("does not match recomputed evidence")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state requires ledger entry seeds to match the simulation seed", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].seed = "";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  state.ledger[0].seed = "other-seed";
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution state rejects non-string ledger tradeoffs", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].tradeoffs = [{ forged: true }];
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("tradeoffs must be nonempty strings")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state requires exactly one stress contribution per calibrated relationship", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  state.stressTests[state.year].relationshipContributions = [contribution, structuredClone(contribution)];
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => (
+    error.includes("uniquely identify") || error.includes("exactly the calibrated")
+  )));
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects annual ledger entries for display-only relationships", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].relationshipId = "J1-B1";
+  state.ledger[0].relationshipLabel = state.relationships["J1-B1"].label;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("calibrated investable relationship")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
 test("portfolio execution rejects self-referential relationship endpoints", () => {
   const state = createInitialState();
   state.relationships["B1-C6"].target = "B1";
