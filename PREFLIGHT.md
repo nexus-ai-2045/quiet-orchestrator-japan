@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/ai-simulation-mvp`
-- content HEAD: `10a4c19f44d505f79e497653b1ef510e8a7e3552`（M2ポートフォリオfail-closed、破損入力拒否、校正fingerprint・budget・definition baseline検証、70件回帰）
+- content HEAD: `c51786c2f1a2fe3eca2693f4465fc1081481c1e1`（M2ポートフォリオfail-closed、破損入力拒否、校正fingerprint・budget・definition baseline検証、70件回帰）
 - base: `origin/main@7fa6df89fa064938adf6263f3c84bd144f369b2e`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
