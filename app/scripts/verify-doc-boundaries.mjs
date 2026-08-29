@@ -48,8 +48,19 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-if (!roadmap.includes("因果台帳drawerのUIゲートを同一content HEADで確認する")) {
-  throw new Error("ROADMAP.md must distinguish the current drawer UI evidence from inherited PR #4 evidence");
+const currentDrawerEvidence = [
+  "### ブラウザ確認（因果台帳drawer・同一content HEAD）",
+  "上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。",
+  "- 標準幅:",
+  "- 880px狭幅:",
+  "- キーボード:",
+  "- `prefers-reduced-motion: reduce`:",
+];
+if (currentDrawerEvidence.some((needle) => !results.includes(needle))) {
+  throw new Error("RESULTS.md must retain the current drawer same-HEAD UI evidence");
+}
+if (!roadmap.includes("M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2")) {
+  throw new Error("ROADMAP.md cannot close M1 without the current drawer same-HEAD evidence");
 }
 
 const historicalEvidenceRows = [

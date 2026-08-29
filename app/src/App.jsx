@@ -241,10 +241,17 @@ function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus, o
 
 function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
   const titleId = useId();
+  const dialogRef = useRef(null);
   const listRef = useRef(null);
+  const previousFocusRef = useRef(null);
   const ordered = useMemo(() => [...listLedgerTrail(state)].reverse(), [state]);
   const initialIndex = Math.max(0, ordered.findIndex((item) => item.entry.id === focusedLedgerEntryId));
   const [activeIndex, setActiveIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => previousFocusRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const node = listRef.current?.querySelector(`[data-ledger-index="${activeIndex}"]`);
@@ -258,6 +265,27 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         onClose();
         return;
       }
+      if (event.key === "Tab") {
+        const focusable = [...(dialogRef.current?.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [])].filter((node) => !node.hasAttribute("hidden"));
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (!first || !last) return;
+        if (!dialogRef.current?.contains(document.activeElement)) {
+          event.preventDefault();
+          first.focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+      const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
+      if (!row) return;
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setActiveIndex((current) => Math.min(ordered.length - 1, current + 1));
@@ -271,8 +299,6 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         event.preventDefault();
         setActiveIndex(Math.max(0, ordered.length - 1));
       } else if (event.key === "Enter" || event.key === " ") {
-        const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
-        if (!row) return;
         const item = ordered[Number(row.getAttribute("data-ledger-index"))];
         if (!item) return;
         event.preventDefault();
@@ -286,6 +312,7 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
   return (
     <div className="ledger-drawer-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
         className="ledger-drawer"
         role="dialog"
         aria-modal="true"
