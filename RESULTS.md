@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 38件pass |
+| `npm test` | 41件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -58,6 +58,7 @@ PR #5の同一HEAD Codex reviewで未解決だったP2 3件は、content HEAD `f
 - 署名アニメはentry IDの`key`で再起動する。
 - RESULTSの機械検証を完了形で記録し、UIゲート同一HEAD証拠を追加してからM1を閉じる。
 - PREFLIGHTの`repo-preflight target diff`行を、SHAのみ／「再測定する」未来形から、content HEADでのlive観測（secret0・path0・origin・clean worktree・CI設定2・effective_identity pass / `ready_after_confirmation`）へ直し、同種driftを`verify-doc-boundaries`でfail closedにした。
+- pass行の証拠は完了観測フィールド必須とし、`secret候補をpush前に確認する`のようなfuture-plan文は回帰テスト付きで拒否する。
 
 PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の契約へ修正した。
 

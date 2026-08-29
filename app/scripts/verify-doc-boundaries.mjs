@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertPreflightTargetDiffRow } from "./preflight-row-gate.mjs";
+
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
@@ -78,20 +80,7 @@ const preflightTargetRow = preflight.match(/^\| repo-preflight target diff \| ([
 if (!preflightTargetRow) {
   throw new Error("PREFLIGHT.md missing repo-preflight target diff row");
 }
-const preflightResult = preflightTargetRow[1].trim();
-const preflightEvidence = preflightTargetRow[2].trim();
-if (/^[0-9a-f]{7,40}$/i.test(preflightResult)) {
-  throw new Error("PREFLIGHT.md repo-preflight result must be an observed status, not only a content SHA");
-}
-if (!/\b(pass|pending|blocked|ready_after_confirmation|fail)\b/.test(preflightResult)) {
-  throw new Error("PREFLIGHT.md repo-preflight result must use observed status vocabulary");
-}
-if (/再測定する|固定後に再測定|後で再測定|will be (re-?)?measured/i.test(preflightEvidence)) {
-  throw new Error("PREFLIGHT.md repo-preflight evidence must not remain future-tense after claiming live measurement");
-}
-if (/\bpass\b|ready_after_confirmation/.test(preflightResult) && !/(再測定|観測|secret|個人path|origin|clean worktree)/.test(preflightEvidence)) {
-  throw new Error("PREFLIGHT.md repo-preflight pass must cite completed observation details");
-}
+assertPreflightTargetDiffRow(preflightTargetRow[1], preflightTargetRow[2]);
 
 const scripts = JSON.parse(packageJson).scripts;
 const verifySitesEvidence = process.argv.includes("--sites");
