@@ -1,8 +1,8 @@
 # 実行結果｜P0 baseline + P1因果縦切り 実測スナップショット
 
-確認日: 2026-08-29
+確認日: 2026-08-30
 
-機械検証対象content HEAD: `9af1f09b632107ba694341aa640a522929cb566a`
+機械検証対象content HEAD: `1ca7cf4d31f85c6cab196e9cddfd009f6a4845ce`
 
 ## 実行環境
 
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 96件pass |
+| `npm test` | 98件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
