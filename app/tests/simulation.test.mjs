@@ -178,6 +178,17 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
   assert.ok(metadataReport.errors.some((error) => error.includes("investable drift")));
   assert.ok(metadataReport.errors.some((error) => error.includes("purpose drift")));
   assert.ok(metadataReport.errors.some((error) => error.includes("contested drift")));
+
+  assert.equal(validateRelationshipPortfolio(createInitialState(), null).valid, false);
+  assert.equal(validateRelationshipPortfolio(createInitialState(), [null]).valid, false);
+
+  const fingerprintDrift = createInitialState();
+  fingerprintDrift.relationships["B1-C6"].calibrationFingerprint = "forged";
+  assert.equal(validateRelationshipPortfolio(fingerprintDrift).valid, false);
+
+  const uncalibratedDrift = createInitialState();
+  uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
 });
 
 test("an investment portfolio enforces one-to-three unique calibrated targets and the annual budget", () => {
@@ -185,10 +196,19 @@ test("an investment portfolio enforces one-to-three unique calibrated targets an
   assert.equal(previewInvestmentPortfolio(state, []).eligible, false);
   assert.equal(previewInvestmentPortfolio(state, [null]).eligible, false);
   assert.equal(previewInvestmentPortfolio(state, [{ relationshipId: "", actionId: "verification" }]).eligible, false);
+  const malformedBudget = structuredClone(state);
+  malformedBudget.budget = "100";
+  assert.equal(previewInvestmentPortfolio(malformedBudget, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
+  malformedBudget.budget = Infinity;
+  assert.equal(previewInvestmentPortfolio(malformedBudget, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
   assert.equal(previewInvestmentPortfolio(state, [
     { relationshipId: "B1-C6", actionId: "verification" },
     { relationshipId: "B1-C6", actionId: "translation" },
   ]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "J1-B1", actionId: "translation" },
+  ]).reason, "年間アクションは全配分で同一にしてください");
   assert.equal(previewInvestmentPortfolio(state, [
     { relationshipId: "B1-C6", actionId: "verification" },
     { relationshipId: "J1-B1", actionId: "verification" },

@@ -241,6 +241,11 @@ export function getSelectedRelationship(state) {
 export function validateRelationshipPortfolio(state, relationshipDefinitions = RELATIONSHIPS) {
   const errors = [];
   const actorIds = new Set(ACTORS.map((actor) => actor.id));
+  if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => (
+    !definition || typeof definition !== "object" || Array.isArray(definition) || typeof definition.id !== "string"
+  ))) {
+    return { valid: false, total: Object.keys(state?.relationships ?? {}).length, calibration: { calibrated: 0, uncalibrated: 0 }, errors: ["relationship definitions must be an array of objects"] };
+  }
   const definitionsById = new Map(relationshipDefinitions.map((definition) => [definition.id, definition]));
   if (relationshipDefinitions.length !== 20 || definitionsById.size !== 20) {
     errors.push(`relationship definitions must contain 20 unique ids; received ${relationshipDefinitions.length}/${definitionsById.size}`);
@@ -279,8 +284,15 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       if (!Number.isFinite(value) || value < 0 || value > max) errors.push(`${mapKey}: ${key} must be within 0-${max}`);
       if (key === "alternateRoutes" && Number.isFinite(value) && !Number.isInteger(value)) errors.push(`${mapKey}: alternateRoutes must be an integer`);
     }
-    if (definition.investable && matchesCalibratedRelationship(relationship, definition)) calibrated += 1;
-    else uncalibrated += 1;
+    if (definition.investable) {
+      if (matchesCalibratedRelationship(relationship, definition)) calibrated += 1;
+      else errors.push(`${mapKey}: calibrated fingerprint drift`);
+    } else {
+      uncalibrated += 1;
+      if (canonicalizeJsonValue(relationship.state) !== canonicalizeJsonValue(definition.initialState)) {
+        errors.push(`${mapKey}: uncalibrated state drift`);
+      }
+    }
   }
   return { valid: errors.length === 0, total: entries.length, calibration: { calibrated, uncalibrated }, errors };
 }
@@ -468,6 +480,13 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
     || allocation.actionId.trim() === ""
   ))) {
     return { eligible: false, items: [], totalCost: 0, reason: "配分の接続IDとアクションIDが不正です" };
+  }
+  if (!Number.isFinite(state?.budget) || state.budget < 0 || state.budget > 100) {
+    return { eligible: false, items: [], totalCost: 0, reason: "年間予算が不正です" };
+  }
+  const actionIds = allocations.map((allocation) => allocation.actionId);
+  if (new Set(actionIds).size !== 1) {
+    return { eligible: false, items: [], totalCost: 0, reason: "年間アクションは全配分で同一にしてください" };
   }
   const relationshipIds = allocations.map((allocation) => allocation.relationshipId);
   if (new Set(relationshipIds).size !== relationshipIds.length) {

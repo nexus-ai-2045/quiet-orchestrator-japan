@@ -60,7 +60,6 @@ function buildNodes(selectedActor) {
 function buildEdges(state) {
   return RELATIONSHIPS.map(({ id, source, target }) => {
     const relationship = state.relationships[id];
-    const actorActive = source === state.selectedActor || target === state.selectedActor;
     const selected = id === state.selectedRelationshipId;
     const presentation = getRelationshipEdgePresentation(relationship);
     return {
@@ -69,12 +68,7 @@ function buildEdges(state) {
       target,
       animated: selected,
       className: selected ? "relationship-selected" : "",
-      style: {
-        ...presentation,
-        stroke: selected ? "#8ce7ec" : presentation.stroke,
-        strokeWidth: selected ? 4 : presentation.strokeWidth,
-        opacity: selected ? 1 : actorActive ? Math.max(0.82, presentation.opacity) : presentation.opacity,
-      },
+      style: presentation,
     };
   });
 }
