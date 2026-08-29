@@ -161,11 +161,22 @@ test("fallback audit fields are bound to rebuilt receipt semantics", () => {
   assert.equal(validateAiReceipt({ ...receipt, fallbackUsed: false, validationErrors: [] }).valid, false);
 });
 
-test("output hash distinguishes different invalid raw provider responses", () => {
+test("raw output attestation distinguishes different invalid provider responses", () => {
   const observation = buildObservation({ actorId: "B1", turn: 1, seed: "raw-output" });
   const first = createAiReceipt({ observation, proposal: "invalid-one", providerStatus: "invalid_json" });
   const second = createAiReceipt({ observation, proposal: "invalid-two", providerStatus: "invalid_json" });
-  assert.notEqual(first.provider.outputHash, second.provider.outputHash);
+  assert.notEqual(first.provider.rawOutput.hash, second.provider.rawOutput.hash);
+});
+
+test("raw provider boundary attests valid JSON strings without storing the raw text", () => {
+  const observation = buildObservation({ actorId: "B1", turn: 1, seed: "raw-valid" });
+  const proposalObject = { proposalVersion: 1, actorId: "B1", turn: 1, observationHash: observation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "raw JSON境界を検証する", confidence: 0.8 };
+  const raw = JSON.stringify(proposalObject, null, 2);
+  const receipt = createAiReceipt({ observation, proposal: raw });
+  assert.equal(validateAiReceipt(receipt).valid, true);
+  assert.equal(receipt.provider.rawOutput.kind, "string");
+  assert.equal(receipt.provider.rawOutput.bytes, new TextEncoder().encode(raw).length);
+  assert.equal(JSON.stringify(receipt).includes(raw), false);
 });
 
 test("AI summary always binds the fixed execution relationship", () => {
@@ -182,6 +193,15 @@ test("AI summary freshness includes budget and checkpoint results", () => {
   const summary = buildAiStateSummary(state);
   assert.equal(summary.budget, state.budget);
   assert.deepEqual(summary.stressTests, state.stressTests);
+});
+
+test("AI summary binds execution metadata for every investable relationship", () => {
+  const state = createDemoState(2035);
+  const summary = buildAiStateSummary(state);
+  const expected = Object.entries(state.relationships).filter(([, item]) => item.investable).map(([mapKey, item]) => ({
+    mapKey, id: item.id, source: item.source, target: item.target, investable: item.investable, calibrationFingerprint: item.calibrationFingerprint,
+  }));
+  assert.deepEqual(summary.investableRelationships, expected);
 });
 
 test("fixture sequencing advances only after a successful AI adoption", () => {

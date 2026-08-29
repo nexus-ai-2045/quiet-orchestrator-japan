@@ -48,7 +48,12 @@
       "model": "codex-current-task",
       "promptVersion": "ai-proposal-v1",
       "engineVersion": "scripted-policy-v1",
-      "outputHash": "fnv1a32:add5ea83"
+      "outputHash": "fnv1a32:add5ea83",
+      "rawOutput": {
+        "kind": "structured",
+        "bytes": 247,
+        "hash": "fnv1a32:add5ea83"
+      }
     },
     "outcome": "accepted",
     "fallbackUsed": false,

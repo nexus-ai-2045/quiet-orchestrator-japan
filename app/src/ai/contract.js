@@ -114,7 +114,16 @@ function fallbackProposal(observation) {
   };
 }
 
-export function createAiReceipt({ observation, proposal, providerStatus = "ok", providerMeta = {}, providerOutputHash = null }) {
+function rawOutputAttestation(value) {
+  const serialized = typeof value === "string" ? value : canonicalize(value);
+  return {
+    kind: typeof value === "string" ? "string" : "structured",
+    bytes: new TextEncoder().encode(serialized).length,
+    hash: observationFingerprint(value),
+  };
+}
+
+export function createAiReceipt({ observation, proposal, providerStatus = "ok", providerMeta = {}, providerOutputAttestation = null }) {
   const validation = validateAiProposal(proposal, observation);
   const providerFailed = providerStatus !== "ok";
   const accepted = validation.valid && !providerFailed;
@@ -140,7 +149,8 @@ export function createAiReceipt({ observation, proposal, providerStatus = "ok", 
       model: typeof providerMeta.model === "string" ? providerMeta.model : "recorded-fixture",
       promptVersion: typeof providerMeta.promptVersion === "string" ? providerMeta.promptVersion : "ai-proposal-v1",
       engineVersion: SCRIPTED_POLICY_ENGINE_VERSION,
-      outputHash: providerOutputHash ?? observationFingerprint(proposal),
+      outputHash: observationFingerprint(validation.proposal),
+      rawOutput: providerOutputAttestation ?? rawOutputAttestation(proposal),
     },
     outcome: accepted ? "accepted" : "fallback",
     fallbackUsed: !accepted,
@@ -176,8 +186,11 @@ export function validateAiReceipt(receipt) {
     || typeof receipt.provider.model !== "string" || receipt.provider.model.length === 0
     || typeof receipt.provider.promptVersion !== "string" || receipt.provider.promptVersion.length === 0
     || receipt.provider.engineVersion !== SCRIPTED_POLICY_ENGINE_VERSION) errors.push("provider_meta_invalid");
-  if (proposalValidation.valid && receipt.provider?.outputHash !== observationFingerprint(receipt.rawProposal)) errors.push("output_hash_mismatch");
+  if (receipt.provider?.outputHash !== observationFingerprint(receipt.rawProposal)) errors.push("output_hash_mismatch");
   if (typeof receipt.provider?.outputHash !== "string" || !/^fnv1a32:[0-9a-f]{8}$/.test(receipt.provider.outputHash)) errors.push("output_hash_invalid");
+  if (!receipt.provider?.rawOutput || !["string", "structured"].includes(receipt.provider.rawOutput.kind)
+    || !Number.isInteger(receipt.provider.rawOutput.bytes) || receipt.provider.rawOutput.bytes < 0
+    || typeof receipt.provider.rawOutput.hash !== "string" || !/^fnv1a32:[0-9a-f]{8}$/.test(receipt.provider.rawOutput.hash)) errors.push("raw_output_attestation_invalid");
   if (!receipt.appliedProposal || typeof receipt.appliedProposal.rationale !== "string"
     || typeof receipt.appliedProposal.confidence !== "number" || !Number.isFinite(receipt.appliedProposal.confidence)) errors.push("applied_proposal_invalid");
   if (expectedObservation) {
@@ -186,7 +199,7 @@ export function validateAiReceipt(receipt) {
       proposal: receipt.rawProposal,
       providerStatus: receipt.providerStatus,
       providerMeta: receipt.provider,
-      providerOutputHash: receipt.provider?.outputHash,
+      providerOutputAttestation: receipt.provider?.rawOutput,
     });
     if (rebuilt.outcome !== receipt.outcome
       || rebuilt.fallbackUsed !== receipt.fallbackUsed

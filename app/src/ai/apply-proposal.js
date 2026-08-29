@@ -9,6 +9,16 @@ export function buildAiStateSummary(state) {
     selectedRelationshipId: state.selectedRelationshipId,
     metrics: state.metrics,
     stressTests: state.stressTests,
+    investableRelationships: Object.entries(state.relationships)
+      .filter(([, relationship]) => relationship.investable)
+      .map(([mapKey, relationship]) => ({
+        mapKey,
+        id: relationship.id,
+        source: relationship.source,
+        target: relationship.target,
+        investable: relationship.investable,
+        calibrationFingerprint: relationship.calibrationFingerprint,
+      })),
     relationshipId: AI_RELATIONSHIP_ID,
     relationshipState: state.relationships[AI_RELATIONSHIP_ID]?.state ?? null,
     latestLedgerId: state.ledger.at(-1)?.id ?? null,
