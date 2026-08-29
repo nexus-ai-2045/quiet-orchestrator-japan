@@ -2,12 +2,12 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `pending-content-commit`
+機械検証対象content HEAD: `42adcadf780215b557d987bc26197f5f9c2a69ea`
 
 ## 実行環境
 
-- Node.js `v24.14.0`
-- npm `11.14.1`
+- Node.js `v22.14.0`
+- npm `10.9.7`
 - Linux / ローカルVite
 - 外部API、APIキー、ライブデータなし
 
