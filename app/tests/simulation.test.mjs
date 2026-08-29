@@ -766,6 +766,20 @@ test("portfolio execution rejects missing labels and zero calibrated relationshi
   assert.strictEqual(runStressTest(noCalibration, noCalibrationDefinitions), noCalibration);
 });
 
+test("portfolio execution rejects a blank relationship definition id", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "";
+  state.relationships[""] = relationship;
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, id: "" } : definition
+  ));
+
+  assert.equal(validateRelationshipPortfolio(state, definitions).valid, false);
+  assert.strictEqual(runStressTest(state, definitions), state);
+});
+
 test("portfolio execution rejects a non-integer or out-of-horizon year", () => {
   for (const year of ["2026", 2026.5, null, START_YEAR - 1, END_YEAR + 1]) {
     const state = createInitialState();

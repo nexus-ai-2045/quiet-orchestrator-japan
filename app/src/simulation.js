@@ -256,7 +256,11 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
   const errors = [];
   const actorIds = new Set(ACTORS.map((actor) => actor.id));
   if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => (
-    !definition || typeof definition !== "object" || Array.isArray(definition) || typeof definition.id !== "string"
+    !definition
+    || typeof definition !== "object"
+    || Array.isArray(definition)
+    || typeof definition.id !== "string"
+    || definition.id.trim() === ""
   ))) {
     return { valid: false, total: Object.keys(state?.relationships ?? {}).length, calibration: { calibrated: 0, uncalibrated: 0 }, errors: ["relationship definitions must be an array of objects"] };
   }
