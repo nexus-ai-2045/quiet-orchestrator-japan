@@ -31,6 +31,8 @@ const RELATIONSHIP_STATE_KEYS = Object.freeze(Object.keys(DEFAULT_RELATIONSHIP_S
 const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+const isValidRelationshipDefinitionContainer = (definitions) => Array.isArray(definitions)
+  && definitions.every((definition) => isRecord(definition) && isNonEmptyString(definition.id));
 
 function isValidRelationshipStateShape(candidate) {
   if (!isRecord(candidate)) return false;
@@ -184,7 +186,7 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
       expectedByLedgerId: new Map(),
     };
   }
-  if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => !isRecord(definition))) {
+  if (!isValidRelationshipDefinitionContainer(relationshipDefinitions)) {
     return {
       valid: false,
       errors: ["annual replay requires a valid relationship definition container"],
@@ -289,6 +291,29 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
   return { valid: errors.length === 0, errors, snapshotsByYear, expectedByLedgerId };
 }
 
+function createCheckpointLedgerEntry(year, seed, relationship, definition) {
+  const before = { ...definition.initialState };
+  const after = { ...relationship.state };
+  return {
+    id: `${year}:${relationship.id}:cumulative-checkpoint-snapshot`,
+    year,
+    relationshipId: relationship.id,
+    relationshipLabel: relationship.label,
+    action: "checkpoint-snapshot",
+    actionLabel: "危機テスト累積スナップショット",
+    project: "初期状態から危機テスト時点までの累積因果スナップショット",
+    cost: 0,
+    before,
+    after,
+    deltas: Object.fromEntries(Object.keys(after).map((key) => [key, after[key] - before[key]])),
+    metricDeltas: {},
+    tradeoffs: [],
+    reason: "危機寄与と同じ初期状態からの累積変化を保存",
+    ruleVersion: RULE_VERSION,
+    seed,
+  };
+}
+
 function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions = RELATIONSHIPS, replayReport = null) {
   if (!isRecord(stressTests)) return ["stressTests must be an object"];
   const errors = [];
@@ -383,6 +408,18 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         errors.push("checkpoint after must match its replayed relationship state");
         contributionsValid = false;
       }
+      if (replayRelationship) {
+        const expectedLedgerEntry = createCheckpointLedgerEntry(
+          year,
+          state.seed,
+          { ...relationship, state: replayRelationship.state },
+          definition,
+        );
+        if (canonicalizeJsonValue(ledgerEntry) !== canonicalizeJsonValue(expectedLedgerEntry)) {
+          errors.push("checkpoint ledger entry must match the canonical checkpoint projection");
+          contributionsValid = false;
+        }
+      }
       const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
       for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
         if (!Number.isFinite(contribution[field]) || contribution[field] < min || contribution[field] > max) {
@@ -453,6 +490,9 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
   const errors = [];
   if (!state || typeof state !== "object" || Array.isArray(state)) {
     return { valid: false, errors: ["simulation state must be an object"], portfolio: null };
+  }
+  if (!isValidRelationshipDefinitionContainer(relationshipDefinitions)) {
+    return { valid: false, errors: ["relationship definitions must be an array of objects"], portfolio: null };
   }
   if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
   if (!isNonEmptyString(state.seed)) errors.push("seed must be a nonempty string");
@@ -716,13 +756,7 @@ export function getSelectedRelationship(state) {
 export function validateRelationshipPortfolio(state, relationshipDefinitions = RELATIONSHIPS) {
   const errors = [];
   const actorIds = new Set(ACTORS.map((actor) => actor.id));
-  if (!Array.isArray(relationshipDefinitions) || relationshipDefinitions.some((definition) => (
-    !definition
-    || typeof definition !== "object"
-    || Array.isArray(definition)
-    || typeof definition.id !== "string"
-    || definition.id.trim() === ""
-  ))) {
+  if (!isValidRelationshipDefinitionContainer(relationshipDefinitions)) {
     return { valid: false, total: Object.keys(state?.relationships ?? {}).length, calibration: { calibrated: 0, uncalibrated: 0 }, errors: ["relationship definitions must be an array of objects"] };
   }
   for (const definition of relationshipDefinitions) {
@@ -1107,26 +1141,7 @@ export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
     const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);
     const definition = relationshipDefinitions.find((item) => item.id === relationship.id);
     if (!contribution || !definition) return [];
-    const before = { ...definition.initialState };
-    const after = { ...relationship.state };
-    const ledgerEntry = {
-        id: `${state.year}:${relationship.id}:cumulative-checkpoint-snapshot`,
-        year: state.year,
-        relationshipId: relationship.id,
-        relationshipLabel: relationship.label,
-        action: "checkpoint-snapshot",
-        actionLabel: "危機テスト累積スナップショット",
-        project: "初期状態から危機テスト時点までの累積因果スナップショット",
-        cost: 0,
-        before,
-        after,
-        deltas: Object.fromEntries(Object.keys(after).map((key) => [key, after[key] - before[key]])),
-        metricDeltas: {},
-        tradeoffs: [],
-        reason: "危機寄与と同じ初期状態からの累積変化を保存",
-        ruleVersion: RULE_VERSION,
-        seed: state.seed,
-      };
+    const ledgerEntry = createCheckpointLedgerEntry(state.year, state.seed, relationship, definition);
     ledger = [...ledger.filter((entry) => entry.id !== ledgerEntry.id), ledgerEntry];
     return [{ ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id }];
   });

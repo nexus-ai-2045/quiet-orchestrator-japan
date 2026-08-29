@@ -1068,6 +1068,33 @@ test("annual replay rejects invalid years and definition containers before alloc
   assert.equal(validateSimulationExecutionState(state, null).valid, false);
   assert.strictEqual(advanceYear(state, null), state);
   assert.strictEqual(runStressTest(state, null), state);
+
+  const malformedDefinitions = [null];
+  assert.doesNotThrow(() => validateSimulationExecutionState(state, malformedDefinitions));
+  assert.equal(validateSimulationExecutionState(state, malformedDefinitions).valid, false);
+  assert.strictEqual(advanceYear(state, malformedDefinitions), state);
+  assert.strictEqual(runStressTest(state, malformedDefinitions), state);
+});
+
+test("checkpoint ledger is the complete canonical stress projection", () => {
+  const canonical = createDemoState(2030);
+  const checkpoint = canonical.ledger.find((entry) => entry.action === "checkpoint-snapshot");
+  for (const [field, forged] of [
+    ["actionLabel", "forged label"],
+    ["project", "forged project"],
+    ["reason", "forged reason"],
+    ["ruleVersion", "forged-rule"],
+    ["cost", 1],
+    ["metricDeltas", { verification: 1 }],
+    ["tradeoffs", ["forged tradeoff"]],
+  ]) {
+    const state = structuredClone(canonical);
+    const entry = state.ledger.find((item) => item.id === checkpoint.id);
+    entry[field] = forged;
+    const report = validateSimulationExecutionState(state);
+    assert.equal(report.valid, false, `${field} must fail closed`);
+    assert.ok(report.errors.some((error) => error.includes("canonical checkpoint projection")));
+  }
 });
 
 test("annual replay preserves append order and canonical identity fields", () => {
