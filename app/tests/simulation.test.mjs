@@ -1015,6 +1015,23 @@ test("schema-v3 migration deterministically backfills persisted execution eviden
   assert.equal(validateSimulationExecutionState(migrated).valid, true);
 });
 
+test("schema-v3 backfill cannot launder forged annual metric deltas", () => {
+  const legacy = advanceYear(createInitialState());
+  delete legacy.ledger[0].effects;
+  legacy.ledger[0].metricDeltas.verification = 99;
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(validateSimulationExecutionState(migrated).valid, false);
+  assert.ok(validateSimulationExecutionState(migrated).errors.some((error) => error.includes("spillover effects")));
+});
+
+test("execution state permits exactly one annual action per year", () => {
+  let state = advanceYear(createInitialState());
+  state = advanceYear(state);
+  state.ledger[1].year = state.ledger[0].year;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("one action per year")));
+});
+
 test("execution validation fails closed for malformed relationship references", () => {
   const malformedRelationship = createInitialState();
   malformedRelationship.relationships["B1-C6"] = null;

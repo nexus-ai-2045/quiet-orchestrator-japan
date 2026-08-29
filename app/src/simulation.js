@@ -142,7 +142,12 @@ function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATION
     if (!Number.isFinite(entry.cost) || entry.cost < 0) errors.push("ledger entry cost must be a nonnegative finite number");
   }
   const annualByRelationship = new Map();
-  ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot").forEach((entry) => {
+  const annualEntries = ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot");
+  const annualYears = annualEntries.map((entry) => entry.year);
+  if (new Set(annualYears).size !== annualYears.length) {
+    errors.push("annual ledger must contain exactly one action per year");
+  }
+  annualEntries.forEach((entry) => {
     const entries = annualByRelationship.get(entry.relationshipId) ?? [];
     entries.push(entry);
     annualByRelationship.set(entry.relationshipId, entries);
@@ -497,8 +502,21 @@ function normalizeStressTests(stressTests) {
 }
 
 function backfillSchemaV3ExecutionEvidence(candidate) {
+  const sourceAnnualEntries = Array.isArray(candidate?.ledger)
+    ? candidate.ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot" && isValidSimulationYear(entry.year))
+    : [];
+  const reconstructedCurrentMetrics = [...sourceAnnualEntries]
+    .sort((left, right) => left.year - right.year)
+    .reduce((metrics, entry) => {
+      for (const key of SIMULATION_METRIC_KEYS) {
+        const delta = entry.metricDeltas?.[key];
+        if (Number.isFinite(delta)) metrics[key] = clamp(metrics[key] + delta);
+      }
+      return metrics;
+    }, { ...INITIAL_METRICS });
+  const metricTimelineConsistent = canonicalizeJsonValue(reconstructedCurrentMetrics) === canonicalizeJsonValue(candidate?.metrics);
   const ledger = Array.isArray(candidate?.ledger) ? candidate.ledger.map((entry) => {
-    if (!isRecord(entry) || entry.action === "checkpoint-snapshot" || isRecord(entry.effects)) return entry;
+    if (!isRecord(entry) || entry.action === "checkpoint-snapshot" || isRecord(entry.effects) || !metricTimelineConsistent) return entry;
     return {
       ...entry,
       effects: {
