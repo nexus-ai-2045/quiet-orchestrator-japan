@@ -211,6 +211,17 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
   }]]);
   const expectedByLedgerId = new Map();
   const expectedLedgerOrder = [];
+  const calibratedRelationshipIds = relationshipDefinitions
+    .filter((definition) => matchesCalibratedRelationship(state.relationships?.[definition.id], definition))
+    .map((definition) => definition.id)
+    .sort();
+  const appendCheckpointEvents = (year) => {
+    if (!isRecord(state.stressTests?.[year])) return;
+    for (const relationshipId of calibratedRelationshipIds) {
+      expectedLedgerOrder.push(`${year}:${relationshipId}:cumulative-checkpoint-snapshot`);
+    }
+  };
+  appendCheckpointEvents(START_YEAR);
   for (let index = 0; index < annualEntries.length; index += 1) {
     const entry = annualEntries[index];
     const expectedYear = START_YEAR + index + 1;
@@ -277,9 +288,7 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
     };
     expectedByLedgerId.set(entry.id, { ...expectedFields, effects: expectedEffects });
     expectedLedgerOrder.push(expectedFields.id);
-    if (isRecord(state.stressTests?.[expectedYear])) {
-      expectedLedgerOrder.push(`${expectedYear}:${preview.relationshipId}:cumulative-checkpoint-snapshot`);
-    }
+    appendCheckpointEvents(expectedYear);
     snapshotsByYear.set(expectedYear, {
       metrics: { ...replay.metrics },
       relationships: structuredClone(replay.relationships),
@@ -1148,14 +1157,17 @@ export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   if (!validateSimulationExecutionState(state, relationshipDefinitions).valid) return state;
   const { metrics } = state;
   let ledger = state.ledger;
-  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable === true).flatMap((relationship) => {
+  const relationshipContributions = Object.values(state.relationships)
+    .filter((relationship) => relationship.investable === true)
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .flatMap((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);
     const definition = relationshipDefinitions.find((item) => item.id === relationship.id);
     if (!contribution || !definition) return [];
     const ledgerEntry = createCheckpointLedgerEntry(state.year, state.seed, relationship, definition);
     ledger = [...ledger.filter((entry) => entry.id !== ledgerEntry.id), ledgerEntry];
     return [{ ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id }];
-  });
+    });
   const contribution = relationshipContributions.reduce((total, item) => ({
     attributionSafety: total.attributionSafety + item.attributionSafety,
     coordinationSurvival: total.coordinationSurvival + item.coordinationSurvival,

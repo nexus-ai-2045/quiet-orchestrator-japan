@@ -1098,6 +1098,20 @@ test("checkpoint ledger is the complete canonical stress projection", () => {
 });
 
 test("causal ledger preserves annual action and checkpoint event order", () => {
+  const startCheckpoint = runStressTest(createInitialState());
+  assert.equal(validateSimulationExecutionState(startCheckpoint).valid, true);
+  assert.equal(advanceYear(startCheckpoint).year, 2027);
+
+  const representative = RELATIONSHIPS.find((definition) => definition.id === "B1-C6");
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "J1-B1"
+      ? { ...definition, investable: true, initialState: { ...representative.initialState } }
+      : definition
+  ));
+  const multiRelationshipCheckpoint = runStressTest(createInitialState(definitions), definitions);
+  assert.equal(multiRelationshipCheckpoint.stressTests[START_YEAR].relationshipContributions.length, 2);
+  assert.equal(validateSimulationExecutionState(multiRelationshipCheckpoint, definitions).valid, true);
+
   const state = createDemoState(2031);
   const checkpointIndex = state.ledger.findIndex((entry) => entry.year === 2030 && entry.action === "checkpoint-snapshot");
   const [checkpoint] = state.ledger.splice(checkpointIndex, 1);
