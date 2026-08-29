@@ -95,6 +95,27 @@ if (!preflightBranch || publicReadyBranch !== preflightBranch) {
   );
 }
 
+const preflightBaseSha = preflight.match(/^- base: `origin\/main@([0-9a-f]{40})`$/m)?.[1];
+const preflightDefaultBranchSha = preflight.match(/default branch `main@([0-9a-f]+)`/)?.[1];
+const publicReadyDefaultBranchSha = publicReady.match(/^- default branch: `main@([0-9a-f]+)`/m)?.[1];
+const publicReadySummarySha = publicReady.match(/^- `main@([0-9a-f]+)`は/m)?.[1];
+if (!preflightBaseSha || !preflightDefaultBranchSha) {
+  throw new Error("PREFLIGHT.md must record origin/main base SHA and default-branch read-back");
+}
+if (!preflightBaseSha.startsWith(preflightDefaultBranchSha)) {
+  throw new Error(
+    `PREFLIGHT default-branch provenance drift: base=${preflightBaseSha}, read-back=${preflightDefaultBranchSha}`,
+  );
+}
+if (
+  publicReadyDefaultBranchSha !== preflightDefaultBranchSha
+  || publicReadySummarySha !== preflightDefaultBranchSha
+) {
+  throw new Error(
+    `default branch provenance drift: PREFLIGHT=${preflightDefaultBranchSha}, PUBLIC_READY target=${publicReadyDefaultBranchSha ?? "missing"}, summary=${publicReadySummarySha ?? "missing"}`,
+  );
+}
+
 const scripts = JSON.parse(packageJson).scripts;
 const verifySitesEvidence = process.argv.includes("--sites");
 function getTestResult(scriptName) {

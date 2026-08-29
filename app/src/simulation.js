@@ -297,6 +297,10 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       errors.push(`${mapKey}: source/target drift`);
     }
     if (!actorIds.has(relationship.source) || !actorIds.has(relationship.target)) errors.push(`${mapKey}: unknown actor endpoint`);
+    for (const field of ["investable", "contested"]) {
+      if (typeof definition[field] !== "boolean") errors.push(`${mapKey}: definition ${field} must be boolean`);
+      if (typeof relationship[field] !== "boolean") errors.push(`${mapKey}: ${field} must be boolean`);
+    }
     for (const field of ["label", "purpose", "channel", "ownership", "investable", "contested"]) {
       if (relationship[field] !== definition[field]) errors.push(`${mapKey}: ${field} drift`);
     }
@@ -311,7 +315,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       if (!Number.isFinite(value) || value < 0 || value > max) errors.push(`${mapKey}: ${key} must be within 0-${max}`);
       if (key === "alternateRoutes" && Number.isFinite(value) && !Number.isInteger(value)) errors.push(`${mapKey}: alternateRoutes must be an integer`);
     }
-    if (definition.investable) {
+    if (definition.investable === true) {
       if (!isValidRelationshipStateShape(definition.initialState)) {
         errors.push(`${mapKey}: calibrated definition baseline is invalid`);
       } else if (matchesCalibratedRelationship(relationship, definition)) {
@@ -319,7 +323,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       } else {
         errors.push(`${mapKey}: calibrated fingerprint drift`);
       }
-    } else {
+    } else if (definition.investable === false) {
       uncalibrated += 1;
       if (!isValidRelationshipStateShape(definition.initialState)) {
         errors.push(`${mapKey}: uncalibrated definition baseline is invalid`);
@@ -641,9 +645,9 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
-  if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) return state;
+  if (!validateRelationshipPortfolio(state, relationshipDefinitions).valid) return state;
   let ledger = state.ledger;
-  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).flatMap((relationship) => {
+  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable === true).flatMap((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);
     const definition = relationshipDefinitions.find((item) => item.id === relationship.id);
     if (!contribution || !definition) return [];

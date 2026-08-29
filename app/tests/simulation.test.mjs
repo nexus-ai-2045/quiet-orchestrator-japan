@@ -210,6 +210,27 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
     false,
   );
   assert.equal(getRelationshipContribution(emptyBaselineState, "B1-C6", emptyBaselineDefinitions), null);
+
+  for (const [field, value] of [["contested", "false"], ["investable", 0]]) {
+    const definitions = RELATIONSHIPS.map((definition) => (
+      definition.id === "B1-C6" ? { ...definition, [field]: value } : definition
+    ));
+    const corrupted = createInitialState();
+    corrupted.relationships["B1-C6"][field] = value;
+    const report = validateRelationshipPortfolio(corrupted, definitions);
+    assert.equal(report.valid, false, field);
+    assert.ok(report.errors.some((error) => error.includes("must be boolean")), field);
+    assert.equal(
+      previewInvestmentPortfolio(
+        corrupted,
+        [{ relationshipId: "B1-C6", actionId: "verification" }],
+        definitions,
+      ).eligible,
+      false,
+      field,
+    );
+    assert.strictEqual(advanceYear(corrupted, definitions), corrupted, field);
+  }
 });
 
 test("primary investment flow routes through the portfolio gate", () => {
@@ -721,6 +742,25 @@ test("non-Boolean investable flags cannot authorize a calibrated relationship", 
     assert.match(preview.reason, /校正済み/, corruptedLayer);
     assert.equal(runStressTest(state, changedDefinitions), state, corruptedLayer);
   }
+});
+
+test("stress tests refuse malformed portfolio state before recording evidence", () => {
+  const outOfRange = createInitialState();
+  outOfRange.relationships["B1-C6"].state.verificationAgreement = 1000;
+  assert.equal(validateRelationshipPortfolio(outOfRange).valid, false);
+  assert.strictEqual(runStressTest(outOfRange), outOfRange);
+  assert.equal(outOfRange.stressTests[outOfRange.year], undefined);
+
+  const uncalibratedDrift = createInitialState();
+  uncalibratedDrift.relationships["J1-B1"].state.trust += 1;
+  assert.equal(validateRelationshipPortfolio(uncalibratedDrift).valid, false);
+  assert.strictEqual(runStressTest(uncalibratedDrift), uncalibratedDrift);
+  assert.equal(uncalibratedDrift.stressTests[uncalibratedDrift.year], undefined);
+
+  const healthy = createInitialState();
+  const tested = runStressTest(healthy);
+  assert.notEqual(tested, healthy);
+  assert.ok(tested.stressTests[healthy.year]);
 });
 
 test("a calibrated relationship cannot be duplicated under another map key", () => {
