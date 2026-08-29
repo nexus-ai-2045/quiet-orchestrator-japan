@@ -1,78 +1,16 @@
 {
-  "evidenceVersion": 1,
+  "evidenceVersion": 2,
   "mode": "interactive-agent-smoke",
-  "generatedBy": "codex-current-task",
-  "promptVersion": "ai-proposal-v1",
-  "note": "OpenAI API実行ではなく、この実装タスクのCodexが生成した提案を同じvalidatorへ通したスモーク証拠",
-  "observation": {
-    "observationVersion": 1,
-    "seed": "hackathon-live-codex-0",
-    "turn": 1,
-    "actorId": "B1",
-    "actorLabel": "検証・対話ハブ",
-    "allowedActionIds": ["verification", "reversibility", "coownership"],
-    "allowedRelationshipIds": ["B1-C6"],
-    "stateSummary": {
-      "year": 2026,
-      "priorAcceptedProposals": 0,
-      "selectedRelationshipId": "B1-C6",
-      "selectedAction": "verification"
-    },
-    "observationHash": "fnv1a32:01c6f8a0"
+  "seed": "hackathon-live-codex-0",
+  "actorId": "B1",
+  "turn": 1,
+  "proposal": {
+    "actionId": "verification",
+    "relationshipId": "B1-C6",
+    "rationale": "誤帰属を抑えるため、判断より先に共同検証手順を固定する",
+    "confidence": 0.84
   },
-  "receipt": {
-    "receiptVersion": 1,
-    "seed": "hackathon-live-codex-0",
-    "turn": 1,
-    "actorId": "B1",
-    "observation": {
-      "observationVersion": 1,
-      "seed": "hackathon-live-codex-0",
-      "turn": 1,
-      "actorId": "B1",
-      "actorLabel": "検証・対話ハブ",
-      "allowedActionIds": ["verification", "reversibility", "coownership"],
-      "allowedRelationshipIds": ["B1-C6"],
-      "stateSummary": {
-        "year": 2026,
-        "priorAcceptedProposals": 0,
-        "selectedRelationshipId": "B1-C6",
-        "selectedAction": "verification"
-      },
-      "observationHash": "fnv1a32:01c6f8a0"
-    },
-    "observationHash": "fnv1a32:01c6f8a0",
-    "providerStatus": "ok",
-    "provider": {
-      "mode": "live",
-      "model": "codex-current-task",
-      "promptVersion": "ai-proposal-v1",
-      "engineVersion": "scripted-policy-v1",
-      "outputHash": "fnv1a32:add5ea83",
-      "rawOutput": {
-        "kind": "structured",
-        "bytes": 247,
-        "hash": "fnv1a32:add5ea83"
-      }
-    },
-    "outcome": "accepted",
-    "fallbackUsed": false,
-    "validationErrors": [],
-    "rawProposal": {
-      "proposalVersion": 1,
-      "actorId": "B1",
-      "turn": 1,
-      "observationHash": "fnv1a32:01c6f8a0",
-      "actionId": "verification",
-      "relationshipId": "B1-C6",
-      "rationale": "誤帰属を抑えるため、判断より先に共同検証手順を固定する",
-      "confidence": 0.84
-    },
-    "appliedProposal": {
-      "actionId": "verification",
-      "relationshipId": "B1-C6",
-      "rationale": "誤帰属を抑えるため、判断より先に共同検証手順を固定する",
-      "confidence": 0.84
-    }
-  }
+  "expectedObservationHash": "fnv1a32:ec4da9e3",
+  "expectedOutputHash": "fnv1a32:0fb3ad90",
+  "note": "現行buildAiStateSummary(createDemoState(2035))からreceiptを再生成し、決定論コア適用まで回帰する。外部API実行証拠ではない。"
 }

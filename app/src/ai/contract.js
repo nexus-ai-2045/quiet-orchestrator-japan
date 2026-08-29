@@ -114,16 +114,7 @@ function fallbackProposal(observation) {
   };
 }
 
-function rawOutputAttestation(value) {
-  const serialized = typeof value === "string" ? value : canonicalize(value);
-  return {
-    kind: typeof value === "string" ? "string" : "structured",
-    bytes: new TextEncoder().encode(serialized).length,
-    hash: observationFingerprint(value),
-  };
-}
-
-export function createAiReceipt({ observation, proposal, providerStatus = "ok", providerMeta = {}, providerOutputAttestation = null }) {
+export function createAiReceipt({ observation, proposal, providerStatus = "ok", providerMeta = {} }) {
   const validation = validateAiProposal(proposal, observation);
   const providerFailed = providerStatus !== "ok";
   const accepted = validation.valid && !providerFailed;
@@ -150,7 +141,6 @@ export function createAiReceipt({ observation, proposal, providerStatus = "ok", 
       promptVersion: typeof providerMeta.promptVersion === "string" ? providerMeta.promptVersion : "ai-proposal-v1",
       engineVersion: SCRIPTED_POLICY_ENGINE_VERSION,
       outputHash: observationFingerprint(validation.proposal),
-      rawOutput: providerOutputAttestation ?? rawOutputAttestation(proposal),
     },
     outcome: accepted ? "accepted" : "fallback",
     fallbackUsed: !accepted,
@@ -188,9 +178,6 @@ export function validateAiReceipt(receipt) {
     || receipt.provider.engineVersion !== SCRIPTED_POLICY_ENGINE_VERSION) errors.push("provider_meta_invalid");
   if (receipt.provider?.outputHash !== observationFingerprint(receipt.rawProposal)) errors.push("output_hash_mismatch");
   if (typeof receipt.provider?.outputHash !== "string" || !/^fnv1a32:[0-9a-f]{8}$/.test(receipt.provider.outputHash)) errors.push("output_hash_invalid");
-  if (!receipt.provider?.rawOutput || !["string", "structured"].includes(receipt.provider.rawOutput.kind)
-    || !Number.isInteger(receipt.provider.rawOutput.bytes) || receipt.provider.rawOutput.bytes < 0
-    || typeof receipt.provider.rawOutput.hash !== "string" || !/^fnv1a32:[0-9a-f]{8}$/.test(receipt.provider.rawOutput.hash)) errors.push("raw_output_attestation_invalid");
   if (!receipt.appliedProposal || typeof receipt.appliedProposal.rationale !== "string"
     || typeof receipt.appliedProposal.confidence !== "number" || !Number.isFinite(receipt.appliedProposal.confidence)) errors.push("applied_proposal_invalid");
   if (expectedObservation) {
@@ -199,7 +186,6 @@ export function validateAiReceipt(receipt) {
       proposal: receipt.rawProposal,
       providerStatus: receipt.providerStatus,
       providerMeta: receipt.provider,
-      providerOutputAttestation: receipt.provider?.rawOutput,
     });
     if (rebuilt.outcome !== receipt.outcome
       || rebuilt.fallbackUsed !== receipt.fallbackUsed

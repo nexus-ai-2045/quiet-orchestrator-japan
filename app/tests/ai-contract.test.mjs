@@ -6,6 +6,7 @@ import {
   AI_ACTORS,
   buildObservation,
   createAiReceipt,
+  observationFingerprint,
   runFixtureSimulation,
   validateAiReceipt,
 } from "../src/ai/contract.js";
@@ -90,19 +91,23 @@ test("fixture simulation is reproducible and covers three actors for three turns
 
 test("the recorded Codex smoke receipt still validates against its observation", async () => {
   const artifact = JSON.parse(await readFile(new URL("../evidence/ai-codex-smoke.json", import.meta.url), "utf8"));
+  const state = createDemoState(2035);
+  const observation = buildObservation({ actorId: artifact.actorId, turn: artifact.turn, seed: artifact.seed, stateSummary: buildAiStateSummary(state) });
   const receipt = createAiReceipt({
-    observation: artifact.observation,
+    observation,
     proposal: {
       proposalVersion: 1,
-      actorId: artifact.receipt.actorId,
-      turn: artifact.receipt.turn,
-      observationHash: artifact.receipt.observationHash,
-      ...artifact.receipt.appliedProposal,
+      actorId: artifact.actorId,
+      turn: artifact.turn,
+      observationHash: observation.observationHash,
+      ...artifact.proposal,
     },
   });
   assert.equal(receipt.outcome, "accepted");
-  assert.deepEqual(receipt.appliedProposal, artifact.receipt.appliedProposal);
-  assert.equal(validateAiReceipt(artifact.receipt).valid, true);
+  assert.equal(receipt.observationHash, artifact.expectedObservationHash);
+  assert.equal(receipt.provider.outputHash, artifact.expectedOutputHash);
+  assert.equal(validateAiReceipt(receipt).valid, true);
+  assert.equal(applyValidatedAiProposal(state, receipt).applied, true);
 });
 
 test("import validation rejects a forged provider hash and invalid confidence", () => {
@@ -161,22 +166,16 @@ test("fallback audit fields are bound to rebuilt receipt semantics", () => {
   assert.equal(validateAiReceipt({ ...receipt, fallbackUsed: false, validationErrors: [] }).valid, false);
 });
 
-test("raw output attestation distinguishes different invalid provider responses", () => {
-  const observation = buildObservation({ actorId: "B1", turn: 1, seed: "raw-output" });
-  const first = createAiReceipt({ observation, proposal: "invalid-one", providerStatus: "invalid_json" });
-  const second = createAiReceipt({ observation, proposal: "invalid-two", providerStatus: "invalid_json" });
-  assert.notEqual(first.provider.rawOutput.hash, second.provider.rawOutput.hash);
-});
-
-test("raw provider boundary attests valid JSON strings without storing the raw text", () => {
+test("canonical parsed output hash validates JSON strings without retaining raw text", () => {
   const observation = buildObservation({ actorId: "B1", turn: 1, seed: "raw-valid" });
   const proposalObject = { proposalVersion: 1, actorId: "B1", turn: 1, observationHash: observation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "raw JSON境界を検証する", confidence: 0.8 };
   const raw = JSON.stringify(proposalObject, null, 2);
   const receipt = createAiReceipt({ observation, proposal: raw });
   assert.equal(validateAiReceipt(receipt).valid, true);
-  assert.equal(receipt.provider.rawOutput.kind, "string");
-  assert.equal(receipt.provider.rawOutput.bytes, new TextEncoder().encode(raw).length);
+  assert.equal(receipt.provider.outputHash, observationFingerprint(proposalObject));
+  assert.equal(receipt.provider.rawOutput, undefined);
   assert.equal(JSON.stringify(receipt).includes(raw), false);
+  assert.equal(validateAiReceipt({ ...receipt, provider: { ...receipt.provider, outputHash: "fnv1a32:00000000" } }).valid, false);
 });
 
 test("AI summary always binds the fixed execution relationship", () => {
@@ -193,6 +192,8 @@ test("AI summary freshness includes budget and checkpoint results", () => {
   const summary = buildAiStateSummary(state);
   assert.equal(summary.budget, state.budget);
   assert.deepEqual(summary.stressTests, state.stressTests);
+  assert.equal(summary.seed, state.seed);
+  assert.equal(summary.ledgerLength, state.ledger.length);
 });
 
 test("AI summary binds execution metadata for every investable relationship", () => {
