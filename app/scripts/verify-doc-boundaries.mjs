@@ -87,6 +87,14 @@ if (!/^\| repo-preflight target diff \| pass \| machine-readable result v1 \|$/m
 }
 parseCompletedPreflightEvidence(preflight);
 
+const preflightBranch = preflight.match(/^- branch: `([^`]+)`$/m)?.[1];
+const publicReadyBranch = publicReady.match(/^- 準備branch: `([^`]+)`$/m)?.[1];
+if (!preflightBranch || publicReadyBranch !== preflightBranch) {
+  throw new Error(
+    `current branch evidence drift: PREFLIGHT=${preflightBranch ?? "missing"}, PUBLIC_READY=${publicReadyBranch ?? "missing"}`,
+  );
+}
+
 const scripts = JSON.parse(packageJson).scripts;
 const verifySitesEvidence = process.argv.includes("--sites");
 function getTestResult(scriptName) {

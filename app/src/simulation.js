@@ -402,8 +402,8 @@ function calculateEffectRealization(requestedDeltas, appliedDeltas) {
 
 function matchesCalibratedRelationship(relationship, definition) {
   return Boolean(
-    relationship?.investable
-    && definition?.investable
+    relationship?.investable === true
+    && definition?.investable === true
     && isValidRelationshipStateShape(definition?.initialState)
     && relationship.id === definition.id
     && relationship.source === definition.source
@@ -423,8 +423,12 @@ function hasUniqueCalibratedRelationship(state, definition) {
 }
 
 function hasUnresolvedInvestableRelationships(state, relationshipDefinitions = RELATIONSHIPS) {
-  const investableDefinitions = relationshipDefinitions.filter((definition) => definition.investable);
-  const investableEntries = Object.entries(state.relationships).filter(([, relationship]) => relationship.investable);
+  if (
+    relationshipDefinitions.some((definition) => typeof definition.investable !== "boolean")
+    || Object.values(state.relationships).some((relationship) => typeof relationship.investable !== "boolean")
+  ) return true;
+  const investableDefinitions = relationshipDefinitions.filter((definition) => definition.investable === true);
+  const investableEntries = Object.entries(state.relationships).filter(([, relationship]) => relationship.investable === true);
   return investableDefinitions.some((definition) => (
     !hasUniqueCalibratedRelationship(state, definition)
   )) || investableEntries.some(([key, relationship]) => (

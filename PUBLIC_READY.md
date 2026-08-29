@@ -7,7 +7,7 @@
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - 表示タイトル: 「静かなオーケストレーターとしての日本」
 - 現在のvisibility: `PUBLIC`（2026-08-24 live確認）
-- 準備branch: `cursor/m1-ledger-drawer-e44b`
+- 準備branch: `codex/m2-portfolio-foundation`
 - default branch: `main@7fa6df89`（P0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawerを統合済み）
 - merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
 
@@ -47,7 +47,7 @@
 | 項目 | 状態 | 備考 |
 |---|---|---|
 | README情報設計 | pass-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を`main`で確認 |
-| Webアプリ | pass-current-branch | 決定論テスト70件（AI・PDCA境界24件、台帳drawer UI境界3件を含む）、production build、Sites互換テスト4件を確認 |
+| Webアプリ | pass-current-branch | 決定論テスト71件（AI・PDCA境界24件、台帳drawer UI境界3件を含む）、production build、Sites互換テスト4件を確認 |
 | ブラウザ操作 | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |

@@ -701,6 +701,28 @@ test("a persisted relationship cannot use a different calibration baseline", () 
   assert.equal(advanceYear(state, changedDefinitions), state);
 });
 
+test("non-Boolean investable flags cannot authorize a calibrated relationship", () => {
+  for (const corruptedLayer of ["definition", "state"]) {
+    const state = createInitialState();
+    const changedDefinitions = RELATIONSHIPS.map((definition) => (
+      definition.id === "B1-C6"
+        ? { ...definition, investable: corruptedLayer === "definition" ? "false" : definition.investable }
+        : definition
+    ));
+    if (corruptedLayer === "state") state.relationships["B1-C6"].investable = "false";
+
+    const preview = previewRelationshipInvestment(
+      state,
+      state.selectedAction,
+      state.selectedRelationshipId,
+      changedDefinitions,
+    );
+    assert.equal(preview.eligible, false, corruptedLayer);
+    assert.match(preview.reason, /校正済み/, corruptedLayer);
+    assert.equal(runStressTest(state, changedDefinitions), state, corruptedLayer);
+  }
+});
+
 test("a calibrated relationship cannot be duplicated under another map key", () => {
   const state = createInitialState();
   state.relationships.duplicate = structuredClone(state.relationships["B1-C6"]);
