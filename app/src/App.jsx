@@ -154,7 +154,7 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedge
         <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, node) => onSelectActor(node.id)} onEdgeClick={(_, edge) => onSelectRelationship(edge.id)} fitView fitViewOptions={{ padding: 0.13 }} minZoom={0.65} maxZoom={1.3} panOnDrag={false} zoomOnScroll={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}>
           <Background color="#27475a" gap={34} size={1} />
         </ReactFlow>
-        {signature && <div className={`ledger-signature ${focusedLedgerEntry ? "is-focused" : ""}`} aria-live="polite">{signature.text}</div>}
+        {signature && <div key={focusedLedgerEntry?.id ?? state.ledger.at(-1)?.id ?? "empty"} className={`ledger-signature ${focusedLedgerEntry ? "is-focused" : ""}`} aria-live="polite">{signature.text}</div>}
       </div>
     </section>
   );
@@ -220,6 +220,18 @@ function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus, o
             <b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b>
             {signature && <div className="ledger-signature-inline" aria-hidden="true">{signature.text}</div>}
             <div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div>
+            {Object.keys(latest.metricDeltas ?? {}).length > 0 && (
+              <>
+                <span className="preview-subheading">記録された集約指標の副作用</span>
+                <div className="delta-list metric-deltas">{Object.entries(latest.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div>
+              </>
+            )}
+            {(latest.tradeoffs?.length ?? 0) > 0 && (
+              <>
+                <span className="preview-subheading">記録された構造上の注意</span>
+                <div className="tradeoff-list">{latest.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -259,7 +271,9 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
         event.preventDefault();
         setActiveIndex(Math.max(0, ordered.length - 1));
       } else if (event.key === "Enter" || event.key === " ") {
-        const item = ordered[activeIndex];
+        const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
+        if (!row) return;
+        const item = ordered[Number(row.getAttribute("data-ledger-index"))];
         if (!item) return;
         event.preventDefault();
         onSelect(item.entry.id);
@@ -267,7 +281,7 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeIndex, onClose, onSelect, ordered]);
+  }, [onClose, onSelect, ordered]);
 
   return (
     <div className="ledger-drawer-backdrop" role="presentation" onMouseDown={onClose}>
@@ -302,6 +316,12 @@ function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
                   <span className="ledger-drawer-reason">{item.entry.reason}</span>
                   {item.signature && <span className="ledger-signature-inline">{item.signature.text}</span>}
                   <div className="ledger-deltas">{Object.entries(item.entry.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div>
+                  {Object.keys(item.entry.metricDeltas ?? {}).length > 0 && (
+                    <div className="delta-list metric-deltas">{Object.entries(item.entry.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div>
+                  )}
+                  {(item.entry.tradeoffs?.length ?? 0) > 0 && (
+                    <div className="tradeoff-list">{item.entry.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div>
+                  )}
                 </button>
               </li>
             );

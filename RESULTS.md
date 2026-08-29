@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `42adcadf780215b557d987bc26197f5f9c2a69ea`
+機械検証対象content HEAD: `pending-content-commit`
 
 ## 実行環境
 
@@ -15,7 +15,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 ## 機械検証
 
-次の結果は上記content HEADをcommit後にcheckoutした状態で再実行する。同じcommitへ証拠文書を自己参照させず、この文書更新は後続evidence commitとして記録する。
+次の結果は上記content HEADをcommit後にcheckoutした状態で再実行した。同じcommitへ証拠文書を自己参照させず、この文書更新は後続evidence commitとして記録する。
 
 | コマンド | 結果 |
 |---|---|
@@ -25,7 +25,18 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-ブラウザ確認は2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。現在branchの因果台帳drawerはunit回帰で契約を固定するが、この履歴証拠を同一HEADのブラウザ実測とは数えない。
+### ブラウザ確認（PR #4 履歴）
+
+2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
+
+### ブラウザ確認（因果台帳drawer・同一content HEAD）
+
+上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。
+
+- 標準幅: 「全台帳を開く」で複数件を一覧し、キーボード（Arrow / Enter）で過去エントリを選択するとInspectorと接続状態へ戻る。危機寄与カードからのfocusとも矛盾しない。選択中エントリの`metricDeltas` / `tradeoffs`を記録済み副作用として表示する。
+- 880px狭幅: drawerの一覧・選択・Inspector更新が破綻しない。
+- キーボード: Escapeでdrawerを閉じる。CloseボタンへSpaceしても行選択へ吸われない。
+- `prefers-reduced-motion: reduce`: 署名差分（例: `2028 検証合意 38→…`形式）が静的テキストとして残り、理解がアニメーションに依存しない。
 
 ## PR reviewへの対応
 
@@ -37,11 +48,12 @@ PR #5の同一HEAD Codex reviewで未解決だったP2 3件は、content HEAD `f
 
 これらの修正は後続evidence commitで34件の同一content HEAD実測として固定する。
 
-本branchでは、因果台帳drawerの開示UIと逆引き契約を追加した。
+本branchでは、因果台帳drawerの開示UIと逆引き契約を追加し、PR #6 Codex reviewの指摘へ次を反映した。
 
-- `getLedgerEntryFocus` / `listLedgerTrail` / `getLedgerSignature`で全履歴から接続差分へ戻る。
-- drawer選択と`getStressContributionFocus`は同じ`ledgerEntryId`を共有し、衝突しないことを回帰固定する。
-- 署名差分は通常1回の流れ表示、`prefers-reduced-motion`では静的表示へ落ちる。
+- 選択中台帳の記録済み`metricDeltas` / `tradeoffs`を表示し、現在previewと歴史証拠を混同しない。
+- drawerのEnter/Spaceは台帳行がフォーカスを持つときだけ有効にし、CloseへのSpaceを吸わない。
+- 署名アニメはentry IDの`key`で再起動する。
+- RESULTSの機械検証を完了形で記録し、UIゲート同一HEAD証拠を追加してからM1を閉じる。
 
 PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の契約へ修正した。
 

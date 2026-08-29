@@ -628,6 +628,8 @@ test("ledger drawer focus restores an earlier investment without breaking stress
   const signature = getLedgerSignature(investment.entry);
   assert.ok(signature);
   assert.match(signature.text, new RegExp(`^${investment.entry.year} .+ \\d+→\\d+$`));
+  assert.ok(Object.keys(investment.entry.metricDeltas).length > 0);
+  assert.equal(Array.isArray(investment.entry.tradeoffs), true);
   assert.equal(getLedgerEntryFocus(state, "missing-entry"), null);
 });
 
