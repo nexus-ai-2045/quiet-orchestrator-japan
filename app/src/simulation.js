@@ -174,9 +174,114 @@ function validateLedgerEntries(ledger, state, relationshipDefinitions = RELATION
   return errors;
 }
 
-function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions = RELATIONSHIPS) {
+function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { allowMissingDerived = false } = {}) {
+  const errors = [];
+  const annualEntries = Array.isArray(state?.ledger)
+    ? state.ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot")
+    : [];
+  const expectedYears = Number.isInteger(state?.year) && state.year >= START_YEAR
+    ? Array.from({ length: state.year - START_YEAR }, (_, index) => START_YEAR + index + 1)
+    : [];
+  if (canonicalizeJsonValue(annualEntries.map((entry) => entry.year)) !== canonicalizeJsonValue(expectedYears)) {
+    errors.push("annual ledger must cover every elapsed simulation year");
+  }
+  const history = Array.isArray(state?.history) ? state.history : [];
+  if (history.length !== annualEntries.length) errors.push("history must project every annual ledger entry exactly once");
+
+  let replay = { ...createInitialState(relationshipDefinitions), seed: state?.seed };
+  const snapshotsByYear = new Map([[START_YEAR, {
+    metrics: { ...replay.metrics },
+    relationships: structuredClone(replay.relationships),
+  }]]);
+  const expectedByLedgerId = new Map();
+  for (let index = 0; index < annualEntries.length; index += 1) {
+    const entry = annualEntries[index];
+    const expectedYear = START_YEAR + index + 1;
+    if (entry.year !== expectedYear) continue;
+    if (CHECKPOINTS.includes(replay.year)) replay = { ...replay, stressTests: { ...replay.stressTests, [replay.year]: { replayMarker: true } } };
+    const preview = previewRelationshipInvestment(replay, entry.action, entry.relationshipId, relationshipDefinitions);
+    if (!preview.eligible) {
+      errors.push("annual ledger action cannot be replayed from the canonical timeline");
+      continue;
+    }
+    const relationship = replay.relationships[entry.relationshipId];
+    const expectedEffects = {
+      direct: preview.deltas,
+      spillover: preview.metricDeltas,
+      conflict: relationship.contested ? ["係争接続への投資"] : [],
+      sideEffects: preview.tradeoffs,
+    };
+    const expectedFields = {
+      id: `${expectedYear}:${preview.relationshipId}:${preview.actionId}:${state.ledger.indexOf(entry) + 1}`,
+      year: expectedYear,
+      relationshipLabel: preview.relationshipLabel,
+      action: preview.actionId,
+      actionLabel: preview.actionLabel,
+      project: preview.project,
+      cost: preview.cost,
+      before: preview.before,
+      after: preview.after,
+      deltas: preview.deltas,
+      effectRealization: preview.effectRealization,
+      metricDeltas: preview.metricDeltas,
+      tradeoffs: preview.tradeoffs,
+      reason: `${preview.actionLabel}の年間投資を${preview.relationshipLabel}へ適用`,
+      ruleVersion: RULE_VERSION,
+      seed: state.seed,
+    };
+    for (const [field, expected] of Object.entries(expectedFields)) {
+      if (canonicalizeJsonValue(entry[field]) !== canonicalizeJsonValue(expected)) {
+        errors.push(`annual ledger ${field} must match canonical action replay`);
+      }
+    }
+    if ((!allowMissingDerived || entry.effects != null) && canonicalizeJsonValue(entry.effects) !== canonicalizeJsonValue(expectedEffects)) {
+      errors.push("annual ledger effects must match canonical action replay");
+    }
+    const historyEntry = history[index];
+    const expectedHistory = {
+      year: expectedYear,
+      action: preview.actionId,
+      project: preview.project,
+      relationshipId: preview.relationshipId,
+      ledgerId: entry.id,
+    };
+    if (canonicalizeJsonValue(historyEntry) !== canonicalizeJsonValue(expectedHistory)) {
+      errors.push("history must match its canonical annual ledger projection");
+    }
+    const nextRelationship = { ...relationship, state: { ...preview.after }, lastChangedYear: expectedYear, lastAction: preview.actionId };
+    replay = {
+      ...replay,
+      year: expectedYear,
+      budget: 100,
+      metrics: preview.metricsAfter,
+      relationships: { ...replay.relationships, [preview.relationshipId]: nextRelationship },
+      history: [...replay.history, expectedHistory],
+      ledger: [...replay.ledger, entry],
+    };
+    expectedByLedgerId.set(entry.id, { ...expectedFields, effects: expectedEffects });
+    snapshotsByYear.set(expectedYear, {
+      metrics: { ...replay.metrics },
+      relationships: structuredClone(replay.relationships),
+    });
+  }
+  if (annualEntries.length === expectedYears.length) {
+    if (canonicalizeJsonValue(replay.metrics) !== canonicalizeJsonValue(state.metrics)) {
+      errors.push("current metrics must match canonical annual replay");
+    }
+    if (canonicalizeJsonValue(replay.relationships) !== canonicalizeJsonValue(state.relationships)) {
+      errors.push("current relationships must match canonical annual replay");
+    }
+  }
+  return { valid: errors.length === 0, errors, snapshotsByYear, expectedByLedgerId };
+}
+
+function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions = RELATIONSHIPS, replayReport = null) {
   if (!isRecord(stressTests)) return ["stressTests must be an object"];
   const errors = [];
+  const referencedCheckpointIds = new Set();
+  for (const checkpoint of CHECKPOINTS.filter((year) => year < state.year)) {
+    if (!isRecord(stressTests[checkpoint])) errors.push("every crossed checkpoint must retain its stress result");
+  }
   const ledgerById = new Map(Array.isArray(ledger) ? ledger.filter(isRecord).map((entry) => [entry.id, entry]) : []);
   const expectedContributionIds = Object.values(state?.relationships ?? {})
     .filter((relationship) => {
@@ -207,13 +312,9 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
       if (!Number.isFinite(value) || value < 0 || value > 100) metricsSnapshotValid = false;
     }
     if (!metricsSnapshotValid) errors.push("stored stress result must contain a canonical metrics snapshot");
-    if (
-      metricsSnapshotValid
-      && Number.isInteger(state?.year)
-      && year === state.year
-      && canonicalizeJsonValue(result.metricsSnapshot) !== canonicalizeJsonValue(state.metrics)
-    ) {
-      errors.push("current-year stress metrics snapshot must match the current simulation metrics");
+    const replaySnapshot = replayReport?.snapshotsByYear?.get(year);
+    if (metricsSnapshotValid && replaySnapshot && canonicalizeJsonValue(result.metricsSnapshot) !== canonicalizeJsonValue(replaySnapshot.metrics)) {
+      errors.push("stored stress metrics snapshot must match its replayed simulation year");
     }
     if (!Array.isArray(result.relationshipContributions) || result.relationshipContributions.length === 0) {
       errors.push("stored stress result must contain causal relationship contributions");
@@ -235,6 +336,7 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         continue;
       }
       const ledgerEntry = ledgerById.get(contribution.ledgerEntryId);
+      if (isNonEmptyString(contribution.ledgerEntryId)) referencedCheckpointIds.add(contribution.ledgerEntryId);
       const relationship = state.relationships?.[contribution.relationshipId];
       const definition = Array.isArray(relationshipDefinitions)
         ? relationshipDefinitions.find((item) => item.id === contribution.relationshipId)
@@ -262,12 +364,9 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
         errors.push("checkpoint before must match the calibrated baseline");
         contributionsValid = false;
       }
-      if (
-        Number.isInteger(state?.year)
-        && state.year === year
-        && canonicalizeJsonValue(ledgerEntry.after) !== canonicalizeJsonValue(relationship.state)
-      ) {
-        errors.push("checkpoint after must match the current relationship state");
+      const replayRelationship = replaySnapshot?.relationships?.[contribution.relationshipId];
+      if (replayRelationship && canonicalizeJsonValue(ledgerEntry.after) !== canonicalizeJsonValue(replayRelationship.state)) {
+        errors.push("checkpoint after must match its replayed relationship state");
         contributionsValid = false;
       }
       const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
@@ -327,6 +426,12 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
       }
     }
   }
+  const checkpointLedgerIds = Array.isArray(ledger)
+    ? ledger.filter((entry) => isRecord(entry) && entry.action === "checkpoint-snapshot").map((entry) => entry.id).sort()
+    : [];
+  if (canonicalizeJsonValue(checkpointLedgerIds) !== canonicalizeJsonValue([...referencedCheckpointIds].sort())) {
+    errors.push("checkpoint ledger entries must exactly match stored stress contribution references");
+  }
   return errors;
 }
 
@@ -341,7 +446,9 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
   errors.push(...validateLedgerEntries(state.ledger, state, relationshipDefinitions));
   if (!Array.isArray(state.history)) errors.push("history must be an array");
-  errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state, relationshipDefinitions));
+  const replayReport = replayAnnualTimeline(state, relationshipDefinitions);
+  errors.push(...replayReport.errors);
+  errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state, relationshipDefinitions, replayReport));
   const metricKeys = Object.keys(state.metrics ?? {}).sort();
   if (metricKeys.join("|") !== [...SIMULATION_METRIC_KEYS].sort().join("|")) errors.push("metrics schema drift");
   for (const key of SIMULATION_METRIC_KEYS) {
@@ -454,8 +561,8 @@ export const ACTIONS = [
   { id: "coownership", label: "共同所有", cost: 15, summary: "成果とガバナンスを多元的に持つ", project: "共同検証ハブの多元ガバナンス移行", effects: AGGREGATE_ACTION_EFFECTS.coownership },
 ];
 
-function createRelationshipState() {
-  return Object.fromEntries(RELATIONSHIPS.map((definition) => [definition.id, {
+function createRelationshipState(relationshipDefinitions = RELATIONSHIPS) {
+  return Object.fromEntries(relationshipDefinitions.map((definition) => [definition.id, {
     id: definition.id,
     source: definition.source,
     target: definition.target,
@@ -474,7 +581,7 @@ function createRelationshipState() {
   }]));
 }
 
-export function createInitialState() {
+export function createInitialState(relationshipDefinitions = RELATIONSHIPS) {
   return {
     schemaVersion: 3,
     seed: "baseline-0",
@@ -483,7 +590,7 @@ export function createInitialState() {
     selectedAction: "verification",
     selectedActor: "B1",
     selectedRelationshipId: REPRESENTATIVE_RELATIONSHIP_ID,
-    relationships: createRelationshipState(),
+    relationships: createRelationshipState(relationshipDefinitions),
     metrics: { ...INITIAL_METRICS },
     history: [],
     ledger: [],
@@ -502,47 +609,19 @@ function normalizeStressTests(stressTests) {
 }
 
 function backfillSchemaV3ExecutionEvidence(candidate) {
-  const sourceAnnualEntries = Array.isArray(candidate?.ledger)
-    ? candidate.ledger.filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot" && isValidSimulationYear(entry.year))
-    : [];
-  const reconstructedCurrentMetrics = [...sourceAnnualEntries]
-    .sort((left, right) => left.year - right.year)
-    .reduce((metrics, entry) => {
-      for (const key of SIMULATION_METRIC_KEYS) {
-        const delta = entry.metricDeltas?.[key];
-        if (Number.isFinite(delta)) metrics[key] = clamp(metrics[key] + delta);
-      }
-      return metrics;
-    }, { ...INITIAL_METRICS });
-  const metricTimelineConsistent = canonicalizeJsonValue(reconstructedCurrentMetrics) === canonicalizeJsonValue(candidate?.metrics);
+  const replayReport = replayAnnualTimeline(candidate, RELATIONSHIPS, { allowMissingDerived: true });
   const ledger = Array.isArray(candidate?.ledger) ? candidate.ledger.map((entry) => {
-    if (!isRecord(entry) || entry.action === "checkpoint-snapshot" || isRecord(entry.effects) || !metricTimelineConsistent) return entry;
+    const expected = replayReport.expectedByLedgerId.get(entry?.id);
+    if (!replayReport.valid || !isRecord(entry) || entry.action === "checkpoint-snapshot" || isRecord(entry.effects) || !expected) return entry;
     return {
       ...entry,
-      effects: {
-        direct: isRecord(entry.deltas) ? { ...entry.deltas } : {},
-        spillover: isRecord(entry.metricDeltas) ? { ...entry.metricDeltas } : {},
-        conflict: candidate.relationships?.[entry.relationshipId]?.contested ? ["係争接続への投資"] : [],
-        sideEffects: Array.isArray(entry.tradeoffs) ? [...entry.tradeoffs] : [],
-      },
+      effects: structuredClone(expected.effects),
     };
   }) : [];
-  const annualEntries = ledger
-    .filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot" && isValidSimulationYear(entry.year))
-    .sort((left, right) => left.year - right.year);
-  const metricsAtYear = (year) => annualEntries
-    .filter((entry) => entry.year <= year)
-    .reduce((metrics, entry) => {
-      for (const key of SIMULATION_METRIC_KEYS) {
-        const delta = entry.metricDeltas?.[key];
-        if (Number.isFinite(delta)) metrics[key] = clamp(metrics[key] + delta);
-      }
-      return metrics;
-    }, { ...INITIAL_METRICS });
   const stressTests = Object.fromEntries(Object.entries(normalizeStressTests(candidate?.stressTests)).map(([year, result]) => [
     year,
-    isRecord(result) && !isRecord(result.metricsSnapshot)
-      ? { ...result, metricsSnapshot: metricsAtYear(Number(year)) }
+    replayReport.valid && isRecord(result) && !isRecord(result.metricsSnapshot) && replayReport.snapshotsByYear.has(Number(year))
+      ? { ...result, metricsSnapshot: { ...replayReport.snapshotsByYear.get(Number(year)).metrics } }
       : result,
   ]));
   return { ...candidate, ledger, stressTests };

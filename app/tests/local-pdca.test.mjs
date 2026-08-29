@@ -26,6 +26,7 @@ test("checkpoint rejection records a stress test and retries the same step", () 
   const initial = createDemoState(2040);
   const withoutCheckpoint = { ...initial, stressTests: { ...initial.stressTests, 2040: undefined } };
   delete withoutCheckpoint.stressTests[2040];
+  withoutCheckpoint.ledger = initial.ledger.filter((entry) => !(entry.year === 2040 && entry.action === "checkpoint-snapshot"));
   const result = runOneLocalPdcaStep(withoutCheckpoint, 0, "pdca-checkpoint");
   assert.equal(result.completed, true);
   assert.equal(result.do.attempts.length, 2);
