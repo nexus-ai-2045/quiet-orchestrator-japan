@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `795779c9cf3a9a29e4ccdf9be03f43d9133a5727`
+機械検証対象content HEAD: `458070ad76dc88081364968eef4fb869da10d4c6`
 
 ## 実行環境
 
