@@ -48,6 +48,10 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
+if (!roadmap.includes("因果台帳drawerのUIゲートを同一content HEADで確認する")) {
+  throw new Error("ROADMAP.md must distinguish the current drawer UI evidence from inherited PR #4 evidence");
+}
+
 const historicalEvidenceRows = [
   ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
   ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
