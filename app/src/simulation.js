@@ -27,6 +27,80 @@ const INITIAL_METRICS = Object.freeze({
   dependency: 48,
 });
 const SIMULATION_METRIC_KEYS = Object.freeze(Object.keys(INITIAL_METRICS));
+const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+
+function validateLedgerEntries(ledger, state) {
+  if (!Array.isArray(ledger)) return ["ledger must be an array"];
+  const errors = [];
+  const ids = new Set();
+  for (const entry of ledger) {
+    if (!isRecord(entry)) {
+      errors.push("ledger entries must be objects");
+      continue;
+    }
+    if (!isNonEmptyString(entry.id) || ids.has(entry.id)) errors.push("ledger entry IDs must be nonempty and unique");
+    else ids.add(entry.id);
+    if (!isValidSimulationYear(entry.year)) errors.push("ledger entry year must be within the simulation horizon");
+    for (const field of ["relationshipId", "relationshipLabel", "action", "actionLabel", "project", "reason", "ruleVersion"]) {
+      if (!isNonEmptyString(entry[field])) errors.push(`ledger entry ${field} must be nonempty`);
+    }
+    if (!isRecord(entry.before) || !isRecord(entry.after) || !isRecord(entry.deltas) || !isRecord(entry.metricDeltas)) {
+      errors.push("ledger entry state and delta fields must be objects");
+    }
+    if (!Array.isArray(entry.tradeoffs)) errors.push("ledger entry tradeoffs must be an array");
+    const relationship = state.relationships?.[entry.relationshipId];
+    if (!relationship || relationship.label !== entry.relationshipLabel) errors.push("ledger entry must reference its canonical relationship");
+    if (!Number.isFinite(entry.cost) || entry.cost < 0) errors.push("ledger entry cost must be a nonnegative finite number");
+  }
+  return errors;
+}
+
+function validateStoredStressTests(stressTests, ledger, state) {
+  if (!isRecord(stressTests)) return ["stressTests must be an object"];
+  const errors = [];
+  const ledgerById = new Map(Array.isArray(ledger) ? ledger.filter(isRecord).map((entry) => [entry.id, entry]) : []);
+  for (const [yearKey, result] of Object.entries(stressTests)) {
+    const year = Number(yearKey);
+    if (!isValidSimulationYear(year) || !isRecord(result) || result.year !== year) {
+      errors.push("stored stress result year must match a simulation year");
+      continue;
+    }
+    if (result.durationDays !== CRISIS_DAYS || result.turnHours !== CRISIS_TURN_HOURS || result.turns !== CRISIS_TURNS) {
+      errors.push("stored stress result must use the canonical crisis duration");
+    }
+    for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
+      if (!Number.isFinite(result[field]) || result[field] < 0 || result[field] > 100) errors.push(`stored stress result ${field} must be within 0-100`);
+    }
+    const expectedVerdict = result.attributionSafety >= 70 && result.coordinationSurvival >= 70 ? "協調継続" : "改善余地";
+    if (result.verdict !== expectedVerdict) errors.push("stored stress result verdict contradicts its scores");
+    if (!Array.isArray(result.relationshipContributions) || result.relationshipContributions.length === 0) {
+      errors.push("stored stress result must contain causal relationship contributions");
+      continue;
+    }
+    for (const contribution of result.relationshipContributions) {
+      if (!isRecord(contribution) || !isNonEmptyString(contribution.relationshipId) || !isNonEmptyString(contribution.relationshipLabel)
+        || contribution.checkpointYear !== year || !isNonEmptyString(contribution.ledgerEntryId)) {
+        errors.push("stored stress contribution identity is invalid");
+        continue;
+      }
+      const ledgerEntry = ledgerById.get(contribution.ledgerEntryId);
+      const relationship = state.relationships?.[contribution.relationshipId];
+      if (!relationship || relationship.label !== contribution.relationshipLabel) errors.push("stored stress contribution relationship is invalid");
+      if (!ledgerEntry || ledgerEntry.relationshipId !== contribution.relationshipId || ledgerEntry.year !== year
+        || ledgerEntry.action !== "checkpoint-snapshot") {
+        errors.push("stored stress contribution must reference its checkpoint ledger entry");
+      }
+      const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
+      for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
+        if (!Number.isFinite(contribution[field]) || contribution[field] < min || contribution[field] > max) {
+          errors.push(`stored stress contribution ${field} is outside its calibrated limits`);
+        }
+      }
+    }
+  }
+  return errors;
+}
 
 export function validateSimulationExecutionState(state, relationshipDefinitions = RELATIONSHIPS) {
   const errors = [];
@@ -36,9 +110,9 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
   if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
   if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
-  if (!Array.isArray(state.ledger)) errors.push("ledger must be an array");
+  errors.push(...validateLedgerEntries(state.ledger, state));
   if (!Array.isArray(state.history)) errors.push("history must be an array");
-  if (!state.stressTests || typeof state.stressTests !== "object" || Array.isArray(state.stressTests)) errors.push("stressTests must be an object");
+  errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state));
   const metricKeys = Object.keys(state.metrics ?? {}).sort();
   if (metricKeys.join("|") !== [...SIMULATION_METRIC_KEYS].sort().join("|")) errors.push("metrics schema drift");
   for (const key of SIMULATION_METRIC_KEYS) {
