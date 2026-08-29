@@ -57,6 +57,7 @@ PR #5の同一HEAD Codex reviewで未解決だったP2 3件は、content HEAD `f
 - drawerのEnter/Spaceは台帳行がフォーカスを持つときだけ有効にし、CloseへのSpaceを吸わない。
 - 署名アニメはentry IDの`key`で再起動する。
 - RESULTSの機械検証を完了形で記録し、UIゲート同一HEAD証拠を追加してからM1を閉じる。
+- PREFLIGHTの`repo-preflight target diff`行を、SHAのみ／「再測定する」未来形から、content HEADでのlive観測（secret0・path0・origin・clean worktree・CI設定2・effective_identity pass / `ready_after_confirmation`）へ直し、同種driftを`verify-doc-boundaries`でfail closedにした。
 
 PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の契約へ修正した。
 

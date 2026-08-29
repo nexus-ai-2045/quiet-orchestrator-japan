@@ -18,7 +18,7 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight target diff | c939f31ca929b5768eb66f3dbf6c186e7e0446af | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
+| repo-preflight target diff | pass / ready_after_confirmation | content HEAD `c939f31` でlive再測定。secret候補0、個人path0、origin pass、clean worktree pass、CI設定2件、effective_identity pass（履歴mismatch 2・effective_mismatch 0）。対話intent `open_pr` は `ready_after_confirmation` |
 | 決定論テスト | pass | `npm test`: 38件pass。台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引きの非衝突、記録済み副作用、署名差分、fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、役割同等性、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
