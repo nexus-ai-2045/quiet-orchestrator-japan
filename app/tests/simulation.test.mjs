@@ -812,6 +812,24 @@ test("portfolio execution rejects malformed aggregate state containers", () => {
       state.stressTests = tested.stressTests;
       state.stressTests[state.year].relationshipContributions[0].ledgerEntryId = "missing";
     },
+    (state) => { state.seed = ""; },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.ledger[0].deltas.trust = { forged: true };
+    },
+    (state) => {
+      const tested = runStressTest(state);
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+      state.stressTests[state.year].relationshipContributions[0].attributionSafety += 1;
+    },
+    (state) => {
+      const tested = runStressTest(createDemoState(2030));
+      state.ledger = tested.ledger;
+      state.stressTests = tested.stressTests;
+    },
     (state) => { state.schemaVersion = 2; },
   ]) {
     const state = createInitialState();

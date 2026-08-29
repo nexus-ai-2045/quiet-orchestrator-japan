@@ -42,11 +42,25 @@ function validateLedgerEntries(ledger, state) {
     if (!isNonEmptyString(entry.id) || ids.has(entry.id)) errors.push("ledger entry IDs must be nonempty and unique");
     else ids.add(entry.id);
     if (!isValidSimulationYear(entry.year)) errors.push("ledger entry year must be within the simulation horizon");
+    if (isValidSimulationYear(entry.year) && entry.year > state.year) errors.push("ledger entry cannot come from a future year");
     for (const field of ["relationshipId", "relationshipLabel", "action", "actionLabel", "project", "reason", "ruleVersion"]) {
       if (!isNonEmptyString(entry[field])) errors.push(`ledger entry ${field} must be nonempty`);
     }
     if (!isRecord(entry.before) || !isRecord(entry.after) || !isRecord(entry.deltas) || !isRecord(entry.metricDeltas)) {
       errors.push("ledger entry state and delta fields must be objects");
+    } else {
+      if (!isValidRelationshipStateShape(entry.before) || !isValidRelationshipStateShape(entry.after)) {
+        errors.push("ledger entry before/after must use the relationship state schema");
+      }
+      for (const key of Object.keys(entry.deltas)) {
+        if (!RELATIONSHIP_STATE_KEYS.includes(key)) errors.push("ledger entry delta schema drift");
+        if (!Number.isFinite(entry.deltas[key]) || entry.deltas[key] !== entry.after[key] - entry.before[key]) {
+          errors.push(`ledger entry ${key} delta must match before/after`);
+        }
+      }
+      for (const [key, value] of Object.entries(entry.metricDeltas)) {
+        if (!SIMULATION_METRIC_KEYS.includes(key) || !Number.isFinite(value)) errors.push("ledger metric deltas must be finite canonical metrics");
+      }
     }
     if (!Array.isArray(entry.tradeoffs)) errors.push("ledger entry tradeoffs must be an array");
     const relationship = state.relationships?.[entry.relationshipId];
@@ -56,7 +70,7 @@ function validateLedgerEntries(ledger, state) {
   return errors;
 }
 
-function validateStoredStressTests(stressTests, ledger, state) {
+function validateStoredStressTests(stressTests, ledger, state, relationshipDefinitions) {
   if (!isRecord(stressTests)) return ["stressTests must be an object"];
   const errors = [];
   const ledgerById = new Map(Array.isArray(ledger) ? ledger.filter(isRecord).map((entry) => [entry.id, entry]) : []);
@@ -66,6 +80,7 @@ function validateStoredStressTests(stressTests, ledger, state) {
       errors.push("stored stress result year must match a simulation year");
       continue;
     }
+    if (year > state.year) errors.push("stored stress result cannot come from a future year");
     if (result.durationDays !== CRISIS_DAYS || result.turnHours !== CRISIS_TURN_HOURS || result.turns !== CRISIS_TURNS) {
       errors.push("stored stress result must use the canonical crisis duration");
     }
@@ -90,6 +105,18 @@ function validateStoredStressTests(stressTests, ledger, state) {
       if (!ledgerEntry || ledgerEntry.relationshipId !== contribution.relationshipId || ledgerEntry.year !== year
         || ledgerEntry.action !== "checkpoint-snapshot") {
         errors.push("stored stress contribution must reference its checkpoint ledger entry");
+      } else {
+        const replayState = {
+          ...state,
+          relationships: {
+            ...state.relationships,
+            [contribution.relationshipId]: { ...state.relationships[contribution.relationshipId], state: ledgerEntry.after },
+          },
+        };
+        const expected = getRelationshipContribution(replayState, contribution.relationshipId, relationshipDefinitions);
+        for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
+          if (!expected || contribution[field] !== expected[field]) errors.push(`stored stress contribution ${field} must match its checkpoint snapshot`);
+        }
       }
       const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
       for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
@@ -108,11 +135,12 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
     return { valid: false, errors: ["simulation state must be an object"], portfolio: null };
   }
   if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
+  if (!isNonEmptyString(state.seed)) errors.push("simulation seed must be a nonempty string");
   if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
   errors.push(...validateLedgerEntries(state.ledger, state));
   if (!Array.isArray(state.history)) errors.push("history must be an array");
-  errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state));
+  errors.push(...validateStoredStressTests(state.stressTests, state.ledger, state, relationshipDefinitions));
   const metricKeys = Object.keys(state.metrics ?? {}).sort();
   if (metricKeys.join("|") !== [...SIMULATION_METRIC_KEYS].sort().join("|")) errors.push("metrics schema drift");
   for (const key of SIMULATION_METRIC_KEYS) {
