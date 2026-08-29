@@ -10,7 +10,6 @@ function assertStep(step) {
     throw new RangeError("step must be an integer from 0 through 8");
   }
 }
-
 function assertSeed(seed) {
   if (typeof seed !== "string" || seed.length === 0) throw new TypeError("seed must be a non-empty string");
 }
@@ -119,4 +118,3 @@ export function runLocalPdcaSimulation(initialState, { maxSteps = LOCAL_PDCA_STE
     nextStep: steps.at(-1)?.act.nextStep ?? 0,
   };
 }
-
