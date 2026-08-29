@@ -61,6 +61,19 @@ const SCHEMA_V2_CALIBRATION_FINGERPRINT = relationshipCalibrationFingerprint(
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 const RELATIONSHIP_STATE_KEYS = Object.freeze(Object.keys(DEFAULT_RELATIONSHIP_STATE));
 
+function isValidRelationshipStateShape(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+  const stateKeys = Object.keys(candidate).sort();
+  if (stateKeys.join("|") !== [...RELATIONSHIP_STATE_KEYS].sort().join("|")) return false;
+  for (const key of RELATIONSHIP_STATE_KEYS) {
+    const value = candidate[key];
+    const max = key === "alternateRoutes" ? 5 : 100;
+    if (!Number.isFinite(value) || value < 0 || value > max) return false;
+    if (key === "alternateRoutes" && !Number.isInteger(value)) return false;
+  }
+  return true;
+}
+
 export const ACTORS = [
   { id: "J1", group: "日本", name: "内閣官房・事態対処室", x: 90, y: 70, portfolio: "verification" },
   { id: "J2", group: "日本", name: "外務省・戦略情報分析", x: 250, y: 65, portfolio: "verification" },
@@ -245,6 +258,10 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
   ))) {
     return { valid: false, total: Object.keys(state?.relationships ?? {}).length, calibration: { calibrated: 0, uncalibrated: 0 }, errors: ["relationship definitions must be an array of objects"] };
   }
+  for (const definition of relationshipDefinitions) {
+    if (typeof definition.source === "string" && definition.source.trim() !== "") actorIds.add(definition.source);
+    if (typeof definition.target === "string" && definition.target.trim() !== "") actorIds.add(definition.target);
+  }
   const definitionsById = new Map(relationshipDefinitions.map((definition) => [definition.id, definition]));
   if (relationshipDefinitions.length !== 20 || definitionsById.size !== 20) {
     errors.push(`relationship definitions must contain 20 unique ids; received ${relationshipDefinitions.length}/${definitionsById.size}`);
@@ -293,11 +310,18 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       if (key === "alternateRoutes" && Number.isFinite(value) && !Number.isInteger(value)) errors.push(`${mapKey}: alternateRoutes must be an integer`);
     }
     if (definition.investable) {
-      if (matchesCalibratedRelationship(relationship, definition)) calibrated += 1;
-      else errors.push(`${mapKey}: calibrated fingerprint drift`);
+      if (!isValidRelationshipStateShape(definition.initialState)) {
+        errors.push(`${mapKey}: calibrated definition baseline is invalid`);
+      } else if (matchesCalibratedRelationship(relationship, definition)) {
+        calibrated += 1;
+      } else {
+        errors.push(`${mapKey}: calibrated fingerprint drift`);
+      }
     } else {
       uncalibrated += 1;
-      if (canonicalizeJsonValue(relationship.state) !== canonicalizeJsonValue(definition.initialState)) {
+      if (!isValidRelationshipStateShape(definition.initialState)) {
+        errors.push(`${mapKey}: uncalibrated definition baseline is invalid`);
+      } else if (canonicalizeJsonValue(relationship.state) !== canonicalizeJsonValue(definition.initialState)) {
         errors.push(`${mapKey}: uncalibrated state drift`);
       }
     }
@@ -378,6 +402,7 @@ function matchesCalibratedRelationship(relationship, definition) {
   return Boolean(
     relationship?.investable
     && definition?.investable
+    && isValidRelationshipStateShape(definition?.initialState)
     && relationship.id === definition.id
     && relationship.source === definition.source
     && relationship.target === definition.target
@@ -514,13 +539,39 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
   return { eligible: true, items, totalCost, reason: "実行可能" };
 }
 
-export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
-  const preview = previewRelationshipInvestment(
+export function previewSelectedInvestment(state, relationshipDefinitions = RELATIONSHIPS) {
+  const relationshipId = state.selectedRelationshipId;
+  const actionId = state.selectedAction;
+  const plan = previewInvestmentPortfolio(
     state,
-    state.selectedAction,
-    state.selectedRelationshipId,
+    [{ relationshipId, actionId }],
     relationshipDefinitions,
   );
+  const item = plan.items[0];
+  if (item) {
+    return plan.eligible
+      ? item
+      : {
+        ...item,
+        eligible: false,
+        reason: plan.reason,
+        ...(plan.errors ? { errors: plan.errors } : {}),
+      };
+  }
+  return {
+    eligible: false,
+    relationshipId,
+    actionId,
+    reason: plan.reason,
+    ...(plan.errors ? { errors: plan.errors } : {}),
+    deltas: {},
+    metricDeltas: {},
+    tradeoffs: [],
+  };
+}
+
+export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
+  const preview = previewSelectedInvestment(state, relationshipDefinitions);
   if (!preview.eligible) return state;
 
   const nextYear = state.year + 1;

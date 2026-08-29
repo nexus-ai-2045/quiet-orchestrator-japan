@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `fbbfea08328da73c78db5eaba02ce5027b929b40`
+機械検証対象content HEAD: `c51786c2f1a2fe3eca2693f4465fc1081481c1e1`
 
 ## 実行環境
 
@@ -19,7 +19,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 69件pass |
+| `npm test` | 70件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
@@ -47,11 +47,11 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 | gate | status | affirmative observation |
 |---|---|---|
-| standard-width | history-only-9a11564 | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
-| narrow-880 | history-only-9a11564 | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
-| narrow-320 | history-only-9a11564 | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
-| keyboard-modal | history-only-9a11564 | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
-| reduced-motion | history-only-9a11564 | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
+| standard-width | pass-historical-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
+| narrow-880 | pass-historical-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
+| narrow-320 | pass-historical-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
+| keyboard-modal | pass-historical-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
+| reduced-motion | pass-historical-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
 
 ## PR reviewへの対応
 
