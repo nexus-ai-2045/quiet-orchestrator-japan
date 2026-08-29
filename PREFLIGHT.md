@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m2-portfolio-foundation`
-- content HEAD: `01cc32843d9211959a385144c4e1978b2a6eada8`（M2ポートフォリオfail-closed、非空relationship ID、必須label・校正済み接続・整数year境界、Boolean metadata、stressのportfolio検証、default-branch provenance同期、75件回帰）
+- content HEAD: `01cc32843d9211959a385144c4e1978b2a6eada8`（M2ポートフォリオfail-closed、非空relationship ID、必須label・校正済み接続・整数year境界、Boolean metadata、stressのportfolio検証、default-branch provenance同期、76件回帰）
 - base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 75件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 76件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

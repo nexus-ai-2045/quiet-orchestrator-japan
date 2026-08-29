@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
+import { isIdentifyingGitShaPrefix, parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
 
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
@@ -101,6 +101,13 @@ const publicReadyDefaultBranchSha = publicReady.match(/^- default branch: `main@
 const publicReadySummarySha = publicReady.match(/^- `main@([0-9a-f]+)`は/m)?.[1];
 if (!preflightBaseSha || !preflightDefaultBranchSha) {
   throw new Error("PREFLIGHT.md must record origin/main base SHA and default-branch read-back");
+}
+if (
+  !isIdentifyingGitShaPrefix(preflightDefaultBranchSha)
+  || !isIdentifyingGitShaPrefix(publicReadyDefaultBranchSha)
+  || !isIdentifyingGitShaPrefix(publicReadySummarySha)
+) {
+  throw new Error("default-branch provenance must use an identifying Git SHA prefix of 7-40 hexadecimal characters");
 }
 if (!preflightBaseSha.startsWith(preflightDefaultBranchSha)) {
   throw new Error(

@@ -2,6 +2,10 @@
 const MARKER = "<!-- repo-preflight-result:v1 -->";
 const REQUIRED_KEYS = ["ciConfigCount", "cleanWorktree", "contentHead", "effectiveIdentity", "effectiveMismatchCount", "historyMismatchCount", "intent", "origin", "personalPaths", "schemaVersion", "secretCandidates", "status"];
 
+export function isIdentifyingGitShaPrefix(value) {
+  return typeof value === "string" && /^[0-9a-f]{7,40}$/.test(value);
+}
+
 function requireInteger(value, name, minimum = 0) {
   if (!Number.isInteger(value) || value < minimum) throw new Error(`repo-preflight ${name} must be an integer >= ${minimum}`);
 }
