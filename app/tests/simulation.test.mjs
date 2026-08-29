@@ -21,8 +21,11 @@ import {
   END_YEAR,
   getFinalAssessment,
   getRelationshipContribution,
+  getLedgerEntryFocus,
+  getLedgerSignature,
   getStressContributionFocus,
   getStressTestDisplayYears,
+  listLedgerTrail,
   migrateSimulationState,
   previewRelationshipInvestment,
   RELATIONSHIPS,
@@ -599,6 +602,33 @@ test("a stress contribution keeps the checkpoint ledger context", () => {
   assert.equal(focus.relationshipId, "B1-C6");
   assert.equal(focus.ledgerEntryId, contribution.ledgerEntryId);
   assert.equal(state.ledger.find((entry) => entry.id === focus.ledgerEntryId).year <= 2035, true);
+});
+
+test("ledger drawer focus restores an earlier investment without breaking stress reverse-lookup", () => {
+  const state = runStressTest(createDemoState(2035));
+  const trail = listLedgerTrail(state);
+  assert.ok(trail.length > 1);
+
+  const investment = trail.find((item) => item.entry.action !== "checkpoint-snapshot");
+  assert.ok(investment);
+  const drawerFocus = getLedgerEntryFocus(state, investment.entry.id);
+  assert.deepEqual(drawerFocus, {
+    ledgerEntryId: investment.entry.id,
+    relationshipId: investment.entry.relationshipId,
+    year: investment.entry.year,
+  });
+  assert.equal(selectRelationship(state, drawerFocus.relationshipId).selectedRelationshipId, investment.entry.relationshipId);
+
+  const contribution = state.stressTests[2035].relationshipContributions[0];
+  const stressFocus = getStressContributionFocus(state, 2035, contribution.relationshipId);
+  assert.equal(stressFocus.ledgerEntryId, contribution.ledgerEntryId);
+  assert.notEqual(drawerFocus.ledgerEntryId, stressFocus.ledgerEntryId);
+  assert.equal(getLedgerEntryFocus(state, stressFocus.ledgerEntryId).relationshipId, stressFocus.relationshipId);
+
+  const signature = getLedgerSignature(investment.entry);
+  assert.ok(signature);
+  assert.match(signature.text, new RegExp(`^${investment.entry.year} .+ \\d+→\\d+$`));
+  assert.equal(getLedgerEntryFocus(state, "missing-entry"), null);
 });
 
 test("a migrated checkpoint creates a deterministic relationship snapshot when no ledger exists", () => {
