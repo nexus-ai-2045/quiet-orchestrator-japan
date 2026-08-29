@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `cursor/m1-ledger-drawer-e44b`
-- content HEAD: `edb6d3783c2f6b797b1094ea8ccc968191be90b3`（scripted PDCA、完全receipt/state/raw boundary、horizon gate、checkpoint再試行証拠、因果台帳drawer）
+- content HEAD: `6c38a7d55c17a95501831dd33a683f6bf6cac80b`（scripted PDCA、完全receipt/state入力、canonical output boundary、horizon gate、checkpoint再試行証拠、因果台帳drawer）
 - base: `origin/main@6be43bee54312a8f5879d18d8c7895d114c376ab`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -18,7 +18,7 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight target diff | edb6d3783c2f6b797b1094ea8ccc968191be90b3 | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
+| repo-preflight target diff | 6c38a7d55c17a95501831dd33a683f6bf6cac80b | secret候補、個人path、origin、clean worktree、CI設定、作者・committer名義をcontent HEAD固定後に再測定する |
 | 決定論・AI境界テスト | pass | `npm test`: 59件pass。既存決定論回帰に加え、提案schema、canonical parsed output hash、観測hash、主体権限、receipt外枠・fallback監査・engine version束縛、完全state summary一致、seed・ledger件数・budget・checkpoint・全investable metadata・固定実行接続、改ざん拒否、同一state hash再生、0〜8順序、horizon事前検査、ローカルPDCA完走、checkpoint自動検査・再試行、状態権限を回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
