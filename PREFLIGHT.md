@@ -5,9 +5,9 @@
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
-- branch: `codex/m2-portfolio-foundation`
-- content HEAD: `48d3cd87a6f6d3767d7f982b3a040909356684de`（annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、全stress year・全校正接続のCanonical event順序、107件回帰）
-- base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
+- branch: `codex/run-bundle-v1`
+- content HEAD: `1a383476d1c0232385a353b2df05cf0a6e299750`（既存決定論コアを正本とする`meta-security-run-bundle/v1`、同一`run_id`束縛、決定論的replay・改ざん検知、109件回帰）
+- base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
@@ -19,20 +19,20 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 107件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、台帳drawer、校正・migration・最終checkpointを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 109件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、run bundleの同一ID・順序・再実行一致、台帳drawer、校正・migration・最終checkpointを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@959f3f85`、archived `false` |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@bdb9902b`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"48d3cd87a6f6d3767d7f982b3a040909356684de","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"1a383476d1c0232385a353b2df05cf0a6e299750","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
