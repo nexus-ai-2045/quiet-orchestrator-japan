@@ -8,8 +8,9 @@ import {
   getStressTestDisplayYears, listLedgerTrail, previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
-import { AI_ACTORS, runFixtureSimulation, validateAiReceipt } from "./ai/contract.js";
-import { applyValidatedAiProposal, buildAiStateSummary, fixtureReceiptIndex, nextFixtureStep } from "./ai/apply-proposal.js";
+import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
+import { buildAiStateSummary } from "./ai/apply-proposal.js";
+import { runOneLocalPdcaStep } from "./ai/local-pdca.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -364,67 +365,26 @@ function MetricRail({ state }) {
   );
 }
 
-function AiProposalTrace({ state, onAdopt }) {
-  const fixtureReceipts = useMemo(() => runFixtureSimulation("hackathon-mvp-0", buildAiStateSummary(state)), [state]);
-  const [receipts, setReceipts] = useState(fixtureReceipts);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [fixtureStep, setFixtureStep] = useState(0);
-  const [importNotice, setImportNotice] = useState("固定fixtureを再生中");
-  useEffect(() => {
-    if (receipts.every((item) => item.provider?.mode === "fixture")) {
-      setReceipts(fixtureReceipts);
-    }
-  }, [fixtureReceipts, state]);
-  const fixtureMode = receipts.every((item) => item.provider?.mode === "fixture");
-  const effectiveIndex = fixtureMode ? fixtureReceiptIndex(fixtureStep, receipts.length) : selectedIndex;
-  const receipt = receipts[effectiveIndex];
+function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
+  const nextReceipts = useMemo(() => runFixtureSimulation("hackathon-mvp-0", buildAiStateSummary(state)), [state]);
+  const previewReceipt = nextReceipts[Math.min(nextStep, nextReceipts.length - 1)];
+  const latestCycle = cycles.at(-1);
+  const receipt = previewReceipt;
   const proposal = receipt.appliedProposal;
-  const actor = AI_ACTORS[receipt.actorId];
+  const completed = nextStep >= 9;
   return (
-    <section className="ai-trace" aria-label="AI提案トレース">
+    <section className="ai-trace" aria-label="ローカルPDCAシミュレーション">
       <div className="ai-trace-heading">
-        <div><span>M1.5 AI提案トレース</span><strong>AIが観測を読み、決定論コアへ提案する</strong></div>
-        <span className={`ai-mode ${receipt.fallbackUsed ? "fallback" : receipt.provider?.mode === "live" ? "live" : "replay"}`}>{receipt.fallbackUsed ? "FALLBACK" : receipt.provider?.mode === "live" ? "LIVE RECEIPT" : "FIXTURE REPLAY"}</span>
+        <div><span>M1.5 LOCAL PDCA</span><strong>Plan → Do → Check → Act を自動反復</strong></div>
+        <span className="ai-mode replay">LOCAL / {nextStep} of 9</span>
       </div>
-      <label>主体とターン
-        <select value={effectiveIndex} disabled={fixtureMode} onChange={(event) => setSelectedIndex(Number(event.target.value))}>
-          {receipts.map((item, index) => <option key={`${item.turn}-${item.actorId}`} value={index}>Turn {item.turn} / {item.actorId} {AI_ACTORS[item.actorId].label}</option>)}
-        </select>
-      </label>
-      <label className="ai-import">live JSONLを検証して読込
-        <input type="file" accept=".jsonl,.json,application/json" onChange={async (event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          try {
-            const imported = (await file.text()).split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
-            const valid = imported.length > 0 && imported.every((item) => validateAiReceipt(item).valid);
-            if (!valid) throw new Error("receipt schema / authority mismatch");
-            setReceipts(imported);
-            setSelectedIndex(0);
-            setFixtureStep(0);
-            setImportNotice(`${imported.length}件の検証済みreceiptを読込`);
-          } catch {
-            setReceipts(fixtureReceipts);
-            setSelectedIndex(0);
-            setFixtureStep(0);
-            setImportNotice("読込を拒否し、固定fixtureへ戻しました");
-          }
-        }} />
-        <small>{importNotice}</small>
-      </label>
+      <div className="ai-cycle-controls"><button className="button" onClick={onStep} disabled={completed}>PDCAを一手実行</button><button className="button primary" onClick={onAuto} disabled={completed}>残りを自動完走</button></div>
       <div className="ai-proposal-body">
-        <div><span>観測</span><code>{receipt.observationHash}</code><small>固定seed / {receipt.seed}</small></div>
-        <div><span>未信頼のAI提案</span><strong>{proposal.actionId} → {proposal.relationshipId}</strong><p>{proposal.rationale}</p></div>
-        <div><span>検証結果</span><strong>{receipt.outcome === "accepted" ? "schema・権限・hash 合格" : "拒否して固定提案へ退避"}</strong><small>confidence {proposal.confidence.toFixed(2)} / 状態は未変更</small><code>{receipt.provider?.model} / {receipt.provider?.promptVersion}</code></div>
+        <div><span>Plan / Turn {receipt.turn}</span><strong>{receipt.actorId} {AI_ACTORS[receipt.actorId].label}</strong><code>{receipt.observationHash}</code></div>
+        <div><span>Do / 未信頼提案を検証</span><strong>{proposal.actionId} → {proposal.relationshipId}</strong><p>{proposal.rationale}</p></div>
+        <div><span>Check / Act</span><strong>{latestCycle ? latestCycle.completed ? "決定論コア適用・次観測へ" : `停止: ${latestCycle.do.errors.join(", ")}` : "実行待ち"}</strong><small>{latestCycle ? `${latestCycle.check.beforeStateHash} → ${latestCycle.check.afterStateHash}` : "状態はまだ変更していません"}</small></div>
       </div>
-      <button className="button primary" onClick={() => {
-        if (onAdopt(receipt) && receipt.provider?.mode === "fixture") {
-          const nextStep = nextFixtureStep(fixtureStep, fixtureReceipts.length, true);
-          setFixtureStep(nextStep);
-          setSelectedIndex(Math.min(nextStep, fixtureReceipts.length - 1));
-        }
-      }} disabled={fixtureStep >= fixtureReceipts.length || receipt.observation.stateSummary?.stateHash !== buildAiStateSummary(state).stateHash}>{fixtureStep >= fixtureReceipts.length ? "3主体×3ターン完了" : "人間が採用し、決定論コアで次年へ"}</button>
-      <p className="ai-boundary">これは政策の正解や未来予測ではなく、架空観測に対する提案トレースです。数値・予算・状態・因果台帳はAIではなく既存コアが更新します。</p>
+      <p className="ai-boundary">外部APIなし。固定表を使うscripted Policy Engineが提案し、validatorと既存コアが採否・状態遷移を所有します。AI/LLM推論は未実装です。</p>
     </section>
   );
 }
@@ -451,12 +411,14 @@ export function App() {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
+  const [pdcaCycles, setPdcaCycles] = useState([]);
+  const [pdcaStep, setPdcaStep] = useState(0);
   const preview = previewRelationshipInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
   const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
-  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
     const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
@@ -474,19 +436,42 @@ export function App() {
     setLedgerOpen(false);
     setNotice(`因果台帳 ${focus.ledgerEntryId} の接続差分を表示しています`);
   };
-  const handleAiAdopt = (receipt) => {
+  const handlePdcaStep = () => {
+    if (pdcaStep >= 9) return;
     clearLedgerFocus();
-    const result = applyValidatedAiProposal(state, receipt);
-    setNotice(result.applied ? `AI提案 ${receipt.appliedProposal.actionId} を人間が採用し、決定論コアで${result.state.year}年へ進めました / ${result.execution.afterStateHash}` : `AI提案を拒否しました: ${result.errors.join(", ")}`);
-    if (result.applied) setState(result.state);
-    return result.applied;
+    const cycle = runOneLocalPdcaStep(state, pdcaStep);
+    setPdcaCycles((current) => [...current, cycle]);
+    if (cycle.completed) {
+      setState(cycle.state);
+      setPdcaStep(cycle.act.nextStep);
+      setNotice(`PDCA ${pdcaStep + 1}/9: ${cycle.actorId}の提案を検証・適用し、${cycle.state.year}年へ進めました`);
+    } else {
+      setNotice(`PDCAを安全停止しました: ${cycle.do.errors.join(", ")}`);
+    }
+  };
+  const handlePdcaAuto = () => {
+    clearLedgerFocus();
+    let currentState = state;
+    let currentStep = pdcaStep;
+    const addedCycles = [];
+    while (currentStep < 9) {
+      const cycle = runOneLocalPdcaStep(currentState, currentStep);
+      addedCycles.push(cycle);
+      if (!cycle.completed) break;
+      currentState = cycle.state;
+      currentStep = cycle.act.nextStep;
+    }
+    setPdcaCycles((current) => [...current, ...addedCycles]);
+    setState(currentState);
+    setPdcaStep(currentStep);
+    setNotice(currentStep === 9 ? `ローカルPDCA 3主体×3ターンを完走しました / ${addedCycles.at(-1)?.check.afterStateHash}` : `PDCAを${currentStep + 1}手目で安全停止しました`);
   };
 
   return (
     <main className="app-shell">
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
       <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
-      <AiProposalTrace state={state} onAdopt={handleAiAdopt} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
+      <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}

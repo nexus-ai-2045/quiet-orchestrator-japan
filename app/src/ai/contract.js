@@ -108,7 +108,7 @@ function fallbackProposal(observation) {
   return {
     actionId: AI_ACTORS[observation.actorId]?.fallbackActionId ?? "verification",
     relationshipId: AI_RELATIONSHIP_ID,
-    rationale: "AI応答を採用せず、事前登録済みの固定提案へフォールバック",
+    rationale: "不正な提案を採用せず、事前登録済みのscripted policyへフォールバック",
     confidence: 0,
   };
 }
