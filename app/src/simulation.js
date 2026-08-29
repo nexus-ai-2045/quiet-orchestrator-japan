@@ -27,8 +27,63 @@ const INITIAL_METRICS = Object.freeze({
   dependency: 48,
 });
 const SIMULATION_METRIC_KEYS = Object.freeze(Object.keys(INITIAL_METRICS));
+const RELATIONSHIP_STATE_KEYS = Object.freeze(Object.keys(DEFAULT_RELATIONSHIP_STATE));
 const isRecord = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+
+function isValidRelationshipStateShape(candidate) {
+  if (!isRecord(candidate)) return false;
+  const stateKeys = Object.keys(candidate).sort();
+  if (stateKeys.join("|") !== [...RELATIONSHIP_STATE_KEYS].sort().join("|")) return false;
+  for (const key of RELATIONSHIP_STATE_KEYS) {
+    const value = candidate[key];
+    const max = key === "alternateRoutes" ? 5 : 100;
+    if (!Number.isFinite(value) || value < 0 || value > max) return false;
+    if (key === "alternateRoutes" && !Number.isInteger(value)) return false;
+  }
+  return true;
+}
+
+function deriveRelationshipContribution(before, after, relationshipId, relationshipLabel) {
+  if (!isValidRelationshipStateShape(before) || !isValidRelationshipStateShape(after)) return null;
+  const delta = (key) => after[key] - before[key];
+  const weightedDelta = (weights) => Object.entries(weights).reduce(
+    (total, [key, weight]) => total + delta(key) * weight,
+    0,
+  );
+  const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
+  return {
+    relationshipId,
+    relationshipLabel,
+    attributionSafety: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.attributionSafety)), min, max),
+    coordinationSurvival: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival)), min, max),
+    civilianProtection: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.civilianProtection)), min, max),
+  };
+}
+
+function validateNumericDeltaMap(deltas, label, allowedKeys, before = null, after = null) {
+  const errors = [];
+  if (!isRecord(deltas)) {
+    errors.push(`${label} must be an object`);
+    return errors;
+  }
+  const allowed = new Set(allowedKeys);
+  for (const [key, value] of Object.entries(deltas)) {
+    if (!allowed.has(key)) errors.push(`${label} has unexpected key ${key}`);
+    if (!Number.isFinite(value)) errors.push(`${label}.${key} must be a finite number`);
+    else if (
+      isRecord(before)
+      && isRecord(after)
+      && Number.isFinite(before[key])
+      && Number.isFinite(after[key])
+      && value !== after[key] - before[key]
+    ) {
+      errors.push(`${label}.${key} must equal after-before`);
+    }
+  }
+  return errors;
+}
 
 function validateLedgerEntries(ledger, state) {
   if (!Array.isArray(ledger)) return ["ledger must be an array"];
@@ -42,26 +97,17 @@ function validateLedgerEntries(ledger, state) {
     if (!isNonEmptyString(entry.id) || ids.has(entry.id)) errors.push("ledger entry IDs must be nonempty and unique");
     else ids.add(entry.id);
     if (!isValidSimulationYear(entry.year)) errors.push("ledger entry year must be within the simulation horizon");
-    if (isValidSimulationYear(entry.year) && entry.year > state.year) errors.push("ledger entry cannot come from a future year");
+    else if (Number.isInteger(state?.year) && entry.year > state.year) {
+      errors.push("ledger entry year cannot exceed the current simulation year");
+    }
     for (const field of ["relationshipId", "relationshipLabel", "action", "actionLabel", "project", "reason", "ruleVersion"]) {
       if (!isNonEmptyString(entry[field])) errors.push(`ledger entry ${field} must be nonempty`);
     }
-    if (!isRecord(entry.before) || !isRecord(entry.after) || !isRecord(entry.deltas) || !isRecord(entry.metricDeltas)) {
-      errors.push("ledger entry state and delta fields must be objects");
-    } else {
-      if (!isValidRelationshipStateShape(entry.before) || !isValidRelationshipStateShape(entry.after)) {
-        errors.push("ledger entry before/after must use the relationship state schema");
-      }
-      for (const key of Object.keys(entry.deltas)) {
-        if (!RELATIONSHIP_STATE_KEYS.includes(key)) errors.push("ledger entry delta schema drift");
-        if (!Number.isFinite(entry.deltas[key]) || entry.deltas[key] !== entry.after[key] - entry.before[key]) {
-          errors.push(`ledger entry ${key} delta must match before/after`);
-        }
-      }
-      for (const [key, value] of Object.entries(entry.metricDeltas)) {
-        if (!SIMULATION_METRIC_KEYS.includes(key) || !Number.isFinite(value)) errors.push("ledger metric deltas must be finite canonical metrics");
-      }
+    if (!isValidRelationshipStateShape(entry.before) || !isValidRelationshipStateShape(entry.after)) {
+      errors.push("ledger entry before/after must match the relationship state schema");
     }
+    errors.push(...validateNumericDeltaMap(entry.deltas, "ledger entry deltas", RELATIONSHIP_STATE_KEYS, entry.before, entry.after));
+    errors.push(...validateNumericDeltaMap(entry.metricDeltas, "ledger entry metricDeltas", SIMULATION_METRIC_KEYS));
     if (!Array.isArray(entry.tradeoffs)) errors.push("ledger entry tradeoffs must be an array");
     const relationship = state.relationships?.[entry.relationshipId];
     if (!relationship || relationship.label !== entry.relationshipLabel) errors.push("ledger entry must reference its canonical relationship");
@@ -80,7 +126,9 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
       errors.push("stored stress result year must match a simulation year");
       continue;
     }
-    if (year > state.year) errors.push("stored stress result cannot come from a future year");
+    if (Number.isInteger(state?.year) && year > state.year) {
+      errors.push("stored stress result year cannot exceed the current simulation year");
+    }
     if (result.durationDays !== CRISIS_DAYS || result.turnHours !== CRISIS_TURN_HOURS || result.turns !== CRISIS_TURNS) {
       errors.push("stored stress result must use the canonical crisis duration");
     }
@@ -105,24 +153,27 @@ function validateStoredStressTests(stressTests, ledger, state, relationshipDefin
       if (!ledgerEntry || ledgerEntry.relationshipId !== contribution.relationshipId || ledgerEntry.year !== year
         || ledgerEntry.action !== "checkpoint-snapshot") {
         errors.push("stored stress contribution must reference its checkpoint ledger entry");
-      } else {
-        const replayState = {
-          ...state,
-          relationships: {
-            ...state.relationships,
-            [contribution.relationshipId]: { ...state.relationships[contribution.relationshipId], state: ledgerEntry.after },
-          },
-        };
-        const expected = getRelationshipContribution(replayState, contribution.relationshipId, relationshipDefinitions);
-        for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
-          if (!expected || contribution[field] !== expected[field]) errors.push(`stored stress contribution ${field} must match its checkpoint snapshot`);
-        }
+        continue;
       }
       const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
       for (const field of ["attributionSafety", "coordinationSurvival", "civilianProtection"]) {
         if (!Number.isFinite(contribution[field]) || contribution[field] < min || contribution[field] > max) {
           errors.push(`stored stress contribution ${field} is outside its calibrated limits`);
         }
+      }
+      const expectedContribution = deriveRelationshipContribution(
+        ledgerEntry.before,
+        ledgerEntry.after,
+        contribution.relationshipId,
+        contribution.relationshipLabel,
+      );
+      if (
+        !expectedContribution
+        || expectedContribution.attributionSafety !== contribution.attributionSafety
+        || expectedContribution.coordinationSurvival !== contribution.coordinationSurvival
+        || expectedContribution.civilianProtection !== contribution.civilianProtection
+      ) {
+        errors.push("stored stress contribution does not match its checkpoint snapshot");
       }
     }
   }
@@ -137,6 +188,7 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
   if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
   if (!isNonEmptyString(state.seed)) errors.push("simulation seed must be a nonempty string");
   if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
+  if (!isNonEmptyString(state.seed)) errors.push("seed must be a nonempty string");
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
   errors.push(...validateLedgerEntries(state.ledger, state));
   if (!Array.isArray(state.history)) errors.push("history must be an array");
@@ -194,22 +246,6 @@ const SCHEMA_V2_CALIBRATION_FINGERPRINT = relationshipCalibrationFingerprint(
   SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
   SCHEMA_V2_REPRESENTATIVE_CALIBRATION.version,
 );
-
-const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
-const RELATIONSHIP_STATE_KEYS = Object.freeze(Object.keys(DEFAULT_RELATIONSHIP_STATE));
-
-function isValidRelationshipStateShape(candidate) {
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
-  const stateKeys = Object.keys(candidate).sort();
-  if (stateKeys.join("|") !== [...RELATIONSHIP_STATE_KEYS].sort().join("|")) return false;
-  for (const key of RELATIONSHIP_STATE_KEYS) {
-    const value = candidate[key];
-    const max = key === "alternateRoutes" ? 5 : 100;
-    if (!Number.isFinite(value) || value < 0 || value > max) return false;
-    if (key === "alternateRoutes" && !Number.isInteger(value)) return false;
-  }
-  return true;
-}
 
 export const ACTORS = [
   { id: "J1", group: "日本", name: "内閣官房・事態対処室", x: 90, y: 70, portfolio: "verification" },
@@ -766,21 +802,12 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
   const relationship = state.relationships[relationshipId];
   const definition = relationshipDefinitions.find((item) => item.id === relationshipId);
   if (!hasUniqueCalibratedRelationship(state, definition)) return null;
-  const current = relationship.state;
-  const initial = definition.initialState;
-  const delta = (key) => current[key] - initial[key];
-  const weightedDelta = (weights) => Object.entries(weights).reduce(
-    (total, [key, weight]) => total + delta(key) * weight,
-    0,
+  return deriveRelationshipContribution(
+    definition.initialState,
+    relationship.state,
+    relationship.id,
+    relationship.label,
   );
-  const { min, max } = RELATIONSHIP_CONTRIBUTION_LIMITS;
-  return {
-    relationshipId,
-    relationshipLabel: relationship.label,
-    attributionSafety: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.attributionSafety)), min, max),
-    coordinationSurvival: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.coordinationSurvival)), min, max),
-    civilianProtection: clamp(Math.round(weightedDelta(RELATIONSHIP_CONTRIBUTION_WEIGHTS.civilianProtection)), min, max),
-  };
 }
 
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {

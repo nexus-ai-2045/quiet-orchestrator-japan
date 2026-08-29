@@ -845,6 +845,53 @@ test("portfolio execution rejects malformed aggregate state containers", () => {
   assert.equal(validateSimulationExecutionState(createInitialState()).valid, true);
 });
 
+test("execution state rejects future-dated stress and ledger evidence", () => {
+  const future = createInitialState();
+  const at2030 = createInitialState();
+  at2030.year = 2030;
+  const tested = runStressTest(at2030);
+  future.ledger = structuredClone(tested.ledger);
+  future.stressTests = structuredClone(tested.stressTests);
+  assert.equal(future.year, 2026);
+  assert.equal(validateSimulationExecutionState(future).valid, false);
+  assert.ok(validateSimulationExecutionState(future).errors.some((error) => error.includes("cannot exceed the current simulation year")));
+  assert.equal(previewSelectedInvestment(future).eligible, false);
+  assert.strictEqual(advanceYear(future), future);
+  assert.strictEqual(runStressTest(future), future);
+});
+
+test("execution state binds stress contributions to checkpoint snapshots", () => {
+  const state = runStressTest(createInitialState());
+  const contribution = state.stressTests[state.year].relationshipContributions[0];
+  const original = contribution.attributionSafety;
+  contribution.attributionSafety = original === 0 ? 1 : original - 1;
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("does not match its checkpoint snapshot")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+});
+
+test("execution state rejects non-numeric ledger delta values", () => {
+  const state = advanceYear(createInitialState());
+  state.ledger[0].deltas.trust = { forged: true };
+  assert.equal(validateSimulationExecutionState(state).valid, false);
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("must be a finite number")));
+  assert.equal(previewSelectedInvestment(state).eligible, false);
+  assert.strictEqual(advanceYear(state), state);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("execution state requires a nonempty string seed", () => {
+  for (const seed of [null, "", "   ", 0, 12, { value: "baseline-0" }]) {
+    const state = createInitialState();
+    state.seed = seed;
+    assert.equal(validateSimulationExecutionState(state).valid, false, String(seed));
+    assert.equal(previewSelectedInvestment(state).eligible, false, String(seed));
+    assert.strictEqual(advanceYear(state), state, String(seed));
+    assert.strictEqual(runStressTest(state), state, String(seed));
+  }
+});
+
 test("portfolio execution rejects self-referential relationship endpoints", () => {
   const state = createInitialState();
   state.relationships["B1-C6"].target = "B1";
