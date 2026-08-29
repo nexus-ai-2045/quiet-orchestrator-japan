@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m2-portfolio-foundation`
-- content HEAD: `7c7052639c5ab42b1d7f4fccb0a29e93bd0dfb78`（M2ポートフォリオfail-closed、Boolean investable/contested型ゲート、stressのportfolio検証、default-branch provenance同期、72件回帰）
+- content HEAD: `56f17fe4d16f7db2a915efd8ed39391249421396`（M2ポートフォリオfail-closed、Boolean investable/contested型ゲート、stressのportfolio検証、default-branch provenance同期、72件回帰）
 - base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
