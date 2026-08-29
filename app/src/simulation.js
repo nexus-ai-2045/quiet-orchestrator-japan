@@ -15,6 +15,40 @@ import {
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
 const isValidSimulationYear = (year) => Number.isInteger(year) && year >= START_YEAR && year <= END_YEAR;
+const INITIAL_METRICS = Object.freeze({
+  coordinationCapital: 42,
+  verification: 38,
+  interoperability: 35,
+  autonomy: 48,
+  legitimacy: 55,
+  continuity: 28,
+  concentration: 22,
+  surveillance: 18,
+  dependency: 48,
+});
+const SIMULATION_METRIC_KEYS = Object.freeze(Object.keys(INITIAL_METRICS));
+
+export function validateSimulationExecutionState(state, relationshipDefinitions = RELATIONSHIPS) {
+  const errors = [];
+  if (!state || typeof state !== "object" || Array.isArray(state)) {
+    return { valid: false, errors: ["simulation state must be an object"], portfolio: null };
+  }
+  if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
+  if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
+  if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
+  if (!Array.isArray(state.ledger)) errors.push("ledger must be an array");
+  if (!Array.isArray(state.history)) errors.push("history must be an array");
+  if (!state.stressTests || typeof state.stressTests !== "object" || Array.isArray(state.stressTests)) errors.push("stressTests must be an object");
+  const metricKeys = Object.keys(state.metrics ?? {}).sort();
+  if (metricKeys.join("|") !== [...SIMULATION_METRIC_KEYS].sort().join("|")) errors.push("metrics schema drift");
+  for (const key of SIMULATION_METRIC_KEYS) {
+    const value = state.metrics?.[key];
+    if (!Number.isFinite(value) || value < 0 || value > 100) errors.push(`${key} must be within 0-100`);
+  }
+  const portfolio = validateRelationshipPortfolio(state, relationshipDefinitions);
+  errors.push(...portfolio.errors);
+  return { valid: errors.length === 0, errors, portfolio };
+}
 export const CHECKPOINTS = [2030, 2035, 2040, 2045];
 export const CRISIS_DAYS = 30;
 export const CRISIS_TURN_HOURS = 6;
@@ -163,7 +197,7 @@ export function createInitialState() {
     selectedActor: "B1",
     selectedRelationshipId: REPRESENTATIVE_RELATIONSHIP_ID,
     relationships: createRelationshipState(),
-    metrics: { coordinationCapital: 42, verification: 38, interoperability: 35, autonomy: 48, legitimacy: 55, continuity: 28, concentration: 22, surveillance: 18, dependency: 48 },
+    metrics: { ...INITIAL_METRICS },
     history: [],
     ledger: [],
     stressTests: {},
@@ -301,6 +335,7 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
     if (relationship.source !== definition.source || relationship.target !== definition.target) {
       errors.push(`${mapKey}: source/target drift`);
     }
+    if (relationship.source === relationship.target) errors.push(`${mapKey}: source and target must be distinct`);
     if (!actorIds.has(relationship.source) || !actorIds.has(relationship.target)) errors.push(`${mapKey}: unknown actor endpoint`);
     for (const field of ["investable", "contested"]) {
       if (typeof definition[field] !== "boolean") errors.push(`${mapKey}: definition ${field} must be boolean`);
@@ -530,12 +565,8 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
   ))) {
     return { eligible: false, items: [], totalCost: 0, reason: "配分の接続IDとアクションIDが不正です" };
   }
-  if (!isValidSimulationYear(state?.year)) {
-    return { eligible: false, items: [], totalCost: 0, reason: `${START_YEAR}〜${END_YEAR}の整数年を指定してください` };
-  }
-  if (!Number.isFinite(state?.budget) || state.budget < 0 || state.budget > 100) {
-    return { eligible: false, items: [], totalCost: 0, reason: "年間予算が不正です" };
-  }
+  const stateReport = validateSimulationExecutionState(state, relationshipDefinitions);
+  if (!stateReport.valid) return { eligible: false, items: [], totalCost: 0, reason: "シミュレーションstateが不正です", errors: stateReport.errors };
   const actionIds = allocations.map((allocation) => allocation.actionId);
   if (new Set(actionIds).size !== 1) {
     return { eligible: false, items: [], totalCost: 0, reason: "年間アクションは全配分で同一にしてください" };
@@ -544,8 +575,6 @@ export function previewInvestmentPortfolio(state, allocations, relationshipDefin
   if (new Set(relationshipIds).size !== relationshipIds.length) {
     return { eligible: false, items: [], totalCost: 0, reason: "同じ接続へ複数の配分はできません" };
   }
-  const portfolioReport = validateRelationshipPortfolio(state, relationshipDefinitions);
-  if (!portfolioReport.valid) return { eligible: false, items: [], totalCost: 0, reason: "20接続ポートフォリオのschemaが不正です（校正済み接続を確認してください）", errors: portfolioReport.errors };
   const items = allocations.map(({ relationshipId, actionId }) => (
     previewRelationshipInvestment(state, actionId, relationshipId, relationshipDefinitions)
   ));
@@ -653,9 +682,8 @@ export function getRelationshipContribution(state, relationshipId, relationshipD
 }
 
 export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
+  if (!validateSimulationExecutionState(state, relationshipDefinitions).valid) return state;
   const { metrics } = state;
-  if (!isValidSimulationYear(state?.year)) return state;
-  if (!validateRelationshipPortfolio(state, relationshipDefinitions).valid) return state;
   let ledger = state.ledger;
   const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable === true).flatMap((relationship) => {
     const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);

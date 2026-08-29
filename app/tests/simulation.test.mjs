@@ -37,6 +37,7 @@ import {
   selectAction,
   selectRelationship,
   validateRelationshipPortfolio,
+  validateSimulationExecutionState,
 } from "../src/simulation.js";
 
 test("the adopted calibration v0 remains explicit and versioned", () => {
@@ -777,6 +778,49 @@ test("portfolio execution rejects a blank relationship definition id", () => {
   ));
 
   assert.equal(validateRelationshipPortfolio(state, definitions).valid, false);
+  assert.strictEqual(runStressTest(state, definitions), state);
+});
+
+test("portfolio execution rejects malformed aggregate state containers", () => {
+  for (const mutate of [
+    (state) => { state.metrics.verification = "38"; },
+    (state) => { state.metrics.verification = Number.NaN; },
+    (state) => { state.metrics.verification = -1; },
+    (state) => { state.metrics.verification = 101; },
+    (state) => { delete state.metrics.verification; },
+    (state) => { state.metrics.extra = 1; },
+    (state) => { state.ledger = null; },
+    (state) => { state.ledger = {}; },
+    (state) => { state.history = null; },
+    (state) => { state.history = {}; },
+    (state) => { state.stressTests = []; },
+    (state) => { state.schemaVersion = 2; },
+  ]) {
+    const state = createInitialState();
+    mutate(state);
+    assert.equal(validateSimulationExecutionState(state).valid, false);
+    assert.equal(
+      previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible,
+      false,
+    );
+    assert.strictEqual(advanceYear(state), state);
+    assert.strictEqual(runStressTest(state), state);
+  }
+  assert.equal(validateSimulationExecutionState(createInitialState()).valid, true);
+});
+
+test("portfolio execution rejects self-referential relationship endpoints", () => {
+  const state = createInitialState();
+  state.relationships["B1-C6"].target = "B1";
+  const definitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6" ? { ...definition, target: "B1" } : definition
+  ));
+
+  assert.equal(validateRelationshipPortfolio(state, definitions).valid, false);
+  assert.equal(
+    previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }], definitions).eligible,
+    false,
+  );
   assert.strictEqual(runStressTest(state, definitions), state);
 });
 
