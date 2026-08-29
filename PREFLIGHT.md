@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/m2-portfolio-foundation`
-- content HEAD: `0525f04dadc5123992464764f24235acd527f972`（M2二層fail-closed、execution state metrics/container/schema、台帳・危機結果の内部因果証拠、distinct endpoints、識別可能SHA provenance、非空relationship ID、78件回帰）
+- content HEAD: `951b9cc86ce6f004c81330f209934ca7373b0273`（M2二層fail-closed、execution state metrics/container/schema、台帳・危機結果の内部因果証拠・時系列・再計算整合、distinct endpoints、識別可能SHA provenance、非空relationship ID、78件回帰）
 - base: `origin/main@959f3f85368a45c88212554bf091cff1380701f1`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"0525f04dadc5123992464764f24235acd527f972","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"951b9cc86ce6f004c81330f209934ca7373b0273","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
