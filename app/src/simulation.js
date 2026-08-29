@@ -9,6 +9,7 @@ import {
   RELATIONSHIP_CONTRIBUTION_LIMITS,
   RELATIONSHIP_CONTRIBUTION_WEIGHTS,
   REPRESENTATIVE_INITIAL_STATE,
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
 } from "./calibration-v0.js";
 
 export const START_YEAR = 2026;
@@ -19,6 +20,43 @@ export const CRISIS_TURN_HOURS = 6;
 export const CRISIS_TURNS = (CRISIS_DAYS * 24) / CRISIS_TURN_HOURS;
 export const REPRESENTATIVE_RELATIONSHIP_ID = "B1-C6";
 export const RULE_VERSION = CALIBRATION_VERSION;
+
+function canonicalizeJsonValue(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalizeJsonValue(item)).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalizeJsonValue(value[key])}`).join(",")}}`;
+}
+
+function relationshipCalibrationFingerprint(definition, version = CALIBRATION_VERSION) {
+  return `${version}:${canonicalizeJsonValue(definition.initialState)}`;
+}
+
+function parseCalibrationFingerprint(fingerprint) {
+  if (typeof fingerprint !== "string") return null;
+  const separator = fingerprint.indexOf(":");
+  if (separator <= 0) return null;
+  try {
+    return {
+      version: fingerprint.slice(0, separator),
+      initialState: JSON.parse(fingerprint.slice(separator + 1)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function calibrationFingerprintsMatch(left, right) {
+  const parsedLeft = parseCalibrationFingerprint(left);
+  const parsedRight = parseCalibrationFingerprint(right);
+  if (!parsedLeft || !parsedRight) return left === right;
+  return parsedLeft.version === parsedRight.version
+    && canonicalizeJsonValue(parsedLeft.initialState) === canonicalizeJsonValue(parsedRight.initialState);
+}
+
+const SCHEMA_V2_CALIBRATION_FINGERPRINT = relationshipCalibrationFingerprint(
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
+  SCHEMA_V2_REPRESENTATIVE_CALIBRATION.version,
+);
 
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 
@@ -91,6 +129,9 @@ function createRelationshipState() {
     purpose: definition.purpose,
     channel: definition.channel,
     ownership: definition.ownership,
+    calibrationFingerprint: definition.investable
+      ? relationshipCalibrationFingerprint(definition)
+      : null,
     state: { ...definition.initialState },
     lastChangedYear: null,
     lastAction: null,
@@ -99,7 +140,7 @@ function createRelationshipState() {
 
 export function createInitialState() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     seed: "baseline-0",
     year: START_YEAR,
     budget: 100,
@@ -125,14 +166,48 @@ function normalizeStressTests(stressTests) {
 }
 
 export function migrateSimulationState(candidate) {
-  if (candidate?.schemaVersion === 2) {
+  if (candidate?.schemaVersion === 3) {
     return { ...candidate, stressTests: normalizeStressTests(candidate.stressTests) };
+  }
+  if (candidate?.schemaVersion === 2) {
+    const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
+      const definition = RELATIONSHIPS.find((item) => item.id === key);
+      const activeCalibrationFingerprint = definition?.investable
+        ? relationshipCalibrationFingerprint(definition)
+        : null;
+      const existingFingerprint = relationship?.calibrationFingerprint ?? null;
+      const canBackfillKnownV2 = Boolean(
+        definition
+        && key === relationship?.id
+        && relationship.source === definition.source
+        && relationship.target === definition.target
+        && relationship.investable === definition.investable
+        && definition.investable
+        && activeCalibrationFingerprint === SCHEMA_V2_CALIBRATION_FINGERPRINT
+      );
+      let calibrationFingerprint = existingFingerprint;
+      if (canBackfillKnownV2) {
+        if (existingFingerprint == null || existingFingerprint === "") {
+          // Absent provenance only: never overwrite an explicit conflicting baseline.
+          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
+        } else if (calibrationFingerprintsMatch(existingFingerprint, SCHEMA_V2_CALIBRATION_FINGERPRINT)) {
+          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
+        }
+      }
+      return [key, { ...relationship, calibrationFingerprint }];
+    }));
+    return {
+      ...candidate,
+      schemaVersion: 3,
+      relationships,
+      stressTests: normalizeStressTests(candidate.stressTests),
+    };
   }
   const initial = createInitialState();
   return {
     ...initial,
     ...(candidate ?? {}),
-    schemaVersion: 2,
+    schemaVersion: 3,
     seed: candidate?.seed ?? initial.seed,
     metrics: { ...initial.metrics, ...(candidate?.metrics ?? {}) },
     relationships: createRelationshipState(),
@@ -217,10 +292,45 @@ function calculateEffectRealization(requestedDeltas, appliedDeltas) {
   return requestedBenefit === 0 ? 0 : clamp(appliedBenefit / requestedBenefit, 0, 1);
 }
 
-export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId) {
+function matchesCalibratedRelationship(relationship, definition) {
+  return Boolean(
+    relationship?.investable
+    && definition?.investable
+    && relationship.id === definition.id
+    && relationship.source === definition.source
+    && relationship.target === definition.target
+    && calibrationFingerprintsMatch(
+      relationship.calibrationFingerprint,
+      relationshipCalibrationFingerprint(definition),
+    )
+  );
+}
+
+function hasUniqueCalibratedRelationship(state, definition) {
+  const matches = Object.entries(state.relationships).filter(([, relationship]) => (
+    matchesCalibratedRelationship(relationship, definition)
+  ));
+  return matches.length === 1 && matches[0][0] === definition.id;
+}
+
+function hasUnresolvedInvestableRelationships(state, relationshipDefinitions = RELATIONSHIPS) {
+  const investableDefinitions = relationshipDefinitions.filter((definition) => definition.investable);
+  const investableEntries = Object.entries(state.relationships).filter(([, relationship]) => relationship.investable);
+  return investableDefinitions.some((definition) => (
+    !hasUniqueCalibratedRelationship(state, definition)
+  )) || investableEntries.some(([key, relationship]) => (
+    key !== relationship.id
+    || !investableDefinitions.some((definition) => matchesCalibratedRelationship(relationship, definition))
+  ));
+}
+
+export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
+  if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) {
+    return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
+  }
   if (!relationship.investable) {
     return {
       eligible: false,
@@ -282,8 +392,13 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
   };
 }
 
-export function advanceYear(state) {
-  const preview = previewRelationshipInvestment(state);
+export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
+  const preview = previewRelationshipInvestment(
+    state,
+    state.selectedAction,
+    state.selectedRelationshipId,
+    relationshipDefinitions,
+  );
   if (!preview.eligible) return state;
 
   const nextYear = state.year + 1;
@@ -320,10 +435,10 @@ export function advanceYear(state) {
   };
 }
 
-export function getRelationshipContribution(state, relationshipId) {
+export function getRelationshipContribution(state, relationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
-  const definition = RELATIONSHIPS.find((item) => item.id === relationshipId);
-  if (!relationship || !definition) return null;
+  const definition = relationshipDefinitions.find((item) => item.id === relationshipId);
+  if (!hasUniqueCalibratedRelationship(state, definition)) return null;
   const current = relationship.state;
   const initial = definition.initialState;
   const delta = (key) => current[key] - initial[key];
@@ -341,12 +456,14 @@ export function getRelationshipContribution(state, relationshipId) {
   };
 }
 
-export function runStressTest(state) {
+export function runStressTest(state, relationshipDefinitions = RELATIONSHIPS) {
   const { metrics } = state;
+  if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) return state;
   let ledger = state.ledger;
-  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).map((relationship) => {
-    const contribution = getRelationshipContribution(state, relationship.id);
-    const definition = RELATIONSHIPS.find((item) => item.id === relationship.id);
+  const relationshipContributions = Object.values(state.relationships).filter((relationship) => relationship.investable).flatMap((relationship) => {
+    const contribution = getRelationshipContribution(state, relationship.id, relationshipDefinitions);
+    const definition = relationshipDefinitions.find((item) => item.id === relationship.id);
+    if (!contribution || !definition) return [];
     const before = { ...definition.initialState };
     const after = { ...relationship.state };
     const ledgerEntry = {
@@ -368,7 +485,7 @@ export function runStressTest(state) {
         seed: state.seed,
       };
     ledger = [...ledger.filter((entry) => entry.id !== ledgerEntry.id), ledgerEntry];
-    return { ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id };
+    return [{ ...contribution, checkpointYear: state.year, ledgerEntryId: ledgerEntry.id }];
   });
   const contribution = relationshipContributions.reduce((total, item) => ({
     attributionSafety: total.attributionSafety + item.attributionSafety,

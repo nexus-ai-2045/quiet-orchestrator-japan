@@ -29,6 +29,22 @@ export const REPRESENTATIVE_INITIAL_STATE = deepFreeze({
   disclosureCost: 12,
 });
 
+// Immutable migration record for saves created by state schema v2.
+// Do not update this snapshot when introducing a later calibration version.
+export const SCHEMA_V2_REPRESENTATIVE_CALIBRATION = deepFreeze({
+  version: "relationship-v1.0.0",
+  initialState: {
+    maturity: 46,
+    trust: 42,
+    verificationAgreement: 38,
+    interoperability: 36,
+    coOwnership: 28,
+    dependency: 48,
+    alternateRoutes: 1,
+    disclosureCost: 12,
+  },
+});
+
 // Positive means an increase is beneficial; negative means a decrease is beneficial.
 // Aggregate effects are realized only in proportion to progress in these directions.
 export const RELATIONSHIP_BENEFIT_DIRECTIONS = deepFreeze({

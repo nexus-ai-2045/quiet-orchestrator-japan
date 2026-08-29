@@ -11,7 +11,8 @@
     "test:sites": "node --test tests/sites-worker.test.mjs",
     "simulate": "node scripts/run-baseline.mjs",
     "verify:docs": "node scripts/verify-doc-boundaries.mjs",
-    "verify": "npm run verify:docs && npm test && npm run build && npm run test:sites && npm run simulate"
+    "verify:sites-evidence": "node scripts/verify-doc-boundaries.mjs --sites",
+    "verify": "npm run verify:docs && npm test && npm run build && npm run verify:sites-evidence && npm run test:sites && npm run simulate"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.1.0",

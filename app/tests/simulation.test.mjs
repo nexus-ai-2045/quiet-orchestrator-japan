@@ -122,7 +122,7 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
 
 test("relationship v1 gives every connection a stable schema", () => {
   const state = createInitialState();
-  assert.equal(state.schemaVersion, 2);
+  assert.equal(state.schemaVersion, 3);
   assert.equal(RELATIONSHIPS.length, 20);
   assert.equal(Object.keys(state.relationships).length, 20);
   assert.equal(state.selectedRelationshipId, "B1-C6");
@@ -145,12 +145,92 @@ test("legacy aggregate state has an explicit migration path", () => {
     history: [],
     stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
   });
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.year, 2030);
   assert.equal(migrated.metrics.verification, 61);
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
   assert.deepEqual(migrated.ledger, []);
   assert.deepEqual(migrated.stressTests, {});
+});
+
+test("a legitimate schema-v2 save is backfilled with the known calibration", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 2;
+  for (const relationship of Object.values(legacy.relationships)) {
+    delete relationship.calibrationFingerprint;
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(
+    migrated.relationships["B1-C6"].calibrationFingerprint,
+    'relationship-v1.0.0:{"alternateRoutes":1,"coOwnership":28,"dependency":48,"disclosureCost":12,"interoperability":36,"maturity":46,"trust":42,"verificationAgreement":38}',
+  );
+  assert.equal(previewRelationshipInvestment(migrated).eligible, true);
+  assert.notEqual(advanceYear(migrated), migrated);
+  assert.ok(runStressTest(migrated).stressTests[migrated.year]);
+});
+
+test("calibration fingerprints ignore initialState key insertion order", () => {
+  const state = createInitialState();
+  const original = state.relationships["B1-C6"].state;
+  const reorderedInitialState = {
+    disclosureCost: 12,
+    alternateRoutes: 1,
+    dependency: 48,
+    coOwnership: 28,
+    interoperability: 36,
+    verificationAgreement: 38,
+    trust: 42,
+    maturity: 46,
+  };
+  const reorderedDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: reorderedInitialState }
+      : definition
+  ));
+
+  assert.notEqual(JSON.stringify(reorderedInitialState), JSON.stringify(original));
+  assert.equal(previewRelationshipInvestment(state, state.selectedAction, state.selectedRelationshipId, reorderedDefinitions).eligible, true);
+  assert.notEqual(advanceYear(state, reorderedDefinitions), state);
+  assert.ok(runStressTest(state, reorderedDefinitions).stressTests[state.year]);
+});
+
+test("an extra unresolved investable blocks preview and advance", () => {
+  const state = createInitialState();
+  state.relationships["unknown-extra"] = {
+    ...structuredClone(state.relationships["B1-C6"]),
+    id: "unknown-extra",
+    label: "Unknown extra investable",
+    source: "actor-x",
+    target: "actor-y",
+    calibrationFingerprint: "relationship-v0.9.0:{\"maturity\":0}",
+  };
+
+  const preview = previewRelationshipInvestment(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.strictEqual(advanceYear(state), state);
+  assert.strictEqual(runStressTest(state), state);
+});
+
+test("schema-v2 migration preserves a conflicting calibration fingerprint", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 2;
+  for (const relationship of Object.values(legacy.relationships)) {
+    if (!relationship.investable) {
+      delete relationship.calibrationFingerprint;
+      continue;
+    }
+    relationship.calibrationFingerprint = 'relationship-v0.9.0:{"maturity":0}';
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.relationships["B1-C6"].calibrationFingerprint, 'relationship-v0.9.0:{"maturity":0}');
+  assert.equal(previewRelationshipInvestment(migrated).eligible, false);
+  assert.strictEqual(advanceYear(migrated), migrated);
+  assert.strictEqual(runStressTest(migrated), migrated);
 });
 
 test("the selected yearly investment previews an exact relationship delta", () => {
@@ -315,6 +395,185 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(CRISIS_DAYS, 30);
   assert.equal(CRISIS_TURNS, 120);
   assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
+});
+
+test("role-equivalent labels and ids cannot change preview or stress outcomes", () => {
+  const original = createInitialState();
+  const relabeled = structuredClone(original);
+  const relationship = relabeled.relationships["B1-C6"];
+  delete relabeled.relationships["B1-C6"];
+  Object.assign(relationship, {
+    id: "neutral-role-pair",
+    source: "actor-alpha",
+    target: "actor-beta",
+    label: "Actor Alpha ↔ Actor Beta",
+  });
+  relabeled.relationships[relationship.id] = relationship;
+  relabeled.selectedRelationshipId = relationship.id;
+  relabeled.selectedActor = "actor-alpha";
+  const roleEquivalentDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? {
+        ...definition,
+        id: relationship.id,
+        source: relationship.source,
+        target: relationship.target,
+        label: relationship.label,
+      }
+      : definition
+  ));
+
+  const originalPreview = previewRelationshipInvestment(original);
+  const relabeledPreview = previewRelationshipInvestment(
+    relabeled,
+    relabeled.selectedAction,
+    relabeled.selectedRelationshipId,
+    roleEquivalentDefinitions,
+  );
+  assert.deepEqual(
+    {
+      eligible: relabeledPreview.eligible,
+      cost: relabeledPreview.cost,
+      before: relabeledPreview.before,
+      after: relabeledPreview.after,
+      deltas: relabeledPreview.deltas,
+      metricDeltas: relabeledPreview.metricDeltas,
+      metricsAfter: relabeledPreview.metricsAfter,
+      tradeoffs: relabeledPreview.tradeoffs,
+    },
+    {
+      eligible: originalPreview.eligible,
+      cost: originalPreview.cost,
+      before: originalPreview.before,
+      after: originalPreview.after,
+      deltas: originalPreview.deltas,
+      metricDeltas: originalPreview.metricDeltas,
+      metricsAfter: originalPreview.metricsAfter,
+      tradeoffs: originalPreview.tradeoffs,
+    },
+  );
+
+  const originalAdvanced = advanceYear(original);
+  const relabeledAdvanced = advanceYear(relabeled, roleEquivalentDefinitions);
+  assert.deepEqual(relabeledAdvanced.metrics, originalAdvanced.metrics);
+  assert.deepEqual(
+    relabeledAdvanced.relationships[relationship.id].state,
+    originalAdvanced.relationships["B1-C6"].state,
+  );
+  assert.deepEqual(relabeledAdvanced.ledger[0].deltas, originalAdvanced.ledger[0].deltas);
+
+  const relabeledStress = runStressTest(relabeledAdvanced, roleEquivalentDefinitions).stressTests[relabeledAdvanced.year];
+  const originalStressAfterAdvance = runStressTest(originalAdvanced).stressTests[originalAdvanced.year];
+  assert.deepEqual(
+    {
+      attributionSafety: relabeledStress.attributionSafety,
+      coordinationSurvival: relabeledStress.coordinationSurvival,
+      civilianProtection: relabeledStress.civilianProtection,
+      verdict: relabeledStress.verdict,
+    },
+    {
+      attributionSafety: originalStressAfterAdvance.attributionSafety,
+      coordinationSurvival: originalStressAfterAdvance.coordinationSurvival,
+      civilianProtection: originalStressAfterAdvance.civilianProtection,
+      verdict: originalStressAfterAdvance.verdict,
+    },
+  );
+});
+
+test("an unknown investable id cannot silently inherit representative calibration", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "unknown-investable";
+  relationship.label = "Unknown investable";
+  state.relationships[relationship.id] = relationship;
+  state.selectedRelationshipId = relationship.id;
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(tested.ledger.length, 0);
+  assert.equal(advanceYear(tested), tested);
+});
+
+test("an investable relationship cannot collide with a display-only definition id", () => {
+  const state = createInitialState();
+  const relationship = state.relationships["B1-C6"];
+  delete state.relationships["B1-C6"];
+  relationship.id = "J1-B1";
+  relationship.label = "Colliding investable";
+  state.relationships[relationship.id] = relationship;
+  state.selectedRelationshipId = relationship.id;
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(tested), tested);
+});
+
+test("a calibrated id cannot authorize a different relationship role", () => {
+  const state = createInitialState();
+  state.relationships["B1-C6"].source = "J1";
+  state.relationships["B1-C6"].target = "B1";
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(tested), tested);
+});
+
+test("a persisted relationship cannot use a different calibration baseline", () => {
+  const state = createInitialState();
+  const changedDefinitions = RELATIONSHIPS.map((definition) => (
+    definition.id === "B1-C6"
+      ? { ...definition, initialState: { ...definition.initialState, maturity: 0 } }
+      : definition
+  ));
+
+  const preview = previewRelationshipInvestment(
+    state,
+    state.selectedAction,
+    state.selectedRelationshipId,
+    changedDefinitions,
+  );
+  const tested = runStressTest(state, changedDefinitions);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(state, changedDefinitions), state);
+});
+
+test("a calibrated relationship cannot be duplicated under another map key", () => {
+  const state = createInitialState();
+  state.relationships.duplicate = structuredClone(state.relationships["B1-C6"]);
+
+  const preview = previewRelationshipInvestment(state);
+  const tested = runStressTest(state);
+  assert.equal(preview.eligible, false);
+  assert.match(preview.reason, /校正済み/);
+  assert.equal(tested, state);
+  assert.equal(tested.stressTests[state.year], undefined);
+  assert.equal(advanceYear(state), state);
+});
+
+test("role-equivalent stress still responds to a genuinely different relationship state", () => {
+  const baseline = createInitialState();
+  const changed = structuredClone(baseline);
+  changed.relationships["B1-C6"].state.verificationAgreement += 20;
+
+  const baselineResult = runStressTest(baseline).stressTests[baseline.year];
+  const changedResult = runStressTest(changed).stressTests[changed.year];
+  assert.notEqual(changedResult.attributionSafety, baselineResult.attributionSafety);
 });
 
 test("the latest arbitrary-year stress result remains visible beside standard checkpoints", () => {

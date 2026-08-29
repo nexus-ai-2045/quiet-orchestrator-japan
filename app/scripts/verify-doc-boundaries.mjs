@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,11 +7,13 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap, preflight, publicReady, packageJson] = await Promise.all([
+const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
   read("ROADMAP.md"),
+  read("PROJECT_SSOT.md"),
+  read("README.md"),
   read("PREFLIGHT.md"),
   read("PUBLIC_READY.md"),
   read("app/package.json"),
@@ -45,12 +48,39 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-const testTargets = JSON.parse(packageJson).scripts.test.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
-const testSources = await Promise.all(testTargets.map((target) => read(`app/${target}`)));
-const registeredTestCount = testSources.reduce(
-  (count, source) => count + (source.match(/\btest\s*\(/g)?.length ?? 0),
-  0,
-);
+const historicalEvidenceRows = [
+  ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY design QA", publicReady, /^\| デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+];
+for (const [name, content, pattern] of historicalEvidenceRows) {
+  if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
+}
+
+const scripts = JSON.parse(packageJson).scripts;
+const verifySitesEvidence = process.argv.includes("--sites");
+function getTestResult(scriptName) {
+  const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
+  if (targets.length === 0) throw new Error(`no test targets found for ${scriptName}`);
+  const result = spawnSync(process.execPath, ["--test", "--test-reporter=tap", ...targets], {
+    cwd: resolve(repoRoot, "app"),
+    encoding: "utf8",
+  });
+  if (result.status !== 0) throw new Error(`${scriptName} failed while measuring evidence:\n${result.stdout}\n${result.stderr}`);
+  const readSummary = (label) => Number(result.stdout.match(new RegExp(`^# ${label} (\\d+)$`, "m"))?.[1] ?? Number.NaN);
+  const summary = {
+    pass: readSummary("pass"),
+    skipped: readSummary("skipped"),
+    todo: readSummary("todo"),
+    cancelled: readSummary("cancelled"),
+  };
+  if (!Number.isFinite(summary.pass) || summary.skipped !== 0 || summary.todo !== 0 || summary.cancelled !== 0) {
+    throw new Error(`${scriptName} evidence is not all-pass: ${JSON.stringify(summary)}`);
+  }
+  return summary.pass;
+}
+
+const registeredTestCount = getTestResult("test");
 const recordedTestCounts = {
   RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
@@ -63,8 +93,46 @@ if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCo
   );
 }
 
+if (verifySitesEvidence) {
+  const registeredSitesTestCount = getTestResult("test:sites");
+  const recordedSitesTestCounts = {
+    RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+    ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
+    PREFLIGHT: Number(preflight.match(/`npm run test:sites`: (\d+)件pass/)?.[1] ?? Number.NaN),
+    PUBLIC_READY: Number(publicReady.match(/Sites互換テスト(\d+)件/)?.[1] ?? Number.NaN),
+  };
+  if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
+    throw new Error(
+      `npm run test:sites count drift: ${JSON.stringify(recordedSitesTestCounts)}, registered=${registeredSitesTestCount}`,
+    );
+  }
+}
+
 if (/公開前review中|visibility変更/.test(roadmap)) {
   throw new Error("stale publication state remains in ROADMAP.md");
+}
+
+const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady };
+const staleLifecyclePhrases = [
+  "mergeされるまで現行SSOTではなく",
+  "本SSOT統合HEADはローカルのみ",
+  "現在HEADはlocalのみ",
+  "どのPRへ統合HEADを反映するか",
+  "public push前のローカル候補",
+  "P1 ローカル統合候補",
+  "P1 ローカル候補",
+  "P1はPR #4でreview中",
+  "main反映はPR merge後",
+  "SSOT統合HEADは未push",
+  "PR #4はremote `codex/design-roadmap-2045",
+  "PR #4は`c2eeaf3`でOPEN",
+];
+for (const [name, content] of Object.entries(currentStateDocuments)) {
+  for (const phrase of staleLifecyclePhrases) {
+    if (content.includes(phrase)) {
+      throw new Error(`stale merge lifecycle claim in ${name}: ${phrase}`);
+    }
+  }
 }
 
 console.log("document boundaries: OK");

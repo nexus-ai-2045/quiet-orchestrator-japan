@@ -31,7 +31,7 @@
 |---|---|---|
 | `meta-security-sim` の旧 `docs/themes/03-japan-orchestrator/README.md`（commit `e8cf8ed`） | 吸収済み | 中心仮説、5機能、A〜E比較、18主体、根拠、反証条件は現行の `README.md`、`simulation-contract.md`、`evidence.md`、`official-sources.md` に分割して正本化済み。旧ファイルは来歴であり更新先にしない |
 | 宇宙天気・時刻同期・電力AIの初期案 | 置換済み候補 | 現行の入力領域と単一危機へ採用しない。宇宙・エネルギー・AIは独立テーマではなく、海洋とサイバーの間を結ぶ接続ノードとして扱う |
-| `codex/design-roadmap-2045` worktree | 派生実装 | `main`からの実装・検証差分を持つ作業lane。mergeされるまで現行SSOTではなく、仕様判断はADRまたはowner fileへ戻す |
+| `codex/design-roadmap-2045` worktree | 吸収済み | 実装・検証差分はPR #4で`main`へ統合済み。worktreeと旧branchは来歴であり、現行SSOTは`main`上のowner fileと実装である |
 | workspace側のSSOT registry | 外部索引 | このrepoを canonical と指す探索用索引。プロジェクト内容の正本ではなく、本ファイルと矛盾した場合は双方を人間レビューへ戻す |
 
 旧成果物は削除しない。未追跡の判断が見つかった場合は、出典を記録して該当owner fileへ最小差分で移し、移管後にこの台帳へ `吸収済み` または `非採用` を追記する。
