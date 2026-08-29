@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `cursor/m1-ledger-drawer-e44b`
-- content HEAD: `c1648feac1afcf42220cbfe0292e91c946dd46fb`（因果台帳drawer、repo-preflight完了観測gate強化、挙動focus controller・復帰、320px幅、肯定的UI証拠gate、M1/M3 country-equivalence境界）
+- content HEAD: `0049e277ecaa858ad074db8f52932ac23250b189`（因果台帳drawer、repo-preflight固定schema証拠gate、挙動focus controller・復帰、320px幅、肯定的UI証拠gate、M1/M3 country-equivalence境界）
 - base: `origin/main@6be43bee54312a8f5879d18d8c7895d114c376ab`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"c1648feac1afcf42220cbfe0292e91c946dd46fb","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"0049e277ecaa858ad074db8f52932ac23250b189","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
