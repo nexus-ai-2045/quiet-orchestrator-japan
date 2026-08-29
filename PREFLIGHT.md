@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"7c7052639c5ab42b1d7f4fccb0a29e93bd0dfb78","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"56f17fe4d16f7db2a915efd8ed39391249421396","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
