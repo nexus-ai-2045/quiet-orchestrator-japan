@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 65件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 69件pass。提案・receipt・完全state summary・PDCA・checkpoint再試行・状態権限に加え、台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引き、校正・migration・最終checkpoint、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

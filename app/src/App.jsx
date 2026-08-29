@@ -4,7 +4,7 @@ import "@xyflow/react/dist/style.css";
 import { createModalFocusController } from "./modal-focus.js";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
-  advanceYear, createDemoState, createInitialState, getFinalAssessment,
+  advanceYear, createDemoState, createInitialState, getFinalAssessment, getRelationshipEdgePresentation,
   getLedgerEntryFocus, getLedgerSignature, getSelectedRelationship, getStressContributionFocus,
   getStressTestDisplayYears, listLedgerTrail, previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
@@ -62,7 +62,7 @@ function buildEdges(state) {
     const relationship = state.relationships[id];
     const actorActive = source === state.selectedActor || target === state.selectedActor;
     const selected = id === state.selectedRelationshipId;
-    const maturity = relationship.state.maturity;
+    const presentation = getRelationshipEdgePresentation(relationship);
     return {
       id,
       source,
@@ -70,10 +70,10 @@ function buildEdges(state) {
       animated: selected,
       className: selected ? "relationship-selected" : "",
       style: {
-        stroke: relationship.contested ? "#d98b43" : selected ? "#8ce7ec" : relationship.investable ? "#65c59b" : actorActive ? "#66d4dc" : "#4b7f94",
-        strokeWidth: selected ? 4 : 1 + maturity / 50,
-        opacity: selected ? 1 : actorActive ? 0.82 : relationship.investable ? 0.75 : 0.42,
-        strokeDasharray: relationship.contested ? "5 6" : relationship.investable ? undefined : "3 4",
+        ...presentation,
+        stroke: selected ? "#8ce7ec" : presentation.stroke,
+        strokeWidth: selected ? 4 : presentation.strokeWidth,
+        opacity: selected ? 1 : actorActive ? Math.max(0.82, presentation.opacity) : presentation.opacity,
       },
     };
   });

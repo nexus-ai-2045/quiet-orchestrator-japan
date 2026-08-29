@@ -20,6 +20,7 @@ import {
   CRISIS_TURNS,
   END_YEAR,
   getFinalAssessment,
+  getRelationshipEdgePresentation,
   getRelationshipContribution,
   getLedgerEntryFocus,
   getLedgerSignature,
@@ -27,11 +28,13 @@ import {
   getStressTestDisplayYears,
   listLedgerTrail,
   migrateSimulationState,
+  previewInvestmentPortfolio,
   previewRelationshipInvestment,
   RELATIONSHIPS,
   runStressTest,
   selectAction,
   selectRelationship,
+  validateRelationshipPortfolio,
 } from "../src/simulation.js";
 
 test("the adopted calibration v0 remains explicit and versioned", () => {
@@ -139,6 +142,81 @@ test("relationship v1 gives every connection a stable schema", () => {
     ],
   );
   assert.equal(relationship.investable, true);
+});
+
+test("the M2 portfolio gate validates all 20 relationships without pretending uncalibrated links are ready", () => {
+  const report = validateRelationshipPortfolio(createInitialState());
+  assert.equal(report.valid, true);
+  assert.equal(report.total, 20);
+  assert.deepEqual(report.calibration, { calibrated: 1, uncalibrated: 19 });
+  assert.deepEqual(report.errors, []);
+});
+
+test("the M2 portfolio gate fails closed on map identity and state range drift", () => {
+  const state = createInitialState();
+  state.relationships["J1-B1"].id = "B1-C6";
+  state.relationships["J1-B1"].source = "unknown-actor";
+  state.relationships["J1-B1"].state.trust = 101;
+  state.relationships["J1-B1"].state.alternateRoutes = 1.5;
+  const report = validateRelationshipPortfolio(state);
+  assert.equal(report.valid, false);
+  assert.ok(report.errors.some((error) => error.includes("map key")));
+  assert.ok(report.errors.some((error) => error.includes("trust")));
+  assert.ok(report.errors.some((error) => error.includes("unknown actor")));
+  assert.ok(report.errors.some((error) => error.includes("integer")));
+
+  const malformed = createInitialState();
+  malformed.relationships["J1-B1"] = null;
+  assert.equal(validateRelationshipPortfolio(malformed).valid, false);
+
+  const metadataDrift = createInitialState();
+  metadataDrift.relationships["J1-B1"].investable = true;
+  metadataDrift.relationships["J1-B1"].purpose = "forged";
+  metadataDrift.relationships["J1-B1"].contested = true;
+  const metadataReport = validateRelationshipPortfolio(metadataDrift);
+  assert.equal(metadataReport.valid, false);
+  assert.ok(metadataReport.errors.some((error) => error.includes("investable drift")));
+  assert.ok(metadataReport.errors.some((error) => error.includes("purpose drift")));
+  assert.ok(metadataReport.errors.some((error) => error.includes("contested drift")));
+});
+
+test("an investment portfolio enforces one-to-three unique calibrated targets and the annual budget", () => {
+  const state = createInitialState();
+  assert.equal(previewInvestmentPortfolio(state, []).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [null]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [{ relationshipId: "", actionId: "verification" }]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "B1-C6", actionId: "translation" },
+  ]).eligible, false);
+  assert.equal(previewInvestmentPortfolio(state, [
+    { relationshipId: "B1-C6", actionId: "verification" },
+    { relationshipId: "J1-B1", actionId: "verification" },
+  ]).eligible, false);
+
+  const plan = previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]);
+  assert.equal(plan.eligible, true);
+  assert.equal(plan.totalCost, 25);
+  assert.equal(plan.items.length, 1);
+
+  const expensive = structuredClone(state);
+  expensive.budget = 20;
+  assert.equal(previewInvestmentPortfolio(expensive, [{ relationshipId: "B1-C6", actionId: "verification" }]).eligible, false);
+});
+
+test("edge presentation is derived from relationship state rather than year or array position", () => {
+  const state = createInitialState();
+  const base = getRelationshipEdgePresentation(state.relationships["J1-B1"]);
+  state.relationships["J1-B1"].state.maturity = 90;
+  state.relationships["J1-B1"].state.trust = 85;
+  state.relationships["J1-B1"].state.dependency = 10;
+  const strengthened = getRelationshipEdgePresentation(state.relationships["J1-B1"]);
+  assert.ok(strengthened.strokeWidth > base.strokeWidth);
+  assert.ok(strengthened.opacity > base.opacity);
+  assert.notEqual(strengthened.stroke, base.stroke);
+  const malformed = getRelationshipEdgePresentation({ state: { maturity: "bad", trust: null, dependency: undefined } });
+  assert.equal(Number.isFinite(malformed.strokeWidth), true);
+  assert.equal(Number.isFinite(malformed.opacity), true);
 });
 
 test("legacy aggregate state has an explicit migration path", () => {
@@ -353,6 +431,12 @@ test("verification investment deterministically increases verification capacity"
   assert.deepEqual(next.ledger[0].after, next.relationships["B1-C6"].state);
   assert.equal(next.ledger[0].ruleVersion, "relationship-v1.0.0");
   assert.equal(next.ledger[0].seed, "baseline-0");
+  assert.deepEqual(next.ledger[0].effects, {
+    direct: next.ledger[0].deltas,
+    spillover: next.ledger[0].metricDeltas,
+    conflict: [],
+    sideEffects: next.ledger[0].tradeoffs,
+  });
 });
 
 test("a display-only relationship cannot silently receive the representative investment", () => {
