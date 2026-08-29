@@ -2,7 +2,7 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `c1648feac1afcf42220cbfe0292e91c946dd46fb`
+機械検証対象content HEAD: `9a11564d3d583a7f1b4b95125e7faf1bd5440fba`
 
 ## 実行環境
 
@@ -19,11 +19,23 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 41件pass |
+| `npm test` | 65件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
+
+### M1.5 ローカルPDCA実測
+
+外部API・APIキー・ネットワークを使わず、固定seed・固定action表のscripted Policy Engineで3主体×3ターンを実行した。各手は現在stateから観測を再生成し、`Plan → Do → Check → Act`を順に記録する。提案はschema・主体権限・観測hash・state hashを検証後、既存の決定論コアだけが適用する。観測値を使うAI/LLM推論の実測ではない。
+
+Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのprovider metadataへ記録しvalidatorで固定する。checkpoint再試行時は、検査前previewとは別に実際に適用したPlan hashとattempt数をCheck/Actへ残す。
+
+- 9手の主体順序: `B1 → J2 → C6`を3ターン
+- 同じ初期stateとseedの全PDCA出力: 完全一致
+- checkpoint未記録時: 決定論コアが一度拒否し、危機テスト記録後に同じ手を再観測・再試行
+- Planによるstate直接変更: なし
+- Check証拠: before/after state hash、追加ledger ID、次の観測summary
 
 ### ブラウザ確認（PR #4 履歴）
 
@@ -114,6 +126,6 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 - 終末の1ヶ月試験は120ターンのイベント列をまだ持たない。
 - 比較条件の一部は固定値で、同じエンジンによる再実行ではない。
 - 数値と係数は架空で、経験的な確率や政策効果を表さない。
-- LLMマルチエージェントは未実装である。
+- AI/LLM推論や自律交渉は未実装である。現M1.5は固定seed・固定action表のscripted Policy Engineによる3主体×3ターンPDCA基準線である。
 
 したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、仮説を反証可能な実装へ進めるためのP0 baselineである。次段階は[ロードマップ](ROADMAP.md)を参照する。

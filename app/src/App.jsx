@@ -9,6 +9,9 @@ import {
   getStressTestDisplayYears, listLedgerTrail, previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
+import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
+import { buildAiStateSummary } from "./ai/apply-proposal.js";
+import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -378,6 +381,31 @@ function MetricRail({ state }) {
   );
 }
 
+function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
+  const nextReceipts = useMemo(() => runFixtureSimulation("hackathon-mvp-0", buildAiStateSummary(state)), [state]);
+  const previewReceipt = nextReceipts[Math.min(nextStep, nextReceipts.length - 1)];
+  const latestCycle = cycles.at(-1);
+  const receipt = previewReceipt;
+  const proposal = receipt.appliedProposal;
+  const completed = nextStep >= 9;
+  const horizonReady = canCompleteLocalPdca(state, nextStep);
+  return (
+    <section className="ai-trace" aria-label="ローカルPDCAシミュレーション">
+      <div className="ai-trace-heading">
+        <div><span>M1.5 LOCAL PDCA</span><strong>Plan → Do → Check → Act を自動反復</strong></div>
+        <span className="ai-mode replay">LOCAL / {nextStep} of 9</span>
+      </div>
+      <div className="ai-cycle-controls"><button className="button" onClick={onStep} disabled={completed || !horizonReady}>PDCAを一手実行</button><button className="button primary" onClick={onAuto} disabled={completed || !horizonReady}>残りを自動完走</button>{!completed && !horizonReady && <small>残り年数が不足しています。リセットして開始してください。</small>}</div>
+      <div className="ai-proposal-body">
+        <div><span>Plan / Turn {receipt.turn}</span><strong>{receipt.actorId} {AI_ACTORS[receipt.actorId].label}</strong><code>{receipt.observationHash}</code></div>
+        <div><span>Do / 未信頼提案を検証</span><strong>{proposal.actionId} → {proposal.relationshipId}</strong><p>{proposal.rationale}</p></div>
+        <div><span>Check / Act</span><strong>{latestCycle ? latestCycle.completed ? "決定論コア適用・次観測へ" : `停止: ${latestCycle.do.errors.join(", ")}` : "実行待ち"}</strong><small>{latestCycle ? `${latestCycle.check.beforeStateHash} → ${latestCycle.check.afterStateHash}` : "状態はまだ変更していません"}</small>{latestCycle && <code>実行Plan {latestCycle.plan.receipt.observationHash} / attempts {latestCycle.do.attempts.length}</code>}</div>
+      </div>
+      <p className="ai-boundary">外部APIなし。固定表を使うscripted Policy Engineが提案し、validatorと既存コアが採否・状態遷移を所有します。AI/LLM推論は未実装です。</p>
+    </section>
+  );
+}
+
 function Comparison({ state, onClose }) {
   const strategies = [
     { name: "同盟代理", continuity: 38, dependency: 76, note: "即応性は高いが、単一依存が残る" },
@@ -400,12 +428,14 @@ export function App() {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
+  const [pdcaCycles, setPdcaCycles] = useState([]);
+  const [pdcaStep, setPdcaStep] = useState(0);
   const preview = previewRelationshipInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
   const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
-  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
     const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
@@ -423,12 +453,44 @@ export function App() {
     setLedgerOpen(false);
     setNotice(`因果台帳 ${focus.ledgerEntryId} の接続差分を表示しています`);
   };
+  const handlePdcaStep = () => {
+    if (pdcaStep >= 9) return;
+    if (!canCompleteLocalPdca(state, pdcaStep)) { setNotice("残り年数が不足しています。リセットしてPDCAを開始してください"); return; }
+    clearLedgerFocus();
+    const cycle = runOneLocalPdcaStep(state, pdcaStep);
+    setPdcaCycles((current) => [...current, cycle]);
+    if (cycle.completed) {
+      setState(cycle.state);
+      setPdcaStep(cycle.act.nextStep);
+      setNotice(`PDCA ${pdcaStep + 1}/9: ${cycle.actorId}の提案を検証・適用し、${cycle.state.year}年へ進めました`);
+    } else {
+      setNotice(`PDCAを安全停止しました: ${cycle.do.errors.join(", ")}`);
+    }
+  };
+  const handlePdcaAuto = () => {
+    if (!canCompleteLocalPdca(state, pdcaStep)) { setNotice("残り年数が不足しています。リセットしてPDCAを開始してください"); return; }
+    clearLedgerFocus();
+    let currentState = state;
+    let currentStep = pdcaStep;
+    const addedCycles = [];
+    while (currentStep < 9) {
+      const cycle = runOneLocalPdcaStep(currentState, currentStep);
+      addedCycles.push(cycle);
+      if (!cycle.completed) break;
+      currentState = cycle.state;
+      currentStep = cycle.act.nextStep;
+    }
+    setPdcaCycles((current) => [...current, ...addedCycles]);
+    setState(currentState);
+    setPdcaStep(currentStep);
+    setNotice(currentStep === 9 ? `ローカルPDCA 3主体×3ターンを完走しました / ${addedCycles.at(-1)?.check.afterStateHash}` : `PDCAを${currentStep + 1}手目で安全停止しました`);
+  };
 
   return (
     <main className="app-shell">
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
       <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
-      <StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
+      <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}

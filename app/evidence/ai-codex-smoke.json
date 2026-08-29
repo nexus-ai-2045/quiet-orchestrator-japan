@@ -1,0 +1,16 @@
+{
+  "evidenceVersion": 2,
+  "mode": "interactive-agent-smoke",
+  "seed": "hackathon-live-codex-0",
+  "actorId": "B1",
+  "turn": 1,
+  "proposal": {
+    "actionId": "verification",
+    "relationshipId": "B1-C6",
+    "rationale": "誤帰属を抑えるため、判断より先に共同検証手順を固定する",
+    "confidence": 0.84
+  },
+  "expectedObservationHash": "fnv1a32:ec4da9e3",
+  "expectedOutputHash": "fnv1a32:0fb3ad90",
+  "note": "現行buildAiStateSummary(createDemoState(2035))からreceiptを再生成し、決定論コア適用まで回帰する。外部API実行証拠ではない。"
+}

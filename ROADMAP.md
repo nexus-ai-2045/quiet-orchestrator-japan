@@ -28,7 +28,8 @@ P1の代表接続を含め、現時点の数値は架空であり、構想の有
 ```mermaid
 flowchart LR
     p0["P0 公開基準点"] --> m1["M1 接続因果の縦切り"]
-    m1 --> m2["M2 20接続ポートフォリオ"]
+    m1 --> m15["M1.5 scripted PDCA基準線"]
+    m15 --> m2["M2 20接続ポートフォリオ"]
     m2 --> m3["M3 主体の制約"]
     m3 --> m4["M4 終末の1ヶ月エンジン"]
     m4 --> m5["M5 反証・日本不在試験"]
@@ -38,6 +39,29 @@ flowchart LR
 ```
 
 M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達できる。
+
+ハッカソン提出の時間制約に対しては、M2〜M5を未検証のまま前倒しせず、M1の代表接続へM6で必要になる安全境界だけを先行適用する`M1.5`を置く。これはAI実装ではなく、固定action表を使うscripted Policy EngineでPDCA、検証、receipt、再現性を実測する基準線である。
+
+## M1.5｜scripted Policy EngineによるPDCA基準線
+
+優先度: **Today / Must for hackathon demo**
+
+固定seedと固定action表を使う3主体のscripted Policy Engineが、許可済みactionを順番に提案する。シミュレーター自身が`Plan → Do → Check → Act`を回すが、提案は毎手未信頼入力として検証し、状態・指標・予算・台帳を直接変更させない。状態遷移は既存コアだけが実行する。観測値を使うAI/LLM推論はM6まで未実装である。
+
+### 完了条件
+
+- scripted Policy Engineが3主体×3ターンを自動実行し、engine version、seed、input/output hash、採否をsecretなしreceiptへ記録できる。
+- 同じ検証済み提案を再生すると、決定論コアの状態と結果hashが一致する。
+- 不正JSON、未知ID、権限違反、hash不一致、timeoutを拒否または明示fallbackできる。
+- UIで観測、Plan、適用したaction、Check、次のAct、状態差分、因果台帳を追跡できる。
+- 外部API・APIキー・ネットワークなしで、一手実行と自動完走ができる。
+- unit、build、Sites、audit、ratchet、browser smokeが同じ実装HEADで通る。
+
+詳細な境界は[ADR-0009](docs/adr/0009-ai-proposal-harness.md)を正本とする。
+
+### 対象外
+
+全20接続の校正、18主体の自律会話、120ターン危機、A〜E比較、日本除去実動、MPC最適化、memory/RAG、クラウド常駐。
 
 ## M1｜一本の接続で因果を通す
 
@@ -54,7 +78,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 終末の1ヶ月の接続寄与からInspectorへ戻る導線と、drawer選択は同じ`ledgerEntryId` focus契約を共有する。
 - state version 3、schema-v2校正fingerprint backfill、旧集約状態のmigration入口を追加した。
 - 校正fingerprintはキー挿入順に依存せず、preview前に全investableを検証し、schema-v2の競合fingerprintは上書きせずfail closedにする。
-- unit test 41件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは同一content HEADで確認済みである。
+- unit test 65件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは同一content HEADで確認済みである。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。接続ID・表示ラベルを変えた役割同等fixtureの基礎回帰は実装済みだが、日本・中国・米国の国名を入れ替える制約同等fixtureは、主体制約を実装するM3まで未完了である。M1の機械作業だった完全な因果台帳drawerは閉じた。完了条件のうちUIゲート（現行操作・狭幅・キーボード・reduced-motion）は同一HEADのRESULTSへ記録済み。次のMustはM2の全20接続ポートフォリオである。
 
