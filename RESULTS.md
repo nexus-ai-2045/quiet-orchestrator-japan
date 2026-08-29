@@ -2,13 +2,13 @@
 
 確認日: 2026-08-29
 
-機械検証対象content HEAD: `f97e124cb21ac3966380e00dc7cdc7ba1b8fb848`
+機械検証対象content HEAD: `c1648feac1afcf42220cbfe0292e91c946dd46fb`
 
 ## 実行環境
 
-- Node.js `v24.14.0`
-- npm `11.14.1`
-- Windows / ローカルVite
+- Node.js `v22.14.0`
+- npm `10.9.7`
+- Linux / ローカルVite
 - 外部API、APIキー、ライブデータなし
 
 READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
@@ -19,13 +19,27 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 34件pass |
+| `npm test` | 41件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-ブラウザ確認は2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。現在branchはUI差分を含まないが、この履歴証拠を同一HEADのブラウザ実測とは数えない。
+### ブラウザ確認（PR #4 履歴）
+
+2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
+
+### ブラウザ確認（因果台帳drawer・同一content HEAD）
+
+上記content HEADのローカルViteで、因果台帳drawerのUIゲートを再確認した。
+
+| gate | status | affirmative observation |
+|---|---|---|
+| standard-width | pass-current-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
+| narrow-880 | pass-current-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
+| narrow-320 | pass-current-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
+| keyboard-modal | pass-current-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
+| reduced-motion | pass-current-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
 
 ## PR reviewへの対応
 
@@ -36,6 +50,15 @@ PR #5の同一HEAD Codex reviewで未解決だったP2 3件は、content HEAD `f
 - schema-v2 migrationはfingerprint欠落時だけ既知校正をbackfillし、明示された競合fingerprintは保持してfail closedにする。
 
 これらの修正は後続evidence commitで34件の同一content HEAD実測として固定する。
+
+本branchでは、因果台帳drawerの開示UIと逆引き契約を追加し、PR #6 Codex reviewの指摘へ次を反映した。
+
+- 選択中台帳の記録済み`metricDeltas` / `tradeoffs`を表示し、現在previewと歴史証拠を混同しない。
+- drawerのEnter/Spaceは台帳行がフォーカスを持つときだけ有効にし、CloseへのSpaceを吸わない。
+- 署名アニメはentry IDの`key`で再起動する。
+- RESULTSの機械検証を完了形で記録し、UIゲート同一HEAD証拠を追加してからM1を閉じる。
+- PREFLIGHTの`repo-preflight target diff`行を、SHAのみ／「再測定する」未来形から、content HEADでのlive観測（secret0・path0・origin・clean worktree・CI設定2・effective_identity pass / `ready_after_confirmation`）へ直し、同種driftを`verify-doc-boundaries`でfail closedにした。
+- pass行の証拠は完了観測フィールド必須とし、`secret候補をpush前に確認する`のようなfuture-plan文は回帰テスト付きで拒否する。
 
 PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の契約へ修正した。
 

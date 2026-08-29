@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { createModalFocusController } from "./modal-focus.js";
 import {
   ACTIONS, ACTORS, CHECKPOINTS, CRISIS_DAYS, END_YEAR, RELATIONSHIPS, START_YEAR,
   advanceYear, createDemoState, createInitialState, getFinalAssessment,
-  getSelectedRelationship, getStressContributionFocus, getStressTestDisplayYears,
-  previewRelationshipInvestment, runStressTest,
+  getLedgerEntryFocus, getLedgerSignature, getSelectedRelationship, getStressContributionFocus,
+  getStressTestDisplayYears, listLedgerTrail, previewRelationshipInvestment, runStressTest,
   selectAction, selectActor, selectRelationship,
 } from "./simulation.js";
 
@@ -135,9 +136,10 @@ function ActorRail({ state, onSelect }) {
   );
 }
 
-function NetworkStage({ state, onSelectActor, onSelectRelationship }) {
+function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedgerEntry }) {
   const nodes = useMemo(() => buildNodes(state.selectedActor), [state.selectedActor]);
   const edges = useMemo(() => buildEdges(state), [state]);
+  const signature = getLedgerSignature(focusedLedgerEntry ?? state.ledger.at(-1));
   return (
     <section className="network-stage" aria-label="長期接続ネットワーク">
       <div className="stage-title">
@@ -153,6 +155,7 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship }) {
         <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, node) => onSelectActor(node.id)} onEdgeClick={(_, edge) => onSelectRelationship(edge.id)} fitView fitViewOptions={{ padding: 0.13 }} minZoom={0.65} maxZoom={1.3} panOnDrag={false} zoomOnScroll={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}>
           <Background color="#27475a" gap={34} size={1} />
         </ReactFlow>
+        {signature && <div key={focusedLedgerEntry?.id ?? state.ledger.at(-1)?.id ?? "empty"} className={`ledger-signature ${focusedLedgerEntry ? "is-focused" : ""}`} aria-live="polite">{signature.text}</div>}
       </div>
     </section>
   );
@@ -182,7 +185,7 @@ function Inspector({ state, focusedLedgerEntry }) {
           <div><span>代替経路</span><strong>{relationshipState.alternateRoutes}</strong><small>本</small></div>
           <div className="risk"><span>開示コスト</span><strong>{relationshipState.disclosureCost}</strong>{!historicalEntry && preview.eligible && preview.deltas.disclosureCost ? <small>+{preview.deltas.disclosureCost}</small> : null}</div>
         </div>
-        {historicalEntry && <p className="scope-note">終末の1ヶ月テストから、因果台帳 {historicalEntry.id} 適用後の状態を表示しています。</p>}
+        {historicalEntry && <p className="scope-note">因果台帳 {historicalEntry.id} 適用後の接続状態です。{historicalEntry.reason}</p>}
         {!preview.eligible && <p className="scope-note">{preview.reason}</p>}
         <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{state.metrics.continuity}</b><span>/100<br />日本不在時の継続性<br />{final.label}</span></div></div>
       </div>
@@ -190,11 +193,12 @@ function Inspector({ state, focusedLedgerEntry }) {
   );
 }
 
-function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus }) {
+function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus, onOpenLedger }) {
   const selected = ACTIONS.find((item) => item.id === state.selectedAction) ?? ACTIONS[0];
   const preview = previewRelationshipInvestment(state);
   const latest = focusedLedgerEntry ?? state.ledger.at(-1);
   const ledgerIndex = latest ? state.ledger.findIndex((entry) => entry.id === latest.id) + 1 : 0;
+  const signature = getLedgerSignature(latest);
   return (
     <section className="action-rail" aria-label="年間アクション">
       <div className="action-budget"><span>年間アクション</span><strong>100</strong><small>ポイント</small></div>
@@ -208,9 +212,139 @@ function ActionRail({ state, onChoose, focusedLedgerEntry, onClearLedgerFocus })
       <div className="selected-action" tabIndex={0}>
         <div className="preview-heading"><span>{preview.relationshipId} への投資プレビュー</span>{focusedLedgerEntry && <button className="ledger-current" onClick={onClearLedgerFocus}>現在の台帳へ戻る</button>}</div><strong>{selected.project}</strong>
         {preview.eligible ? <><div className="delta-list">{Object.entries(preview.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">集約指標への副作用</span><div className="delta-list metric-deltas">{Object.entries(preview.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div><span className="preview-subheading">構造上の注意</span><div className="tradeoff-list">{preview.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div></> : <p>{preview.reason}</p>}
-        {latest && <div className="ledger-latest"><span>{focusedLedgerEntry ? "チェックポイントで選択中" : "最新"}の因果台帳 #{ledgerIndex} / {latest.ruleVersion}</span><b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b><div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div></div>}
+        {latest && (
+          <div className="ledger-latest">
+            <div className="ledger-latest-heading">
+              <span>{focusedLedgerEntry ? "選択中" : "最新"}の因果台帳 #{ledgerIndex} / {latest.ruleVersion}</span>
+              {state.ledger.length > 0 && <button type="button" className="ledger-open" onClick={onOpenLedger}>全台帳を開く</button>}
+            </div>
+            <b>{latest.year} / {latest.relationshipLabel} / {latest.actionLabel}</b>
+            {signature && <div className="ledger-signature-inline" aria-hidden="true">{signature.text}</div>}
+            <div className="ledger-deltas">{Object.entries(latest.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div>
+            {Object.keys(latest.metricDeltas ?? {}).length > 0 && (
+              <>
+                <span className="preview-subheading">記録された集約指標の副作用</span>
+                <div className="delta-list metric-deltas">{Object.entries(latest.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div>
+              </>
+            )}
+            {(latest.tradeoffs?.length ?? 0) > 0 && (
+              <>
+                <span className="preview-subheading">記録された構造上の注意</span>
+                <div className="tradeoff-list">{latest.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </section>
+  );
+}
+
+function LedgerDrawer({ state, focusedLedgerEntryId, onClose, onSelect }) {
+  const titleId = useId();
+  const dialogRef = useRef(null);
+  const listRef = useRef(null);
+  const focusController = useMemo(() => createModalFocusController({
+    getDialog: () => dialogRef.current,
+    getActiveElement: () => document.activeElement,
+  }), []);
+  const ordered = useMemo(() => [...listLedgerTrail(state)].reverse(), [state]);
+  const initialIndex = Math.max(0, ordered.findIndex((item) => item.entry.id === focusedLedgerEntryId));
+  const [activeIndex, setActiveIndex] = useState(initialIndex < 0 ? 0 : initialIndex);
+
+  useEffect(() => {
+    focusController.rememberOpener();
+    return () => focusController.restoreOpener();
+  }, [focusController]);
+
+  useEffect(() => {
+    const node = listRef.current?.querySelector(`[data-ledger-index="${activeIndex}"]`);
+    node?.focus();
+  }, [activeIndex]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key === "Tab") {
+        focusController.handleTab(event);
+        return;
+      }
+      const row = event.target instanceof Element ? event.target.closest("[data-ledger-index]") : null;
+      if (!row) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setActiveIndex((current) => Math.min(ordered.length - 1, current + 1));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveIndex((current) => Math.max(0, current - 1));
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        setActiveIndex(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        setActiveIndex(Math.max(0, ordered.length - 1));
+      } else if (event.key === "Enter" || event.key === " ") {
+        const item = ordered[Number(row.getAttribute("data-ledger-index"))];
+        if (!item) return;
+        event.preventDefault();
+        onSelect(item.entry.id);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusController, onClose, onSelect, ordered]);
+
+  return (
+    <div className="ledger-drawer-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        ref={dialogRef}
+        className="ledger-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="panel-heading">
+          <strong id={titleId}>因果台帳</strong>
+          <button type="button" onClick={onClose}>閉じる</button>
+        </div>
+        <p className="ledger-drawer-help">投資履歴を選び、接続差分・理由・副作用へ戻ります。危機寄与カードと同じ台帳IDで逆引きします。</p>
+        <ul className="ledger-drawer-list" ref={listRef} aria-label="因果台帳の全件">
+          {ordered.map((item, index) => {
+            const selected = item.entry.id === focusedLedgerEntryId;
+            const active = index === activeIndex;
+            return (
+              <li key={item.entry.id}>
+                <button
+                  type="button"
+                  className={`ledger-drawer-row ${selected ? "selected" : ""} ${active ? "active" : ""}`}
+                  data-ledger-index={index}
+                  aria-current={selected ? "true" : undefined}
+                  onFocus={() => setActiveIndex(index)}
+                  onClick={() => onSelect(item.entry.id)}
+                >
+                  <span className="ledger-drawer-meta">#{item.ordinal} / {item.entry.year} / {item.entry.ruleVersion}</span>
+                  <strong>{item.entry.relationshipLabel} / {item.entry.actionLabel}</strong>
+                  <span className="ledger-drawer-reason">{item.entry.reason}</span>
+                  {item.signature && <span className="ledger-signature-inline">{item.signature.text}</span>}
+                  <div className="ledger-deltas">{Object.entries(item.entry.deltas).map(([key, delta]) => <i key={key}>{RELATIONSHIP_FIELD_META.find(([field]) => field === key)?.[1] ?? (key === "alternateRoutes" ? "代替経路" : "開示コスト")} {delta > 0 ? "+" : ""}{delta}</i>)}</div>
+                  {Object.keys(item.entry.metricDeltas ?? {}).length > 0 && (
+                    <div className="delta-list metric-deltas">{Object.entries(item.entry.metricDeltas).map(([key, delta]) => <i key={key}>{METRIC_DELTA_LABELS.get(key) ?? key} <b>{delta > 0 ? "+" : ""}{delta}</b></i>)}</div>
+                  )}
+                  {(item.entry.tradeoffs?.length ?? 0) > 0 && (
+                    <div className="tradeoff-list">{item.entry.tradeoffs.map((tradeoff) => <i key={tradeoff}>{tradeoff}</i>)}</div>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
   );
 }
 
@@ -263,6 +397,7 @@ function Comparison({ state, onClose }) {
 export function App() {
   const [state, setState] = useState(() => createDemoState(2035));
   const [comparing, setComparing] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [notice, setNotice] = useState("2035年のデモ状態を表示しています");
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
   const preview = previewRelationshipInvestment(state);
@@ -270,23 +405,33 @@ export function App() {
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
   const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewRelationshipInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
   const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
-  const handleReset = () => { clearLedgerFocus(); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
     const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
     if (!focus) return;
     setState((current) => selectRelationship(current, focus.relationshipId));
     setFocusedLedgerEntryId(focus.ledgerEntryId);
+    setLedgerOpen(false);
     setNotice(`${checkpointYear}年チェックポイントを生んだ因果台帳を表示しています`);
+  };
+  const handleLedgerSelect = (ledgerEntryId) => {
+    const focus = getLedgerEntryFocus(state, ledgerEntryId);
+    if (!focus) return;
+    setState((current) => selectRelationship(current, focus.relationshipId));
+    setFocusedLedgerEntryId(focus.ledgerEntryId);
+    setLedgerOpen(false);
+    setNotice(`因果台帳 ${focus.ledgerEntryId} の接続差分を表示しています`);
   };
 
   return (
     <main className="app-shell">
-      <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => setComparing((value) => !value)} onReset={handleReset} comparing={comparing} />
-      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
+      <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
+      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
       <StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
+      {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}
     </main>
   );
 }

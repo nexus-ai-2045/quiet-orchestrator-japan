@@ -5,9 +5,9 @@
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
-- branch: `codex/m1-role-equivalence`
-- content HEAD: `f97e124cb21ac3966380e00dc7cdc7ba1b8fb848`（校正fingerprint正規化、preview前の全investable検証、schema-v2競合fingerprint非上書き、役割同等性回帰、CI接続済みtest-count・browser evidence drift detector）
-- base: `origin/main@d702f81a277fdeef5b9e9b5c4852ac3f43f9abf6`
+- branch: `cursor/m1-ledger-drawer-e44b`
+- content HEAD: `0049e277ecaa858ad074db8f52932ac23250b189`（因果台帳drawer、repo-preflight固定schema証拠gate、挙動focus controller・復帰、320px幅、肯定的UI証拠gate、M1/M3 country-equivalence境界）
+- base: `origin/main@6be43bee54312a8f5879d18d8c7895d114c376ab`
 - inspected date: `2026-08-29`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
@@ -18,17 +18,24 @@
 
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
-| repo-preflight target diff | pass / ready-after-confirmation | secret候補0、個人path0、origin、clean worktree、CI設定2件、作者・committer名義一致 |
-| 決定論テスト | pass | `npm test`: 34件pass。fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、schema-v2校正backfill、改善方向の実現率、校正baseline変更・重複entry・未校正ID・役割衝突拒否、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止を回帰固定 |
+| repo-preflight target diff | pass | machine-readable result v1 |
+| 決定論テスト | pass | `npm test`: 41件pass。台帳drawer focus containment・呼出元復帰・320px幅、危機寄与逆引きの非衝突、記録済み副作用、署名差分、fingerprintキー順非依存、未解決investableのpreview拒否、schema-v2競合fingerprint保持、役割同等性、累積checkpoint snapshot、2045最終test必須化、fatigue/clamp後のtradeoff、未記録checkpointの進行停止、repo-preflight完了観測gateを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@d702f81`、archived `false` |
-| GitHub PR / Codex review | pending-current-branch | PR #5で同一HEAD CI・reviewを回収する。本記録はpush前のローカル証拠 |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@6be43bee`、archived `false` |
+| GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
+
+<!-- repo-preflight-result:v1 -->
+```json
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"0049e277ecaa858ad074db8f52932ac23250b189","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+```
+
+このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
 
 ## 採用済みの人間判断
 

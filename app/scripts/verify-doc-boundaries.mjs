@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
+
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
@@ -48,6 +50,23 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
+const currentDrawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
+for (const gate of currentDrawerEvidenceGates) {
+  const row = results.match(new RegExp(`^\\| ${gate} \\| pass-current-head \\| ([^|]+) \\|$`, "m"));
+  if (!row || /未確認|pending|未実施/.test(row[1]) || row[1].trim().length < 8) {
+    throw new Error(`RESULTS.md drawer evidence must be affirmative and complete: ${gate}`);
+  }
+}
+if (!roadmap.includes("M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2")) {
+  throw new Error("ROADMAP.md cannot close M1 without the current drawer same-HEAD evidence");
+}
+const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
+const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
+const countryEquivalenceGate = "日本、中国、米国の国名を入れ替えた制約同等fixture";
+if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEquivalenceGate)) {
+  throw new Error("country-equivalence completion gate belongs to M3 actor constraints, not closed M1");
+}
+
 const historicalEvidenceRows = [
   ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
   ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
@@ -56,6 +75,11 @@ const historicalEvidenceRows = [
 for (const [name, content, pattern] of historicalEvidenceRows) {
   if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
 }
+
+if (!/^\| repo-preflight target diff \| pass \| machine-readable result v1 \|$/m.test(preflight)) {
+  throw new Error("PREFLIGHT.md repo-preflight summary row must point to machine-readable result v1");
+}
+parseCompletedPreflightEvidence(preflight);
 
 const scripts = JSON.parse(packageJson).scripts;
 const verifySitesEvidence = process.argv.includes("--sites");

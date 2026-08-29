@@ -523,6 +523,54 @@ export function getStressContributionFocus(state, checkpointYear, relationshipId
   };
 }
 
+const LEDGER_SIGNATURE_FIELDS = [
+  ["trust", "信頼"],
+  ["verificationAgreement", "検証合意"],
+  ["maturity", "成熟度"],
+  ["interoperability", "相互運用"],
+  ["coOwnership", "共同所有"],
+  ["dependency", "単一依存"],
+  ["alternateRoutes", "代替経路"],
+  ["disclosureCost", "開示コスト"],
+];
+
+/** 台帳1件からInspector / 接続選択へ戻る共通focus契約。危機寄与の逆引きと同じledgerEntryIdを使う。 */
+export function getLedgerEntryFocus(state, ledgerEntryId) {
+  const entry = state.ledger.find((item) => item.id === ledgerEntryId);
+  if (!entry) return null;
+  return {
+    ledgerEntryId: entry.id,
+    relationshipId: entry.relationshipId,
+    year: entry.year,
+  };
+}
+
+/** 署名表現用の代表差分。prefers-reduced-motionではこの静的文字列だけを出す。 */
+export function getLedgerSignature(entry) {
+  if (!entry?.before || !entry?.after) return null;
+  let best = null;
+  for (const [field, label] of LEDGER_SIGNATURE_FIELDS) {
+    const before = entry.before[field];
+    const after = entry.after[field];
+    if (typeof before !== "number" || typeof after !== "number" || before === after) continue;
+    const magnitude = Math.abs(after - before);
+    if (!best || magnitude > best.magnitude) {
+      best = { field, label, before, after, magnitude, year: entry.year };
+    }
+  }
+  return best
+    ? { year: best.year, label: best.label, before: best.before, after: best.after, text: `${best.year} ${best.label} ${best.before}→${best.after}` }
+    : null;
+}
+
+export function listLedgerTrail(state) {
+  return state.ledger.map((entry, index) => ({
+    entry,
+    ordinal: index + 1,
+    signature: getLedgerSignature(entry),
+  }));
+}
+
 export function getFinalAssessment(state) {
   const { metrics } = state;
   const score = clamp(Math.round(Object.entries(FINAL_ASSESSMENT_WEIGHTS).reduce((total, [key, weight]) => total + metrics[key] * weight, 0)));
