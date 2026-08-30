@@ -26,7 +26,9 @@ test("meta-security-run-bundle/v1 binds request, events, replay, and evidence to
   assert.match(first.run_request.run_id, /^qoj-[0-9a-f]{16}$/);
   assert.equal(first.replay.run_id, first.run_request.run_id);
   assert.equal(first.evidence.run_id, first.run_request.run_id);
-  assert.deepEqual(first.events.map((event) => event.sequence), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(first.events.map((event) => event.sequence), Array.from({ length: 130 }, (_, index) => index));
+  assert.equal(first.events.filter((event) => event.event_type === "crisis.turn.completed").length, 120);
+  assert.equal(first.events.at(-1).event_type, "comparative-study.completed");
   assert.equal(first.events.every((event) => event.run_id === first.run_request.run_id), true);
   assert.equal(first.replay.event_stream_sha256, first.evidence.event_stream_sha256);
   assert.equal(validateBundle(first).valid, true);
@@ -147,9 +149,9 @@ test("run seed range does not control timestamp representability and seed roles 
 
 test("rejected PDCA cycles remain rejected evidence", () => {
   const bundle = buildBundle(createDemoState(2037), { maxSteps: 9 });
-  assert.equal(bundle.events.at(-1).payload.applied, false);
-  assert.equal(bundle.events.at(-1).event_type, "pdca.step.rejected");
-  assert.equal(bundle.events.at(-1).payload.governance_entries.at(-1).outcome, "rejected");
+  const rejected = bundle.events.find((event) => event.event_type === "pdca.step.rejected");
+  assert.equal(rejected.payload.applied, false);
+  assert.equal(rejected.payload.governance_entries.at(-1).outcome, "rejected");
   assert.equal(validateBundle(bundle).valid, true);
 });
 

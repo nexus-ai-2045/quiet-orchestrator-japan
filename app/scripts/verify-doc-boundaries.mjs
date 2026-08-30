@@ -66,8 +66,8 @@ if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証�
 if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
   throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
 }
-if (!roadmap.includes("現在candidateはM2・M3とM4の120ターン危機再生をruntimeへ実装済み")) {
-  throw new Error("ROADMAP.md must record the current M2-M4 runtime candidate boundary");
+if (!roadmap.includes("現在candidateはM2〜M5のローカルMVPを実装済み")) {
+  throw new Error("ROADMAP.md must record the current M2-M5 runtime candidate boundary");
 }
 const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
 const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";

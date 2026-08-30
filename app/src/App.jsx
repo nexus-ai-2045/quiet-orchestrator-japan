@@ -13,6 +13,7 @@ import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
 import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
 import { runCrisisSimulation } from "./crisis.js";
+import { runComparativeStudy, STRATEGIES } from "./experiments.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -402,16 +403,17 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
 }
 
 function Comparison({ state, onClose }) {
-  const strategies = [
-    { name: "同盟代理", continuity: 38, dependency: 76, measured: false, note: "即応性は高いが、単一依存が残る" },
-    { name: "単独仲介", continuity: 45, dependency: 58, measured: false, note: "日本の負荷と失敗時の空白が大きい" },
-    { name: "静かなオーケストレーション", continuity: state.metrics.continuity, dependency: state.metrics.dependency, measured: true, note: "共同所有へ移し、日本不在でも残す" },
-  ];
+  const study = useMemo(() => runComparativeStudy(state), [state]);
+  const strategies = STRATEGIES.map((strategy) => {
+    const rows = study.results.filter((row) => row.strategyId === strategy.id);
+    return { ...strategy, score: rows.reduce((sum, row) => sum + row.score, 0) / rows.length, failures: rows.reduce((sum, row) => sum + row.failed, 0) };
+  });
   return (
     <div className="comparison-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="comparison" role="dialog" aria-modal="true" aria-labelledby="comparison-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="panel-heading"><strong id="comparison-title">戦略比較</strong><button onClick={onClose}>閉じる</button></div><p>調整方式の違いを説明する表示です。静かなオーケストレーションは現在の実行値、同盟代理・単独仲介は同一エンジンで再実行していない固定の参考値です。A〜E比較の実測はM5で行います。</p>
-        {strategies.map((strategy) => <article key={strategy.name}><h2>{strategy.name} <small>{strategy.measured ? "現在の実行値" : "固定参考値 / 未実測"}</small></h2><div><span>日本不在時の継続性 <b>{strategy.continuity}</b></span><span>単一依存 <b>{strategy.dependency}</b></span></div><p>{strategy.note}</p></article>)}
+        <div className="panel-heading"><strong id="comparison-title">戦略比較 A〜E / 5 seed</strong><button onClick={onClose}>閉じる</button></div><p>全戦略を同じ初期状態・予算・行動回数・危機因果列で再実行しています。値は架空モデルの比較で、現実の予測ではありません。</p>
+        {strategies.map((strategy) => <article key={strategy.id}><h2>{strategy.id} {strategy.label}</h2><div><span>平均score <b>{strategy.score.toFixed(1)}</b></span><span>失敗turn合計 <b>{strategy.failures}</b></span></div></article>)}
+        <p>D敗北seed: {study.dLossSeeds.join(", ") || "なし"} / 日本除去後の残存主体 {study.japanRemoval.remainingOperatorIds.length}</p>
       </section>
     </div>
   );

@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 121件pass |
+| `npm test` | 123件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-121件にはM2全20接続のarchetype校正・非一律施策適格性、M3全18主体の国名非依存制約型、提案・承認・実行権限と拒否台帳、M4の120ターン決定論危機再生、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
+123件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。反証seed `cause-4` ではD網状調整がB同盟代理を下回る。日本除去試験では11接続が停止し、残存11主体を明示した。
 
 ### M1.5 ローカルPDCA実測
 

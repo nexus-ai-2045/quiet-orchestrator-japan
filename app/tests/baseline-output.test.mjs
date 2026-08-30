@@ -55,4 +55,6 @@ test("baseline output identifies the frozen design and implementation inputs", (
   assert.ok(!baseline.limitations.includes("actors-do-not-yet-change-behavior"));
   assert.ok(baseline.limitations.includes("crisis-events-and-causal-chain-are-fictional-not-forecast-evidence"));
   assert.ok(!baseline.limitations.includes("crisis-does-not-yet-execute-120-events"));
+  assert.ok(baseline.limitations.includes("comparative-strategies-and-removal-results-are-fictional-not-policy-evidence"));
+  assert.ok(!baseline.limitations.includes("comparison-strategies-are-not-yet-run-by-one-engine"));
 });

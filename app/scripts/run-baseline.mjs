@@ -47,6 +47,6 @@ console.log(JSON.stringify({
     "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
     "actor-constraints-and-decision-rights-are-fictional-not-empirical",
     "crisis-events-and-causal-chain-are-fictional-not-forecast-evidence",
-    "comparison-strategies-are-not-yet-run-by-one-engine",
+    "comparative-strategies-and-removal-results-are-fictional-not-policy-evidence",
   ],
 }, null, 2));

@@ -20,6 +20,7 @@ export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", d
     throw new TypeError("disabledRelationshipIds must contain unique canonical relationship IDs");
   }
   const relationships = Object.values(state.relationships);
+  const enabledRelationshipCount = relationships.length - disabled.size;
   const alternateRoutes = Object.entries(state.relationships).reduce(
     (sum, [id, item]) => sum + (disabled.has(id) ? 0 : item.state.alternateRoutes),
     0,
@@ -32,7 +33,7 @@ export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", d
     const correction = turn === 46;
     const irreversible = turn === 31;
     const disruption = turn >= 72 && turn < 92;
-    const fallbackAvailable = alternateRoutes >= relationships.length * 1.5;
+    const fallbackAvailable = enabledRelationshipCount > 0 && alternateRoutes >= enabledRelationshipCount * 1.5;
     const noise = Math.round(seededUnit(seed, turn) * 12);
     const observationConfidence = Math.max(5, Math.min(95, verification - (disruption ? 25 : 8) + noise));
     const claimStatus = correction ? "corrected" : falseAttribution ? "misattributed" : "withheld";
