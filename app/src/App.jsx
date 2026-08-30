@@ -402,15 +402,15 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
 
 function Comparison({ state, onClose }) {
   const strategies = [
-    { name: "同盟代理", continuity: 38, dependency: 76, note: "即応性は高いが、単一依存が残る" },
-    { name: "単独仲介", continuity: 45, dependency: 58, note: "日本の負荷と失敗時の空白が大きい" },
-    { name: "静かなオーケストレーション", continuity: state.metrics.continuity, dependency: state.metrics.dependency, note: "共同所有へ移し、日本不在でも残す" },
+    { name: "同盟代理", continuity: 38, dependency: 76, measured: false, note: "即応性は高いが、単一依存が残る" },
+    { name: "単独仲介", continuity: 45, dependency: 58, measured: false, note: "日本の負荷と失敗時の空白が大きい" },
+    { name: "静かなオーケストレーション", continuity: state.metrics.continuity, dependency: state.metrics.dependency, measured: true, note: "共同所有へ移し、日本不在でも残す" },
   ];
   return (
     <div className="comparison-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="comparison" role="dialog" aria-modal="true" aria-labelledby="comparison-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="panel-heading"><strong id="comparison-title">戦略比較</strong><button onClick={onClose}>閉じる</button></div><p>同じ初期条件と2045年を使い、調整方式だけを変えた比較です。</p>
-        {strategies.map((strategy) => <article key={strategy.name}><h2>{strategy.name}</h2><div><span>日本不在時の継続性 <b>{strategy.continuity}</b></span><span>単一依存 <b>{strategy.dependency}</b></span></div><p>{strategy.note}</p></article>)}
+        <div className="panel-heading"><strong id="comparison-title">戦略比較</strong><button onClick={onClose}>閉じる</button></div><p>調整方式の違いを説明する表示です。静かなオーケストレーションは現在の実行値、同盟代理・単独仲介は同一エンジンで再実行していない固定の参考値です。A〜E比較の実測はM5で行います。</p>
+        {strategies.map((strategy) => <article key={strategy.name}><h2>{strategy.name} <small>{strategy.measured ? "現在の実行値" : "固定参考値 / 未実測"}</small></h2><div><span>日本不在時の継続性 <b>{strategy.continuity}</b></span><span>単一依存 <b>{strategy.dependency}</b></span></div><p>{strategy.note}</p></article>)}
       </section>
     </div>
   );
@@ -427,8 +427,17 @@ export function App() {
   const preview = previewSelectedInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
-  const handleAdvance = () => { clearLedgerFocus(); setState((current) => { const next = advanceYear(current); setNotice(next.year === current.year ? previewSelectedInvestment(current).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`); return next; }); };
-  const handleStress = () => setState((current) => { const next = runStressTest(current); setNotice(`${current.year}年時点の終末の1ヶ月テストを記録しました`); return next; });
+  const handleAdvance = () => {
+    clearLedgerFocus();
+    const next = advanceYear(state);
+    setState(next);
+    setNotice(next === state ? previewSelectedInvestment(state).reason : `${next.year}年へ進み、${next.ledger.at(-1).relationshipLabel} の変化を台帳へ記録しました`);
+  };
+  const handleStress = () => {
+    const next = runStressTest(state);
+    setState(next);
+    setNotice(next === state ? "state検証に失敗したため、危機テストを記録しませんでした" : `${state.year}年時点の終末の1ヶ月テストを記録しました`);
+  };
   const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
