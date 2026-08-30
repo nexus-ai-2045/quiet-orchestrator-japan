@@ -9,7 +9,7 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson] = await Promise.all([
+const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson, calibrationPacket, calibrationCandidateJson, simulationSource] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
@@ -19,6 +19,9 @@ const [design, contract, results, roadmap, projectSsot, readme, preflight, publi
   read("PREFLIGHT.md"),
   read("PUBLIC_READY.md"),
   read("app/package.json"),
+  read("docs/m2-calibration-decision-packet.md"),
+  read("docs/m2-calibration-candidate-v1.json"),
+  read("app/src/simulation.js"),
 ]);
 
 const requirements = [
@@ -63,14 +66,164 @@ if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証�
 if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
   throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
 }
-if (!roadmap.includes("M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2")) {
-  throw new Error("ROADMAP.md cannot close M1 without the recorded drawer same-HEAD evidence");
+if (!roadmap.includes("M2 mechanical foundation・`meta-security-run-bundle/v1`は`main`へ統合済み")) {
+  throw new Error("ROADMAP.md must record the current mechanical-foundation and run-bundle boundary");
 }
 const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
 const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
 const countryEquivalenceGate = "日本、中国、米国の国名を入れ替えた制約同等fixture";
 if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEquivalenceGate)) {
   throw new Error("country-equivalence completion gate belongs to M3 actor constraints, not closed M1");
+}
+
+if (!calibrationPacket.includes("status: **提案 / 未採用**") || !calibrationPacket.includes("採用されるまでruntime、結果、完了証拠へ反映しない")) {
+  throw new Error("M2 calibration packet must remain an explicitly unadopted human-decision input");
+}
+const calibrationCandidate = JSON.parse(calibrationCandidateJson);
+if (
+  calibrationCandidate.status !== "proposed-unadopted"
+  || calibrationCandidate.version !== "relationship-v1.1.0-candidate"
+  || !calibrationPacket.includes(`proposed calibration version: \`${calibrationCandidate.version}\``)
+) {
+  throw new Error("M2 calibration candidate status/version drift");
+}
+const relationshipPairsBlock = simulationSource.match(/const RELATIONSHIP_PAIRS = \[([\s\S]*?)\n\];/)?.[1] ?? "";
+const runtimeRelationshipIds = [...relationshipPairsBlock.matchAll(/\["([A-Z]\d+)", "([A-Z]\d+)"\]/g)]
+  .map(([, source, target]) => `${source}-${target}`)
+  .filter((id) => id !== "B1-C6");
+const runtimeContestedIds = new Set(
+  [...(simulationSource.match(/const CONTESTED_RELATIONSHIPS = new Set\(\[([^\]]+)\]\);/)?.[1] ?? "").matchAll(/"([A-Z]\d+-[A-Z]\d+)"/g)]
+    .map(([, id]) => id),
+);
+const packetRows = [...calibrationPacket.matchAll(/^\| ([A-Z]\d+-[A-Z]\d+) \| ([^|]+) \| ([^|]+) \| (yes|no) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm)]
+  .map(([, id, endpoints, archetype, contested, purpose, channel, ownership]) => ({
+    id,
+    endpoints: endpoints.trim(),
+    archetype: archetype.trim(),
+    contested: contested === "yes",
+    purpose: purpose.trim(),
+    channel: channel.trim(),
+    ownership: ownership.trim(),
+  }));
+const packetRelationshipIds = packetRows.map(({ id }) => id);
+if (
+  runtimeRelationshipIds.length !== 19
+  || packetRelationshipIds.length !== 19
+  || new Set(packetRelationshipIds).size !== 19
+  || runtimeRelationshipIds.some((id) => !packetRelationshipIds.includes(id))
+) {
+  throw new Error(`M2 calibration packet relationship drift: runtime=${runtimeRelationshipIds.join(",")}, packet=${packetRelationshipIds.join(",")}`);
+}
+const stateKeys = ["maturity", "trust", "verificationAgreement", "interoperability", "coOwnership", "dependency", "alternateRoutes", "disclosureCost"];
+const actionIds = ["translation", "verification", "reversibility", "redundancy", "coownership"];
+const archetypeIds = ["verification", "interoperability", "coownership"];
+if (JSON.stringify(calibrationCandidate.stateKeys) !== JSON.stringify(stateKeys) || JSON.stringify(calibrationCandidate.actions) !== JSON.stringify(actionIds)) {
+  throw new Error("M2 calibration candidate state/action dimensions drift");
+}
+if (Object.keys(calibrationCandidate.archetypes).sort().join("|") !== [...archetypeIds].sort().join("|")) {
+  throw new Error("M2 calibration candidate archetype dimensions drift");
+}
+for (const archetypeId of archetypeIds) {
+  const archetype = calibrationCandidate.archetypes[archetypeId];
+  if (!archetype || typeof archetype.ownership !== "string" || archetype.ownership.trim().length < 4) {
+    throw new Error(`M2 calibration candidate ownership missing: ${archetypeId}`);
+  }
+  if (Object.keys(archetype.initialState ?? {}).sort().join("|") !== [...stateKeys].sort().join("|")) {
+    throw new Error(`M2 calibration candidate initial-state dimensions drift: ${archetypeId}`);
+  }
+  for (const [key, value] of Object.entries(archetype.initialState)) {
+    const valid = key === "alternateRoutes"
+      ? Number.isInteger(value) && value >= 0 && value <= 5
+      : Number.isInteger(value) && value >= 0 && value <= 100;
+    if (!valid) throw new Error(`M2 calibration candidate initial-state value invalid: ${archetypeId}.${key}=${value}`);
+  }
+  if (Object.keys(archetype.actionMultipliers ?? {}).sort().join("|") !== [...actionIds].sort().join("|")) {
+    throw new Error(`M2 calibration candidate action dimensions drift: ${archetypeId}`);
+  }
+  for (const [actionId, multiplier] of Object.entries(archetype.actionMultipliers)) {
+    if (multiplier !== null && !(typeof multiplier === "number" && multiplier > 0 && multiplier <= 1)) {
+      throw new Error(`M2 calibration candidate multiplier invalid: ${archetypeId}.${actionId}=${multiplier}`);
+    }
+  }
+  const displayedStateRow = `| ${archetypeId} | ${stateKeys.map((key) => archetype.initialState[key]).join(" | ")} |`;
+  if (!calibrationPacket.includes(displayedStateRow)) {
+    throw new Error(`M2 calibration packet displayed initial-state drift: ${archetypeId}`);
+  }
+  const displayedActionRow = `| ${archetypeId} | ${actionIds.map((actionId) => {
+    const multiplier = archetype.actionMultipliers[actionId];
+    return multiplier === null ? "—" : multiplier.toFixed(2);
+  }).join(" | ")} |`;
+  if (!calibrationPacket.includes(displayedActionRow)) {
+    throw new Error(`M2 calibration packet displayed action-multiplier drift: ${archetypeId}`);
+  }
+  if (!calibrationPacket.includes(`| ${archetypeId} | ${archetype.ownership} |`)) {
+    throw new Error(`M2 calibration packet displayed ownership drift: ${archetypeId}`);
+  }
+}
+if (Object.keys(calibrationCandidate.contestedModifier?.initialStateDelta ?? {}).sort().join("|") !== [...stateKeys].sort().join("|")) {
+  throw new Error("M2 calibration candidate contested modifier dimensions drift");
+}
+for (const [key, delta] of Object.entries(calibrationCandidate.contestedModifier.initialStateDelta)) {
+  if (!Number.isInteger(delta) || delta < -100 || delta > 100) {
+    throw new Error(`M2 calibration candidate contested modifier invalid: ${key}=${delta}`);
+  }
+  for (const archetypeId of archetypeIds) {
+    const modified = calibrationCandidate.archetypes[archetypeId].initialState[key] + delta;
+    const valid = key === "alternateRoutes" ? modified >= 0 && modified <= 5 : modified >= 0 && modified <= 100;
+    if (!valid) throw new Error(`M2 calibration candidate contested state out of range: ${archetypeId}.${key}=${modified}`);
+  }
+}
+if (
+  calibrationCandidate.contestedModifier.positiveDeltaMultiplier !== 0.75
+  || calibrationCandidate.contestedModifier.riskDeltaMultiplier !== 1
+  || typeof calibrationCandidate.contestedModifier.ownershipSuffix !== "string"
+) {
+  throw new Error("M2 calibration candidate contested modifier policy drift");
+}
+const modifier = calibrationCandidate.contestedModifier.initialStateDelta;
+const modifierSentence = `\`contested\`接続はbaseへ、成熟\`${modifier.maturity}\`、信頼\`${modifier.trust}\`、検証合意\`${modifier.verificationAgreement}\`、単一依存\`+${modifier.dependency}\`、開示コスト\`+${modifier.disclosureCost}\`を適用する。`;
+if (!calibrationPacket.includes(modifierSentence)) {
+  throw new Error("M2 calibration packet displayed contested modifier drift");
+}
+const decisionModifierSentence = `\`contested\`だけ成熟\`${modifier.maturity}\`、信頼\`${modifier.trust}\`、検証合意\`${modifier.verificationAgreement}\`、単一依存\`+${modifier.dependency}\`、開示コスト\`+${modifier.disclosureCost}\`の明示modifierを適用する。`;
+if (!calibrationPacket.includes(decisionModifierSentence)) {
+  throw new Error("M2 calibration packet decision-summary modifier drift");
+}
+const candidateRows = calibrationCandidate.relationships ?? [];
+if (candidateRows.length !== 19 || new Set(candidateRows.map(({ id }) => id)).size !== 19) {
+  throw new Error("M2 calibration candidate must contain 19 unique relationship rows");
+}
+const actorBlock = simulationSource.match(/export const ACTORS = \[([\s\S]*?)\n\];/)?.[1] ?? "";
+const actorNames = new Map(
+  [...actorBlock.matchAll(/\{ id: "([A-Z]\d+)", group: "[^"]+", name: "([^"]+)"/g)]
+    .map(([, id, name]) => [id, name]),
+);
+for (const runtimeId of runtimeRelationshipIds) {
+  const candidate = candidateRows.find(({ id }) => id === runtimeId);
+  const packet = packetRows.find(({ id }) => id === runtimeId);
+  if (!candidate || !packet || !archetypeIds.includes(candidate.archetype)) {
+    throw new Error(`M2 calibration candidate relationship missing or invalid: ${runtimeId}`);
+  }
+  const expectedContested = runtimeContestedIds.has(runtimeId);
+  const expectedOwnership = calibrationCandidate.archetypes[candidate.archetype].ownership
+    + (expectedContested ? calibrationCandidate.contestedModifier.ownershipSuffix : "");
+  const [sourceId, targetId] = runtimeId.split("-");
+  const [displayedSource, displayedTarget] = packet.endpoints.split("↔").map((value) => value.trim());
+  const endpointsMatchRuntime = actorNames.get(sourceId)?.endsWith(displayedSource)
+    && actorNames.get(targetId)?.endsWith(displayedTarget);
+  if (
+    candidate.contested !== expectedContested
+    || packet.contested !== expectedContested
+    || packet.archetype !== candidate.archetype
+    || packet.purpose !== candidate.purpose
+    || packet.channel !== candidate.channel
+    || packet.ownership !== expectedOwnership
+    || !endpointsMatchRuntime
+    || candidate.purpose.trim().length < 8
+    || candidate.channel.trim().length < 5
+  ) {
+    throw new Error(`M2 calibration packet/candidate/runtime row drift: ${runtimeId}`);
+  }
 }
 
 const historicalEvidenceRows = [

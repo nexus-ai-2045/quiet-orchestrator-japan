@@ -6,9 +6,9 @@
 
 設計の正本は[プロダクト設計](docs/product-architecture.md)、実験上の不変条件は[シミュレーション契約](simulation-contract.md)に置く。
 
-## 現在地｜P0・P1 `main`統合済み + M1因果台帳drawer
+## 現在地｜Cloud handoff可能 + M2校正判断待ち
 
-状態: **P0・P1因果縦切りは`main`へ統合済み / M1因果台帳drawerとUIゲート同一HEAD証拠を閉じ、次はM2**
+状態: **P0・P1・M1.5・M2 mechanical foundation・`meta-security-run-bundle/v1`は`main`へ統合済み / 次は未校正19接続の人間採用とM2完成**
 
 | 実装済み | 未実装 |
 |---|---|
@@ -119,7 +119,7 @@ P0 baselineの再現、文書境界、P1因果縦切りの回帰、build、Sites
 
 優先度: **Next / Must**
 
-現在地: **mechanical foundation実装中**。20接続schema、1〜3接続の配分・予算gate、台帳effect分類、接続状態由来の線表現を先行実装する。未校正19接続の目的・チャネル・初期値・施策適格性・効果係数は人間採用前に投資可能へ昇格させず、M2完了とは数えない。
+現在地: **mechanical foundation実装済み / calibration decision待ち**。20接続schema、1〜3接続の配分・予算gate、台帳effect分類、接続状態由来の線表現は実装済みである。未校正19接続の目的・チャネル・初期値・施策適格性・効果係数は[校正判断packet](docs/m2-calibration-decision-packet.md)で一括採用するまで投資可能へ昇格させず、M2完了とは数えない。
 
 M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が変わる状態にする。
 
@@ -237,24 +237,20 @@ M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が�
 
 ## 直近の実装バックログ
 
-上から順に着手する。
+repo goalから逆算し、次の依存順で閉じる。
 
-1. `Relationship v1` schemaとvalidation fixture
-2. B1↔C6の初期状態と接続選択
-3. 年間投資のpreviewと適格性判定
-4. 接続state transitionと因果レジャー
-5. 接続状態からの指標selector
-6. 危機集約結果から接続への寄与逆引き
-7. 接続Inspectorと直近差分UI
-8. 状態versionとmigration test
-9. 国名置換・権限違反・予算超過の反証fixture
-10. desktop、mobile、keyboard、reduced-motion QA
+1. 未校正19接続を[校正判断packet](docs/m2-calibration-decision-packet.md)で一括採用または修正する。
+2. 採用済み校正をversion付きfixtureへ固定し、全20接続の投資・台帳・危機寄与を同じgateで検証する。
+3. M3の主体制約と提案・承認・拒否・実行権限を実装する。
+4. M4の120ターン逐次event state machineとreplay UIを実装する。
+5. M5のA〜E、複数seed、日本除去を同一engineで実行し、反証結果を`RESULTS.md`へ記録する。
+6. 同一HEADのfull verify、browser、狭幅、keyboard、reduced-motion、accessibilityを閉じる。
 
-この10項目をP1の一つの縦切りとして閉じる。UIだけ、schemaだけ、レジャーだけを完成扱いにしない。
+M2の人間採用前に係数を実装へ埋め込まない。M3・M4の契約設計は並行調査できるが、実装統合はM2採用後に依存順で行う。
 
 ## 現時点の人間判断
 
-P1の視覚変更案と架空係数v0は採用済みで、PR #4のSSOT・実装・検証差分は`main`へ統合済みである。現行仕様のcanonicalは`main`上のowner fileと実装であり、作業worktreeや旧branchは正本ではない。今後のpush、merge、学術参考文献の公開追加、経験的校正、外部AI接続、release、告知はそれぞれ別の停止線とする。
+P1の視覚変更案と代表接続の架空係数v0は採用済みで、M2 mechanical foundationとCloud handoff用run bundleも`main`へ統合済みである。現行仕様のcanonicalは`main`上のowner fileと実装であり、作業worktreeや旧branchは正本ではない。未校正19接続の意味・係数採用、push、merge、経験的校正、外部AI接続、Cloud実行、release、告知はそれぞれ別の停止線とする。
 
 ## マイルストーン呼称
 

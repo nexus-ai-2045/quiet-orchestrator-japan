@@ -1,0 +1,50 @@
+{
+  "status": "proposed-unadopted",
+  "version": "relationship-v1.1.0-candidate",
+  "stateKeys": ["maturity", "trust", "verificationAgreement", "interoperability", "coOwnership", "dependency", "alternateRoutes", "disclosureCost"],
+  "actions": ["translation", "verification", "reversibility", "redundancy", "coownership"],
+  "archetypes": {
+    "verification": {
+      "initialState": {"maturity": 36, "trust": 34, "verificationAgreement": 40, "interoperability": 28, "coOwnership": 22, "dependency": 50, "alternateRoutes": 1, "disclosureCost": 12},
+      "actionMultipliers": {"translation": 1, "verification": 1, "reversibility": 0.75, "redundancy": null, "coownership": 0.75},
+      "ownership": "証拠の共同保管 / 訂正権は両endpoint"
+    },
+    "interoperability": {
+      "initialState": {"maturity": 34, "trust": 32, "verificationAgreement": 28, "interoperability": 40, "coOwnership": 22, "dependency": 48, "alternateRoutes": 2, "disclosureCost": 10},
+      "actionMultipliers": {"translation": 0.75, "verification": 0.5, "reversibility": 1, "redundancy": 1, "coownership": null},
+      "ownership": "共同運用 / 各endpointが停止権を保持"
+    },
+    "coownership": {
+      "initialState": {"maturity": 32, "trust": 34, "verificationAgreement": 32, "interoperability": 30, "coOwnership": 40, "dependency": 46, "alternateRoutes": 1, "disclosureCost": 12},
+      "actionMultipliers": {"translation": 0.75, "verification": 0.75, "reversibility": 0.75, "redundancy": null, "coownership": 1},
+      "ownership": "多元ガバナンス / 単独編集不可"
+    }
+  },
+  "contestedModifier": {
+    "initialStateDelta": {"maturity": -4, "trust": -8, "verificationAgreement": -6, "interoperability": 0, "coOwnership": 0, "dependency": 8, "alternateRoutes": 0, "disclosureCost": 6},
+    "positiveDeltaMultiplier": 0.75,
+    "riskDeltaMultiplier": 1,
+    "ownershipSuffix": " / 二者承認 / 監査ログ必須"
+  },
+  "relationships": [
+    {"id":"J1-B1","archetype":"verification","contested":false,"purpose":"政策判断前に共同状況図と停止条件を共有する","channel":"危機状況・停止条件プロトコル"},
+    {"id":"J2-U2","archetype":"verification","contested":false,"purpose":"分析仮説と確度を相互検証する","channel":"分析クロスチェック回線"},
+    {"id":"J3-U1","archetype":"verification","contested":false,"purpose":"軍事観測と交戦前確認を分離する","channel":"軍事観測検証回線"},
+    {"id":"J4-U4","archetype":"interoperability","contested":false,"purpose":"海上現場の通信・救難手順を相互運用する","channel":"海上保安運用回線"},
+    {"id":"J5-U5","archetype":"interoperability","contested":false,"purpose":"民間供給網の障害と代替経路を共有する","channel":"民間供給網回線"},
+    {"id":"J6-B1","archetype":"interoperability","contested":false,"purpose":"民間観測を検証可能な形式へ変換する","channel":"民間観測取込回線"},
+    {"id":"U2-B1","archetype":"verification","contested":false,"purpose":"分析根拠を共同検証へ段階開示する","channel":"分析証拠開示回線"},
+    {"id":"U3-B1","archetype":"verification","contested":true,"purpose":"サイバー帰属を政策判断から分離して検証する","channel":"サイバー帰属検証回線"},
+    {"id":"U5-C4","archetype":"interoperability","contested":false,"purpose":"民間取引・供給障害の代替経路を維持する","channel":"民間経済継続回線"},
+    {"id":"B1-C5","archetype":"coownership","contested":false,"purpose":"公開主張の訂正手順と証拠開示権を分有する","channel":"公開主張訂正回線"},
+    {"id":"J2-C1","archetype":"verification","contested":true,"purpose":"公式主張と分析証拠の差を可逆的に照合する","channel":"公式主張検証回線"},
+    {"id":"J5-C4","archetype":"interoperability","contested":false,"purpose":"経済措置下でも民間継続経路を確認する","channel":"供給網継続回線"},
+    {"id":"J4-C3","archetype":"verification","contested":false,"purpose":"海上接触の観測と救難情報を政策主張から分離する","channel":"海上接触確認回線"},
+    {"id":"C4-C6","archetype":"coownership","contested":false,"purpose":"経済影響の証拠と検証責任を分有する","channel":"経済影響共同検証回線"},
+    {"id":"C1-C5","archetype":"coownership","contested":false,"purpose":"公式発表・訂正・国内説明の責任を追跡する","channel":"公開説明監査回線"},
+    {"id":"U1-C3","archetype":"verification","contested":true,"purpose":"軍事・準軍事観測の誤帰属を不可逆行動前に検証する","channel":"接触帰属検証回線"},
+    {"id":"U4-C3","archetype":"interoperability","contested":false,"purpose":"救難・航行・現場停止手順を維持する","channel":"海上現場停止回線"},
+    {"id":"J6-C6","archetype":"coownership","contested":false,"purpose":"民間由来証拠の検証権と訂正権を分有する","channel":"民間証拠共同所有回線"},
+    {"id":"J1-J5","archetype":"interoperability","contested":false,"purpose":"危機判断と国内供給継続を同じ停止条件へ結ぶ","channel":"国内危機継続回線"}
+  ]
+}

@@ -1,0 +1,112 @@
+# M2校正判断packet｜未校正19接続
+
+- status: **提案 / 未採用**
+- proposed calibration version: `relationship-v1.1.0-candidate`
+- scope: ハッカソン用の架空校正v1候補
+- canonical runtime: `app/src/simulation.js`
+- adopted calibration SSOT: `app/src/calibration-v0.js`
+- machine-readable candidate: [`m2-calibration-candidate-v1.json`](m2-calibration-candidate-v1.json)
+- decision owner: 人間レビュー
+
+## 判断の目的
+
+M2 mechanical foundationは20接続を検証できるが、投資可能で係数が動くのは代表接続`B1-C6`だけである。このpacketは残り19接続を一件ずつ場当たり的に決めず、同じ判断軸で一括採用・修正するための入力である。ここにある提案は採用されるまでruntime、結果、完了証拠へ反映しない。
+
+経験的な政策効果、実在組織の能力評価、将来予測ではない。国名だけを理由に差をつけず、役割、接続チャネル、開示・依存・代替経路の構造で差を説明する。
+
+## 推奨する次元圧縮
+
+19本へ独立した係数表を複製せず、次の接続archetypeと明示modifierを組み合わせる。
+
+| archetype | 主目的 | 適合する施策候補 | 必須の交換条件 |
+|---|---|---|---|
+| `verification` | 観測・主張・検証手順を結ぶ | 翻訳、検証、可逆化 | 開示コスト、監視化、訂正遅延 |
+| `interoperability` | 組織・民間・供給・運用経路を結ぶ | 翻訳、可逆化、複線化 | 維持費、単一依存、切替遅延 |
+| `coownership` | 成果・証拠・ガバナンスを分有する | 検証、可逆化、共同所有 | 編集権縮小、責任分散、国内説明 |
+| modifier `contested` | 公開主張や帰属が競合する | 検証、可逆化を優先 | 誤帰属、リーク、不可逆行動 |
+
+数値はarchetype単位のbaseと、接続固有modifierへ分ける。全接続一律加点と、19本分の独立係数の両方を避ける。代表接続`B1-C6`の既存値はmigration互換のため変更しない。
+
+## 数値候補
+
+この表とmachine-readable candidateを同じ提案として採用する。値域は既存state schemaと同じで、経験的推定ではない。
+
+| archetype | 成熟 | 信頼 | 検証合意 | 相互運用 | 共同所有 | 単一依存 | 代替経路 | 開示コスト |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| verification | 36 | 34 | 40 | 28 | 22 | 50 | 1 | 12 |
+| interoperability | 34 | 32 | 28 | 40 | 22 | 48 | 2 | 10 |
+| coownership | 32 | 34 | 32 | 30 | 40 | 46 | 1 | 12 |
+
+`contested`接続はbaseへ、成熟`-4`、信頼`-8`、検証合意`-6`、単一依存`+8`、開示コスト`+6`を適用する。施策の改善方向deltaは`0.75`倍して0方向へ丸め、開示コストなどのrisk deltaとtradeoffは縮小しない。全値は既存範囲へclampする。
+
+### 施策適格性とdelta倍率
+
+`—`は不適格、数値は既存`relationship-v1.0.0`施策deltaへ掛ける倍率である。整数化は0方向への丸めとし、risk deltaは倍率で縮小しない。
+
+| archetype | 翻訳 | 検証 | 可逆化 | 複線化 | 共同所有 |
+|---|---:|---:|---:|---:|---:|
+| verification | 1.00 | 1.00 | 0.75 | — | 0.75 |
+| interoperability | 0.75 | 0.50 | 1.00 | 1.00 | — |
+| coownership | 0.75 | 0.75 | 0.75 | — | 1.00 |
+
+### ownership
+
+| archetype | ownership候補 |
+|---|---|
+| verification | 証拠の共同保管 / 訂正権は両endpoint |
+| interoperability | 共同運用 / 各endpointが停止権を保持 |
+| coownership | 多元ガバナンス / 単独編集不可 |
+
+`contested`では上記へ「二者承認 / 監査ログ必須」を追加する。
+
+## 接続別の意味候補
+
+以下の`提案archetype`と目的・チャネルを一括採用するか、修正対象IDだけを返す。`contested=yes`は既存runtimeの正本を転記したもので、このpacketでは変更しない。
+
+| ID | endpoints | 提案archetype | contested | 目的候補 | チャネル候補 | ownership候補 |
+|---|---|---|---|---|---|---|
+| J1-B1 | 事態対処室 ↔ 検証・対話ハブ | verification | no | 政策判断前に共同状況図と停止条件を共有する | 危機状況・停止条件プロトコル | 証拠の共同保管 / 訂正権は両endpoint |
+| J2-U2 | 戦略情報分析 ↔ 情報分析局 | verification | no | 分析仮説と確度を相互検証する | 分析クロスチェック回線 | 証拠の共同保管 / 訂正権は両endpoint |
+| J3-U1 | 統合情報部 ↔ 統合司令部 | verification | no | 軍事観測と交戦前確認を分離する | 軍事観測検証回線 | 証拠の共同保管 / 訂正権は両endpoint |
+| J4-U4 | 第一管区 ↔ 太平洋地域 | interoperability | no | 海上現場の通信・救難手順を相互運用する | 海上保安運用回線 | 共同運用 / 各endpointが停止権を保持 |
+| J5-U5 | 供給網連携 ↔ 民間セクター連携窓口 | interoperability | no | 民間供給網の障害と代替経路を共有する | 民間供給網回線 | 共同運用 / 各endpointが停止権を保持 |
+| J6-B1 | 民間プラットフォーム連携 ↔ 検証・対話ハブ | interoperability | no | 民間観測を検証可能な形式へ変換する | 民間観測取込回線 | 共同運用 / 各endpointが停止権を保持 |
+| U2-B1 | 情報分析局 ↔ 検証・対話ハブ | verification | no | 分析根拠を共同検証へ段階開示する | 分析証拠開示回線 | 証拠の共同保管 / 訂正権は両endpoint |
+| U3-B1 | サイバー基盤 ↔ 検証・対話ハブ | verification | yes | サイバー帰属を政策判断から分離して検証する | サイバー帰属検証回線 | 証拠の共同保管 / 訂正権は両endpoint / 二者承認 / 監査ログ必須 |
+| U5-C4 | 民間セクター連携窓口 ↔ 国際経済協力 | interoperability | no | 民間取引・供給障害の代替経路を維持する | 民間経済継続回線 | 共同運用 / 各endpointが停止権を保持 |
+| B1-C5 | 検証・対話ハブ ↔ 公共意見局 | coownership | no | 公開主張の訂正手順と証拠開示権を分有する | 公開主張訂正回線 | 多元ガバナンス / 単独編集不可 |
+| J2-C1 | 戦略情報分析 ↔ 報道官室 | verification | yes | 公式主張と分析証拠の差を可逆的に照合する | 公式主張検証回線 | 証拠の共同保管 / 訂正権は両endpoint / 二者承認 / 監査ログ必須 |
+| J5-C4 | 供給網連携 ↔ 国際経済協力 | interoperability | no | 経済措置下でも民間継続経路を確認する | 供給網継続回線 | 共同運用 / 各endpointが停止権を保持 |
+| J4-C3 | 第一管区 ↔ 海警局・南海方面 | verification | no | 海上接触の観測と救難情報を政策主張から分離する | 海上接触確認回線 | 証拠の共同保管 / 訂正権は両endpoint |
+| C4-C6 | 国際経済協力 ↔ 共同検証窓口 | coownership | no | 経済影響の証拠と検証責任を分有する | 経済影響共同検証回線 | 多元ガバナンス / 単独編集不可 |
+| C1-C5 | 報道官室 ↔ 公共意見局 | coownership | no | 公式発表・訂正・国内説明の責任を追跡する | 公開説明監査回線 | 多元ガバナンス / 単独編集不可 |
+| U1-C3 | 統合司令部 ↔ 海警局・南海方面 | verification | yes | 軍事・準軍事観測の誤帰属を不可逆行動前に検証する | 接触帰属検証回線 | 証拠の共同保管 / 訂正権は両endpoint / 二者承認 / 監査ログ必須 |
+| U4-C3 | 太平洋地域 ↔ 海警局・南海方面 | interoperability | no | 救難・航行・現場停止手順を維持する | 海上現場停止回線 | 共同運用 / 各endpointが停止権を保持 |
+| J6-C6 | 民間プラットフォーム連携 ↔ 共同検証窓口 | coownership | no | 民間由来証拠の検証権と訂正権を分有する | 民間証拠共同所有回線 | 多元ガバナンス / 単独編集不可 |
+| J1-J5 | 事態対処室 ↔ 供給網連携 | interoperability | no | 危機判断と国内供給継続を同じ停止条件へ結ぶ | 国内危機継続回線 | 共同運用 / 各endpointが停止権を保持 |
+
+## 一括判断項目
+
+推奨案は次の4点である。
+
+1. 上表の目的・チャネル・archetypeを架空校正v1の意味層として採用する。
+2. 初期値はarchetype baseから生成し、`contested`だけ成熟`-4`、信頼`-8`、検証合意`-6`、単一依存`+8`、開示コスト`+6`の明示modifierを適用する。
+3. 施策deltaは既存5施策の意味を維持し、archetypeごとの適格性と実現率で差をつける。接続固有の例外値は根拠がある場合だけ追加する。
+4. versionを更新し、国名置換、全20接続の非一律結果、予算、replay、危機寄与を回帰fixtureで固定する。
+
+### 返却形式
+
+- `採用`: 4項目を推奨どおり採用
+- `条件付き採用`: 修正する接続IDまたは判断項目番号と理由
+- `保留`: 不足する判断材料
+- `却下`: 置換する校正原則
+
+## 採用後の機械実装
+
+1. archetype base・modifier・versionを校正SSOTへ追加する。
+2. 19接続の目的、チャネル、ownership、初期値、施策適格性を生成する。
+3. 20接続のschema、非一律結果、予算、台帳、stress、replayをfixtureで検証する。
+4. 同一seedでの再現と別接続での結果差を確認する。
+5. `RESULTS.md`には成功だけでなく逆効果・失敗・未説明残差を記録する。
+
+このpacketの採用は経験的校正、Cloud実行、public push、merge、release、応募・告知の承認を兼ねない。

@@ -1,4 +1,4 @@
-# 実行結果｜P0 baseline + P1因果縦切り 実測スナップショット
+# 実行結果｜P0・P1・M1.5・M2 mechanical foundation 実測スナップショット
 
 確認日: 2026-08-30
 
@@ -12,6 +12,8 @@
 - 外部API、APIキー、ライブデータなし
 
 READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
+
+この文書が記録する現在の実装段階は、代表接続の因果縦切り、scripted Policy EngineによるM1.5、全20接続のM2 mechanical foundation、Cloud handoff用`meta-security-run-bundle/v1`までである。未校正19接続の採用、18主体の制約、120個の逐次危機event、A〜E・日本除去の同一engine比較は完了証拠に含めない。
 
 ## 機械検証
 
@@ -130,4 +132,4 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 - 数値と係数は架空で、経験的な確率や政策効果を表さない。
 - AI/LLM推論や自律交渉は未実装である。現M1.5は固定seed・固定action表のscripted Policy Engineによる3主体×3ターンPDCA基準線である。
 
-したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、仮説を反証可能な実装へ進めるためのP0 baselineである。次段階は[ロードマップ](ROADMAP.md)を参照する。
+したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、仮説を反証可能な実装へ進めるための決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、M2 mechanical foundation、Cloud handoff契約である。次段階は[校正判断packet](docs/m2-calibration-decision-packet.md)による未校正19接続の人間採用であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。
