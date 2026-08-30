@@ -12,39 +12,65 @@ function sha256(value) {
   return createHash("sha256").update(canonicalize(value)).digest("hex");
 }
 
-function timestamp(seed, offsetSeconds) {
-  return new Date(FIXED_EPOCH_MS + seed * 1000 + offsetSeconds * 1000).toISOString();
+function timestamp(offsetSeconds) {
+  return new Date(FIXED_EPOCH_MS + offsetSeconds * 1000).toISOString();
 }
 
-function assertOptions(seed, maxSteps) {
+function assertOptions(seed, maxSteps, implementationRevision) {
   if (!Number.isSafeInteger(seed) || seed < 0) throw new TypeError("seed must be a non-negative safe integer");
   if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 9) {
     throw new RangeError("maxSteps must be an integer from 1 through 9");
   }
+  if (typeof implementationRevision !== "string" || !/^[0-9a-f]{40}$/.test(implementationRevision)) {
+    throw new TypeError("implementationRevision must be a full lowercase Git commit SHA");
+  }
 }
 
-export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps = 9 } = {}) {
-  assertOptions(seed, maxSteps);
+function isJsonValue(value, ancestors = new WeakSet()) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (ancestors.has(value)) return false;
+  if (Object.getOwnPropertySymbols(value).length > 0) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return false;
+  if (Array.isArray(value) && (Object.keys(value).length !== value.length
+    || Object.getOwnPropertyNames(value).length !== value.length + 1)) return false;
+  if (!Array.isArray(value) && Object.getOwnPropertyNames(value).length !== Object.keys(value).length) return false;
+  ancestors.add(value);
+  const valid = Array.isArray(value)
+    ? value.every((entry) => isJsonValue(entry, ancestors))
+    : Object.values(value).every((entry) => isJsonValue(entry, ancestors));
+  ancestors.delete(value);
+  return valid;
+}
+
+export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps = 9, implementationRevision } = {}) {
+  assertOptions(seed, maxSteps, implementationRevision);
   if (!initialState || typeof initialState !== "object" || Array.isArray(initialState)) {
     throw new TypeError("initialState must be an object");
   }
+  if (!isJsonValue(initialState)) throw new TypeError("initialState must contain only JSON values");
 
   const initialStateSnapshot = structuredClone(initialState);
   const parameters = {
     engine: "local-pdca-v1",
+    implementation_revision: implementationRevision,
     max_steps: maxSteps,
+    policy_seed: String(seed),
+    simulation_state_seed: initialStateSnapshot.seed,
     initial_state: initialStateSnapshot,
     initial_state_hash: observationFingerprint(initialStateSnapshot),
   };
-  const requestedAt = timestamp(seed, 0);
+  const requestedAt = timestamp(0);
   const runId = `qoj-${sha256({ scenario_id: "policy-orchestration", seed, requested_at: requestedAt, parameters }).slice(0, 16)}`;
   const runRequest = { run_id: runId, scenario_id: "policy-orchestration", seed, requested_at: requestedAt, parameters };
   const execution = runLocalPdcaSimulation(initialStateSnapshot, { seed: String(seed), maxSteps });
   const events = execution.steps.map((cycle, sequence) => ({
     run_id: runId,
     sequence,
-    event_type: "pdca.step.completed",
-    occurred_at: timestamp(seed, sequence + 1),
+    event_type: cycle.completed ? "pdca.step.completed" : "pdca.step.rejected",
+    occurred_at: timestamp(sequence + 1),
     payload: {
       step: cycle.step,
       actor_id: cycle.actorId,
@@ -65,13 +91,14 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
     run_request: runRequest,
     events,
     replay: { run_id: runId, product_id: PRODUCT_ID, seed, event_count: events.length, event_stream_sha256: eventStreamSha256, deterministic: true },
-    evidence: { run_id: runId, product_id: PRODUCT_ID, verification: "live-command", generated_at: timestamp(seed, events.length + 1), source_repository: SOURCE_REPOSITORY, event_stream_sha256: eventStreamSha256 },
+    evidence: { run_id: runId, product_id: PRODUCT_ID, verification: "live-command", generated_at: timestamp(events.length + 1), source_repository: SOURCE_REPOSITORY, event_stream_sha256: eventStreamSha256 },
   };
 }
 
 export function validateMetaSecurityRunBundle(bundle) {
   const errors = [];
   if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) return { valid: false, errors: ["bundle_not_object"] };
+  if (!isJsonValue(bundle)) return { valid: false, errors: ["non_json_value"] };
   if (bundle.schema !== META_SECURITY_RUN_BUNDLE_SCHEMA) errors.push("schema_mismatch");
   if (bundle.product_id !== PRODUCT_ID) errors.push("product_id_mismatch");
   const runId = bundle.run_request?.run_id;
@@ -83,7 +110,11 @@ export function validateMetaSecurityRunBundle(bundle) {
 
   let rebuilt;
   try {
-    rebuilt = buildMetaSecurityRunBundle(bundle.run_request.parameters.initial_state, { seed: bundle.run_request.seed, maxSteps: bundle.run_request.parameters.max_steps });
+    rebuilt = buildMetaSecurityRunBundle(bundle.run_request.parameters.initial_state, {
+      seed: bundle.run_request.seed,
+      maxSteps: bundle.run_request.parameters.max_steps,
+      implementationRevision: bundle.run_request.parameters.implementation_revision,
+    });
   } catch {
     return { valid: false, errors: ["replay_failed"] };
   }
