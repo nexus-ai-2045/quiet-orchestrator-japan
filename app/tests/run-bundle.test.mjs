@@ -61,6 +61,29 @@ test("run bundle rejects non-JSON values before deterministic comparison", () =>
   assert.deepEqual(validateBundle(accessor), { valid: false, errors: ["non_json_value"] });
   assert.equal(reads, 0);
 
+  const inherited = buildBundle();
+  const inheritedEvents = [...inherited.events];
+  Object.setPrototypeOf(inheritedEvents, { get some() { throw new Error("must not execute"); } });
+  inherited.events = inheritedEvents;
+  assert.doesNotThrow(() => validateBundle(inherited));
+  assert.deepEqual(validateBundle(inherited), { valid: false, errors: ["non_json_value"] });
+
+  const disguisedSparse = buildBundle();
+  const sparse = [];
+  sparse.length = 1;
+  sparse.foo = "bar";
+  disguisedSparse.events[0].payload.errors = sparse;
+  assert.deepEqual(validateBundle(disguisedSparse), { valid: false, errors: ["non_json_value"] });
+
+  const deep = buildBundle();
+  let cursor = deep.events[0].payload;
+  for (let index = 0; index < 100; index += 1) {
+    cursor.next = {};
+    cursor = cursor.next;
+  }
+  assert.doesNotThrow(() => validateBundle(deep));
+  assert.deepEqual(validateBundle(deep), { valid: false, errors: ["non_json_value"] });
+
   const invalidState = createDemoState(2035);
   invalidState.metrics.coordinationCapital = Number.NaN;
   assert.throws(() => buildBundle(invalidState), /only JSON values/);

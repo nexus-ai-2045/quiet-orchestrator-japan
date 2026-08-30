@@ -7,6 +7,8 @@ export const META_SECURITY_RUN_BUNDLE_SCHEMA = "meta-security-run-bundle/v1";
 export const PRODUCT_ID = "quiet-orchestrator-japan";
 const SOURCE_REPOSITORY = "nexus-ai-2045/quiet-orchestrator-japan";
 const FIXED_EPOCH_MS = Date.UTC(2026, 0, 1);
+const MAX_JSON_DEPTH = 64;
+const MAX_JSON_NODES = 100_000;
 
 function sha256(value) {
   return createHash("sha256").update(canonicalize(value)).digest("hex");
@@ -26,25 +28,59 @@ function assertOptions(seed, maxSteps, implementationRevision) {
   }
 }
 
-function isJsonValue(value, ancestors = new WeakSet()) {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object") return false;
-  if (ancestors.has(value)) return false;
-  if (Object.getOwnPropertySymbols(value).length > 0) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return false;
-  const descriptors = Object.getOwnPropertyDescriptors(value);
-  const propertyNames = Object.getOwnPropertyNames(value);
-  if (propertyNames.some((name) => descriptors[name].get || descriptors[name].set)) return false;
-  if (Array.isArray(value) && (propertyNames.length !== value.length + 1
-    || propertyNames.some((name) => name !== "length" && !descriptors[name].enumerable))) return false;
-  if (!Array.isArray(value) && propertyNames.some((name) => !descriptors[name].enumerable)) return false;
-  ancestors.add(value);
-  const values = propertyNames.filter((name) => name !== "length").map((name) => descriptors[name].value);
-  const valid = values.every((entry) => isJsonValue(entry, ancestors));
-  ancestors.delete(value);
-  return valid;
+function isJsonValue(root) {
+  const pending = [{ value: root, depth: 0, exiting: false }];
+  const ancestors = new WeakSet();
+  let nodeCount = 0;
+
+  try {
+    while (pending.length > 0) {
+      const { value, depth, exiting } = pending.pop();
+      if (exiting) {
+        ancestors.delete(value);
+        continue;
+      }
+      nodeCount += 1;
+      if (depth > MAX_JSON_DEPTH || nodeCount > MAX_JSON_NODES) return false;
+      if (value === null || typeof value === "string" || typeof value === "boolean") continue;
+      if (typeof value === "number") {
+        if (!Number.isFinite(value)) return false;
+        continue;
+      }
+      if (typeof value !== "object" || ancestors.has(value)) return false;
+      ancestors.add(value);
+      pending.push({ value, depth, exiting: true });
+      if (Object.getOwnPropertySymbols(value).length > 0) return false;
+
+      const isArray = Array.isArray(value);
+      const prototype = Object.getPrototypeOf(value);
+      if (isArray ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return false;
+
+      const descriptors = Object.getOwnPropertyDescriptors(value);
+      const propertyNames = Object.getOwnPropertyNames(value);
+      if (propertyNames.some((name) => descriptors[name].get || descriptors[name].set)) return false;
+
+      if (isArray) {
+        const length = descriptors.length?.value;
+        if (!Number.isSafeInteger(length) || length < 0 || propertyNames.length !== length + 1) return false;
+        for (let index = 0; index < length; index += 1) {
+          const descriptor = descriptors[String(index)];
+          if (!descriptor || !descriptor.enumerable) return false;
+          pending.push({ value: descriptor.value, depth: depth + 1, exiting: false });
+        }
+        if (propertyNames.some((name) => name !== "length" && !/^(0|[1-9]\d*)$/.test(name))) return false;
+      } else {
+        for (const name of propertyNames) {
+          const descriptor = descriptors[name];
+          if (!descriptor.enumerable) return false;
+          pending.push({ value: descriptor.value, depth: depth + 1, exiting: false });
+        }
+      }
+    }
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps = 9, implementationRevision } = {}) {
