@@ -1,6 +1,8 @@
 import { createDemoState } from "../src/simulation.js";
 import { buildMetaSecurityRunBundle } from "../src/run-bundle.js";
-import { execFileSync } from "node:child_process";
+import { resolveImplementationRevision } from "../src/run-bundle-provenance.js";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 const valueAfter = (flag, fallback) => {
@@ -9,7 +11,7 @@ const valueAfter = (flag, fallback) => {
 };
 const seed = Number(valueAfter("--seed", "404"));
 const maxSteps = Number(valueAfter("--max-steps", "9"));
-const implementationRevision = process.env.GITHUB_SHA
-  || execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const implementationRepoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const implementationRevision = resolveImplementationRevision(implementationRepoRoot);
 const bundle = buildMetaSecurityRunBundle(createDemoState(2035), { seed, maxSteps, implementationRevision });
 process.stdout.write(`${JSON.stringify(bundle, null, 2)}\n`);

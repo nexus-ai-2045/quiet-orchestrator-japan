@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoState } from "../src/simulation.js";
 import { buildMetaSecurityRunBundle, validateMetaSecurityRunBundle } from "../src/run-bundle.js";
+import { resolveImplementationRevision } from "../src/run-bundle-provenance.js";
 
 const IMPLEMENTATION_REVISION = "1".repeat(40);
 const buildBundle = (state = createDemoState(2035), options = {}) => buildMetaSecurityRunBundle(state, {
@@ -84,6 +85,21 @@ test("run bundle rejects non-JSON values before deterministic comparison", () =>
   assert.doesNotThrow(() => validateBundle(deep));
   assert.deepEqual(validateBundle(deep), { valid: false, errors: ["non_json_value"] });
 
+  const proxied = buildBundle();
+  let proxyReads = 0;
+  const proxy = new Proxy(proxied, {
+    get(target, property, receiver) {
+      if (property === "schema") {
+        proxyReads += 1;
+        throw new Error("untrusted get trap must not execute");
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+  assert.doesNotThrow(() => validateBundle(proxy));
+  assert.deepEqual(validateBundle(proxy), { valid: false, errors: ["non_json_value"] });
+  assert.equal(proxyReads, 0);
+
   const invalidState = createDemoState(2035);
   invalidState.metrics.coordinationCapital = Number.NaN;
   assert.throws(() => buildBundle(invalidState), /only JSON values/);
@@ -91,6 +107,14 @@ test("run bundle rejects non-JSON values before deterministic comparison", () =>
   const cyclicState = createDemoState(2035);
   cyclicState.cycle = cyclicState;
   assert.throws(() => buildBundle(cyclicState), /only JSON values/);
+
+  const envelopeOverflow = createDemoState(2035);
+  let envelopeCursor = envelopeOverflow;
+  for (let index = 0; index < 62; index += 1) {
+    envelopeCursor.extra = {};
+    envelopeCursor = envelopeCursor.extra;
+  }
+  assert.throws(() => buildBundle(envelopeOverflow), /JSON transport boundary/);
 });
 
 test("run seed range does not control timestamp representability and seed roles stay explicit", () => {
@@ -140,4 +164,23 @@ test("builder requires the canonical simulation state seed", () => {
   const state = createDemoState(2035);
   delete state.seed;
   assert.throws(() => buildBundle(state), /simulation state seed/);
+});
+
+test("implementation provenance is resolved from a clean implementation repository", () => {
+  const calls = [];
+  const execGit = (_file, args, options) => {
+    calls.push({ args, cwd: options.cwd });
+    return args[0] === "rev-parse" ? `${IMPLEMENTATION_REVISION}\n` : "";
+  };
+  assert.equal(resolveImplementationRevision("C:/implementation", { githubSha: "", execGit }), IMPLEMENTATION_REVISION);
+  assert.deepEqual(calls.map(({ cwd }) => cwd), ["C:/implementation", "C:/implementation"]);
+
+  assert.throws(() => resolveImplementationRevision("C:/implementation", {
+    githubSha: "",
+    execGit: (_file, args) => args[0] === "rev-parse" ? `${IMPLEMENTATION_REVISION}\n` : " M app/src/run-bundle.js\n",
+  }), /dirty/);
+  assert.throws(() => resolveImplementationRevision("C:/implementation", {
+    githubSha: "2".repeat(40),
+    execGit,
+  }), /does not match/);
 });
