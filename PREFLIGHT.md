@@ -5,9 +5,9 @@
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
-- branch: `codex/run-bundle-v1`
-- content HEAD: `a8b6f2260e3f76daa772820b4e38a9428020fdaf`（M2〜M5ローカルMVP、根因収束、143件回帰、Sites 4件、build、audit 0）
-- base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
+- branch: `codex/m2-calibration-decision-packet`
+- content HEAD: `8d1e738799ec6997eceb7133dd3a53b39e349c5b`（M2〜M5ローカルMVP、根因収束、143件回帰、Sites 4件、build、audit 0）
+- base: `origin/main@3f2372696ba4e9b79d187407f728401bee4e226b`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
@@ -26,13 +26,13 @@
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@bdb9902b`、archived `false` |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@3f237269`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"a8b6f2260e3f76daa772820b4e38a9428020fdaf","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"8d1e738799ec6997eceb7133dd3a53b39e349c5b","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
