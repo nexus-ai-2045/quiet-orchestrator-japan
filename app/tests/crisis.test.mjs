@@ -47,3 +47,9 @@ test("misattribution correction irreversible action and route failure remain rep
   assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.fallbackAvailable, false);
   assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.coordination, "failed");
 });
+
+test("the five registered study seeds map bijectively to five true causes", () => {
+  const state = createDemoState(2035);
+  const causes = Array.from({ length: 5 }, (_, index) => runCrisisSimulation(state, { seed: `cause-${index}` }).causalParameters.causeCode);
+  assert.equal(new Set(causes).size, 5);
+});

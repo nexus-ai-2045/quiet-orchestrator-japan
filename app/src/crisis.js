@@ -34,6 +34,10 @@ const FALLBACK_FUNCTION_BY_CHANNEL = Object.freeze({
 });
 const phaseAt = (turn) => CRISIS_PHASES.find(({ start, end }) => turn >= start && turn <= end)?.name;
 const seededUnit = (seed, turn) => parseInt(observationFingerprint(`${seed}:${turn}`).slice(-8), 16) / 0xffffffff;
+const causeForSeed = (seed) => {
+  const registered = /^cause-([0-4])$/.exec(seed);
+  return registered ? FICTIONAL_CAUSES[Number(registered[1])] : FICTIONAL_CAUSES[Math.floor(seededUnit(seed, 900) * FICTIONAL_CAUSES.length) % FICTIONAL_CAUSES.length];
+};
 
 function fallbackAssessment(state, disabled) {
   return [...disabled].sort().map((relationshipId) => {
@@ -63,7 +67,7 @@ function runValidated(state, { seed, disabledRelationshipIds }) {
   const fallbackAssessments = fallbackAssessment(state, disabled);
   const verification = state.metrics.verification;
   const continuity = state.metrics.continuity;
-  const causeCode = FICTIONAL_CAUSES[Math.floor(seededUnit(seed, 900) * FICTIONAL_CAUSES.length) % FICTIONAL_CAUSES.length];
+  const causeCode = causeForSeed(seed);
   const correctionTurn = 40 + Math.floor(seededUnit(seed, 901) * 20);
   const irreversibleTurn = 26 + Math.floor(seededUnit(seed, 902) * 12);
   const disruptionStart = 66 + Math.floor(seededUnit(seed, 903) * 16);

@@ -160,6 +160,17 @@ test("rejected PDCA cycles remain rejected evidence", () => {
   assert.equal(validateBundle(bundle).valid, true);
 });
 
+test("checkpoint retries preserve every governance outcome and transition", () => {
+  const bundle = buildBundle(createDemoState(2035));
+  const retried = bundle.events.find((event) => event.payload.attempts?.length === 2);
+  assert.ok(retried);
+  assert.deepEqual(retried.payload.attempts.map((attempt) => attempt.applied), [false, true]);
+  assert.equal(retried.payload.attempts[0].governance_entries.at(-1).outcome, "rejected");
+  assert.equal(retried.payload.attempts[1].governance_entries.at(-1).outcome, "approved");
+  assert.equal(retried.payload.checkpoint.recorded, true);
+  assert.equal(validateBundle(bundle).valid, true);
+});
+
 test("implementation revision is a full run-identity input", () => {
   const bundle = buildBundle();
   assert.equal(bundle.run_request.parameters.implementation_revision, IMPLEMENTATION_REVISION);

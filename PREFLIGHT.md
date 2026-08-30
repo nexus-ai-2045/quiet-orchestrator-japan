@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/run-bundle-v1`
-- content HEAD: `5bd302c94f13b991be6c14c3b76ab34f361719ac`（M2〜M5ローカルMVP、根因収束、127件回帰、Sites 4件、build、audit 0）
+- content HEAD: `5bd302c94f13b991be6c14c3b76ab34f361719ac`（M2〜M5ローカルMVP、根因収束、130件回帰、Sites 4件、build、audit 0。次のcontent HEADで更新する）
 - base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 127件pass。M2〜M5、120ターン危機再生、A〜E・5 seed・2045年日本除去境界、権限拒否証拠、run bundle、台帳drawerを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 130件pass。M2〜M5、120ターン危機再生、A〜E・5 seed・2045年日本除去境界、権限拒否証拠、run bundle、台帳drawerを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

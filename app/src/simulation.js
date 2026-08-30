@@ -255,7 +255,7 @@ function replayAnnualTimeline(state, relationshipDefinitions = RELATIONSHIPS, { 
       metricDeltas: preview.metricDeltas,
       tradeoffs: preview.tradeoffs,
       reason: `${preview.actionLabel}の年間投資を${preview.relationshipLabel}へ適用`,
-      ruleVersion: RULE_VERSION,
+      ruleVersion: preview.ruleVersion ?? RULE_VERSION,
       seed: state.seed,
     };
     for (const [field, expected] of Object.entries(expectedFields)) {

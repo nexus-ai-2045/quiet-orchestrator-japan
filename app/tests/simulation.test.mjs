@@ -1111,6 +1111,14 @@ test("execution state permits exactly one annual action per year", () => {
   assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("one action per year")));
 });
 
+test("annual replay uses each relationship definition calibration version", () => {
+  let state = selectRelationship(createInitialState(), "J1-B1");
+  state = selectAction(state, "verification");
+  state = advanceYear(state);
+  assert.equal(state.ledger[0].ruleVersion, "relationship-v1.1.0");
+  assert.equal(validateSimulationExecutionState(state).valid, true);
+});
+
 test("annual replay rejects a self-consistent forged action projection", () => {
   const state = advanceYear(createInitialState());
   const entry = state.ledger[0];
