@@ -1,7 +1,7 @@
 # M2校正判断packet｜未校正19接続
 
-- status: **提案 / 未採用**
-- proposed calibration version: `relationship-v1.1.0-candidate`
+- status: **採用済み / ハッカソン用架空校正**
+- adopted calibration version: `relationship-v1.1.0`
 - scope: ハッカソン用の架空校正v1候補
 - canonical runtime: `app/src/simulation.js`
 - adopted calibration SSOT: `app/src/calibration-v0.js`
@@ -10,7 +10,7 @@
 
 ## 判断の目的
 
-M2 mechanical foundationは20接続を検証できるが、投資可能で係数が動くのは代表接続`B1-C6`だけである。このpacketは残り19接続を一件ずつ場当たり的に決めず、同じ判断軸で一括採用・修正するための入力である。ここにある提案は採用されるまでruntime、結果、完了証拠へ反映しない。
+M2 mechanical foundationは20接続を検証できるが、旧baselineで投資可能だったのは代表接続`B1-C6`だけである。このpacketは残り19接続を一件ずつ場当たり的に決めず、同じ判断軸で一括採用した記録である。経験的校正へ置換する場合はversionを更新し、過去runを上書きしない。
 
 経験的な政策効果、実在組織の能力評価、将来予測ではない。国名だけを理由に差をつけず、役割、接続チャネル、開示・依存・代替経路の構造で差を説明する。
 
@@ -61,7 +61,7 @@ M2 mechanical foundationは20接続を検証できるが、投資可能で係数
 
 ## 接続別の意味候補
 
-以下の`提案archetype`と目的・チャネルを一括採用するか、修正対象IDだけを返す。`contested=yes`は既存runtimeの正本を転記したもので、このpacketでは変更しない。
+以下の`提案archetype`と目的・チャネルを架空校正v1として一括採用した。`contested=yes`は既存runtimeの正本を転記したもので、この採用では変更しない。
 
 | ID | endpoints | 提案archetype | contested | 目的候補 | チャネル候補 | ownership候補 |
 |---|---|---|---|---|---|---|

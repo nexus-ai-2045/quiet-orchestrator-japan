@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 116件pass |
+| `npm test` | 117件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-116件には`meta-security-run-bundle/v1`の同一`run_id`束縛、Proxy拒否・標準prototype・連続array index・data descriptor・深さ上限を統合したtrusted JSON snapshot、実装repo固定・dirty拒否provenance、seed役割分離、失敗event保持、独立implementation SHA照合、event container fail-closed、決定論的再実行の9件を含む。
+117件にはM2全20接続のarchetype校正・非一律施策適格性、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
 
 ### M1.5 ローカルPDCA実測
 
@@ -125,11 +125,11 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 
 ## 現時点で結論に使えないこと
 
-- 接続状態は共通schemaを持つが、投資可能で係数が動くのは代表接続`B1 ↔ C6`だけである。
+- 全20接続は共通schemaと架空校正v1を持つが、経験的な政策効果としては未校正である。
 - アクターごとの利害、制約、証拠アクセスは行動差へ反映していない。
 - 終末の1ヶ月試験は120ターンのイベント列をまだ持たない。
 - 比較条件の一部は固定値で、同じエンジンによる再実行ではない。
 - 数値と係数は架空で、経験的な確率や政策効果を表さない。
 - AI/LLM推論や自律交渉は未実装である。現M1.5は固定seed・固定action表のscripted Policy Engineによる3主体×3ターンPDCA基準線である。
 
-したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、仮説を反証可能な実装へ進めるための決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、M2 mechanical foundation、Cloud handoff契約である。次段階は[校正判断packet](docs/m2-calibration-decision-packet.md)による未校正19接続の人間採用であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。
+したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、全20接続のM2架空校正、Cloud handoff契約である。次段階はM3主体制約であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。

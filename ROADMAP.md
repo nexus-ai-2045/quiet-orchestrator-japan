@@ -6,9 +6,9 @@
 
 設計の正本は[プロダクト設計](docs/product-architecture.md)、実験上の不変条件は[シミュレーション契約](simulation-contract.md)に置く。
 
-## 現在地｜Cloud handoff可能 + M2校正判断待ち
+## 現在地｜Cloud handoff可能 + M2 runtime candidate実装済み
 
-状態: **P0・P1・M1.5・M2 mechanical foundation・`meta-security-run-bundle/v1`は`main`へ統合済み / 次は未校正19接続の人間採用とM2完成**
+状態: **`main`はP0・P1・M1.5・M2 mechanical foundation・run bundleまで / 現在candidateは全20接続の架空校正v1をruntimeへ実装済み / 次はM3主体制約**
 
 | 実装済み | 未実装 |
 |---|---|
@@ -78,7 +78,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 終末の1ヶ月の接続寄与からInspectorへ戻る導線と、drawer選択は同じ`ledgerEntryId` focus契約を共有する。
 - state version 3、schema-v2校正fingerprint backfill、旧集約状態のmigration入口を追加した。
 - 校正fingerprintはキー挿入順に依存せず、preview前に全investableを検証し、schema-v2の競合fingerprintは上書きせずfail closedにする。
-- unit test 116件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在のM2 mechanical foundationのsame-HEAD実測には数えない。
+- unit test 117件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在のM2 candidateのsame-HEAD実測には数えない。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。接続ID・表示ラベルを変えた役割同等fixtureの基礎回帰は実装済みだが、日本・中国・米国の国名を入れ替える制約同等fixtureは、主体制約を実装するM3まで未完了である。M1の機械作業だった完全な因果台帳drawerは閉じた。完了条件のうちUIゲート（現行操作・狭幅・キーボード・reduced-motion）はM1当時の同一HEADでRESULTSへ記録し、現在は履歴証拠として扱う。次のMustはM2の全20接続ポートフォリオである。
 
@@ -119,7 +119,7 @@ P0 baselineの再現、文書境界、P1因果縦切りの回帰、build、Sites
 
 優先度: **Next / Must**
 
-現在地: **mechanical foundation実装済み / calibration decision待ち**。20接続schema、1〜3接続の配分・予算gate、台帳effect分類、接続状態由来の線表現は実装済みである。未校正19接続の目的・チャネル・初期値・施策適格性・効果係数は[校正判断packet](docs/m2-calibration-decision-packet.md)で一括採用するまで投資可能へ昇格させず、M2完了とは数えない。
+現在地: **runtime candidate実装済み**。20接続schema、1〜3接続の配分・予算gate、台帳effect分類、接続状態由来の線表現に加え、残り19接続の目的・チャネル・ownership・初期値・施策適格性・効果倍率を[校正判断packet](docs/m2-calibration-decision-packet.md)の架空校正v1として採用した。全20接続は校正fingerprintと非一律deltaを持つ。
 
 M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が変わる状態にする。
 
@@ -239,18 +239,16 @@ M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が�
 
 repo goalから逆算し、次の依存順で閉じる。
 
-1. 未校正19接続を[校正判断packet](docs/m2-calibration-decision-packet.md)で一括採用または修正する。
-2. 採用済み校正をversion付きfixtureへ固定し、全20接続の投資・台帳・危機寄与を同じgateで検証する。
-3. M3の主体制約と提案・承認・拒否・実行権限を実装する。
-4. M4の120ターン逐次event state machineとreplay UIを実装する。
-5. M5のA〜E、複数seed、日本除去を同一engineで実行し、反証結果を`RESULTS.md`へ記録する。
-6. 同一HEADのfull verify、browser、狭幅、keyboard、reduced-motion、accessibilityを閉じる。
+1. M3の主体制約と提案・承認・拒否・実行権限を実装する。
+2. M4の120ターン逐次event state machineとreplay UIを実装する。
+3. M5のA〜E、複数seed、日本除去を同一engineで実行し、反証結果を`RESULTS.md`へ記録する。
+4. 同一HEADのfull verify、browser、狭幅、keyboard、reduced-motion、accessibilityを閉じる。
 
-M2の人間採用前に係数を実装へ埋め込まない。M3・M4の契約設計は並行調査できるが、実装統合はM2採用後に依存順で行う。
+M2校正はハッカソン用架空値として採用済みであり、経験的政策効果として扱わない。M3・M4の実装統合は依存順で行う。
 
 ## 現時点の人間判断
 
-P1の視覚変更案と代表接続の架空係数v0は採用済みで、M2 mechanical foundationとCloud handoff用run bundleも`main`へ統合済みである。現行仕様のcanonicalは`main`上のowner fileと実装であり、作業worktreeや旧branchは正本ではない。未校正19接続の意味・係数採用、push、merge、経験的校正、外部AI接続、Cloud実行、release、告知はそれぞれ別の停止線とする。
+P1の視覚変更案と代表接続の架空係数v0、残り19接続の架空校正v1は採用済みである。`main`はM2 mechanical foundationとCloud handoff用run bundleまでのcanonicalであり、現在candidateはM2 runtime差分を保持する。push、merge、経験的校正、外部AI接続、Cloud実行、release、告知はそれぞれ別の停止線とする。
 
 ## マイルストーン呼称
 

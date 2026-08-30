@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/run-bundle-v1`
-- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（既存決定論コアを正本とする`meta-security-run-bundle/v1`、trusted JSON snapshot輸送境界、実装repo固定provenance、seed・event container境界、116件回帰）
+- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（履歴証拠。現candidateではM2全20接続校正を追加し117件回帰）
 - base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 116件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、run bundleのProxy拒否・標準prototype・連続array index・data descriptor・深さ上限を統合したtrusted JSON snapshot、実装repo固定provenance、seed役割・成否・独立implementation SHA・event container・再実行一致、台帳drawer、校正・migration・最終checkpointを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 117件pass。提案・receipt・PDCA、全20接続のarchetype校正・非一律適格性、baseline制約説明、annual replay、保存証拠、run bundle、台帳drawer、migration、最終checkpointを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
@@ -39,7 +39,7 @@
 
 ## 採用済みの人間判断
 
-- 代表接続の初期値、5施策の接続delta、危機寄与weightを、ハッカソン体験検証用の架空係数v0として採用する。
+- 代表接続v0と残り19接続のarchetype校正v1を、ハッカソン体験検証用の架空係数として採用する。
 - 現行UIの情報密度とREADME画像を採用する。
 - 公開名義を`nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`として検査する。
 

@@ -44,7 +44,7 @@ console.log(JSON.stringify({
     stressTest: demo.stressTests[2035],
   },
   limitations: [
-    "only-one-relationship-is-investable-and-calibrated",
+    "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
     "actors-do-not-yet-change-behavior",
     "crisis-does-not-yet-execute-120-events",
     "comparison-strategies-are-not-yet-run-by-one-engine",

@@ -1,6 +1,6 @@
 {
-  "status": "proposed-unadopted",
-  "version": "relationship-v1.1.0-candidate",
+  "status": "adopted-hackathon-fictional",
+  "version": "relationship-v1.1.0",
   "stateKeys": ["maturity", "trust", "verificationAgreement", "interoperability", "coOwnership", "dependency", "alternateRoutes", "disclosureCost"],
   "actions": ["translation", "verification", "reversibility", "redundancy", "coownership"],
   "archetypes": {

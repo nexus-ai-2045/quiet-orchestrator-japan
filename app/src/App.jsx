@@ -100,7 +100,7 @@ function Header({ state, preview, onAdvance, onStress, onCompare, onReset, compa
       <div className="command-bar">
         <StrategicTimeline year={state.year} />
         <div className="command-actions">
-          <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "代表接続を選択"}<span aria-hidden="true">→</span></button>
+          <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "接続と施策を選択"}<span aria-hidden="true">→</span></button>
           <button className="button" onClick={onStress} title={`${state.year}年の接続状態を固定して${atCheckpoint ? "標準チェックポイント" : "任意年"}として検証`}>{atCheckpoint ? "終末の1ヶ月テスト" : "任意年テスト"}</button>
           <button className={`button ${comparing ? "active" : ""}`} onClick={onCompare}>比較</button>
           <button className="button quiet" onClick={onReset}>リセット</button>
@@ -141,7 +141,7 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedge
     <section className="network-stage" aria-label="長期接続ネットワーク">
       <div className="stage-title">
         <strong>長期ポートフォリオ・レイヤー</strong>
-        <label className="relationship-picker">接続を選択<select value={state.selectedRelationshipId} onChange={(event) => onSelectRelationship(event.target.value)}>{RELATIONSHIPS.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.label}{relationship.investable ? " / P1代表" : " / 表示のみ"}</option>)}</select></label>
+        <label className="relationship-picker">接続を選択<select value={state.selectedRelationshipId} onChange={(event) => onSelectRelationship(event.target.value)}>{RELATIONSHIPS.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.label} / {relationship.archetype}</option>)}</select></label>
       </div>
       <div className="layer-labels" aria-hidden="true">
         <div><strong>検証基盤</strong><span>共通の事実を確かめる</span></div>
@@ -170,7 +170,7 @@ function Inspector({ state, focusedLedgerEntry }) {
     <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
         <div className="panel-heading"><strong>{historicalEntry ? `${historicalEntry.year}年の接続` : "選択中の接続"}</strong><span>{relationship.label}</span></div>
       <div className="inspector-body">
-        <div className={`scope-badge ${relationship.investable ? "active" : ""}`}>{relationship.investable ? "P1 代表接続 / 投資可能" : "P1 表示のみ / 未校正"}</div>
+        <div className="scope-badge active">M2 {relationship.archetype} / 投資可能</div>
         <h2>{source.name}<span> ↔ </span>{target.name}</h2>
         <dl>
           <div><dt>関係の目的</dt><dd>{relationship.purpose}</dd></div>

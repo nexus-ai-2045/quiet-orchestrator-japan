@@ -47,4 +47,8 @@ test("baseline output identifies the frozen design and implementation inputs", (
     civilianProtection: 64,
     verdict: "改善余地",
   });
+  assert.ok(baseline.limitations.includes(
+    "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
+  ));
+  assert.ok(!baseline.limitations.includes("only-one-relationship-is-investable-and-calibrated"));
 });

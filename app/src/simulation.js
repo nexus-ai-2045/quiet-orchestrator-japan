@@ -11,6 +11,7 @@ import {
   REPRESENTATIVE_INITIAL_STATE,
   SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
 } from "./calibration-v0.js";
+import M2_CALIBRATION from "../../docs/m2-calibration-candidate-v1.json" with { type: "json" };
 
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
@@ -546,8 +547,16 @@ function canonicalizeJsonValue(value) {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalizeJsonValue(value[key])}`).join(",")}}`;
 }
 
-function relationshipCalibrationFingerprint(definition, version = CALIBRATION_VERSION) {
-  return `${version}:${canonicalizeJsonValue(definition.initialState)}`;
+function relationshipCalibrationFingerprint(definition, version = definition?.calibrationVersion ?? CALIBRATION_VERSION) {
+  const payload = definition?.archetype && definition.archetype !== "representative"
+    ? {
+      archetype: definition.archetype,
+      actionMultipliers: definition.actionMultipliers,
+      contested: definition.contested,
+      initialState: definition.initialState,
+    }
+    : definition?.initialState;
+  return `${version}:${canonicalizeJsonValue(payload)}`;
 }
 
 function parseCalibrationFingerprint(fingerprint) {
@@ -607,23 +616,47 @@ const RELATIONSHIP_PAIRS = [
 ];
 
 const CONTESTED_RELATIONSHIPS = new Set(["U3-B1", "J2-C1", "U1-C3"]);
+const M2_RELATIONSHIP_CALIBRATION = new Map(M2_CALIBRATION.relationships.map((relationship) => [relationship.id, relationship]));
+const applyStateDelta = (initialState, delta = {}) => Object.fromEntries(Object.entries(initialState).map(([key, value]) => [
+  key,
+  key === "alternateRoutes"
+    ? clamp(value + (delta[key] ?? 0), 0, 5)
+    : clamp(value + (delta[key] ?? 0)),
+]));
 
 export const RELATIONSHIPS = RELATIONSHIP_PAIRS.map(([source, target]) => {
   const id = `${source}-${target}`;
-  const investable = id === REPRESENTATIVE_RELATIONSHIP_ID;
+  const representative = id === REPRESENTATIVE_RELATIONSHIP_ID;
+  const adopted = M2_RELATIONSHIP_CALIBRATION.get(id);
+  const contested = CONTESTED_RELATIONSHIPS.has(id);
+  const archetype = adopted ? M2_CALIBRATION.archetypes[adopted.archetype] : null;
+  const initialState = representative
+    ? REPRESENTATIVE_INITIAL_STATE
+    : applyStateDelta(archetype.initialState, contested ? M2_CALIBRATION.contestedModifier.initialStateDelta : undefined);
+  const actionMultipliers = representative
+    ? Object.fromEntries(M2_CALIBRATION.actions.map((actionId) => [actionId, 1]))
+    : archetype.actionMultipliers;
+  const calibrationVersion = representative ? CALIBRATION_VERSION : M2_CALIBRATION.version;
+  const ownership = representative
+    ? "共同所有 / 多元ガバナンス"
+    : archetype.ownership + (contested ? M2_CALIBRATION.contestedModifier.ownershipSuffix : "");
   return {
     id,
     source,
     target,
     label: `${source} ↔ ${target}`,
-    investable,
-    contested: CONTESTED_RELATIONSHIPS.has(id),
-    purpose: investable
+    investable: true,
+    contested,
+    archetype: representative ? "representative" : adopted.archetype,
+    calibrationVersion,
+    actionMultipliers,
+    positiveDeltaMultiplier: contested ? M2_CALIBRATION.contestedModifier.positiveDeltaMultiplier : 1,
+    purpose: representative
       ? "公開可能な事実と検証手順を、政策判断より先に共有する。"
-      : "P1では構造だけを表示し、係数と投資適格性は次段階で校正する。",
-    channel: investable ? "共同検証プロトコル" : "未校正の接続チャネル",
-    ownership: investable ? "共同所有 / 多元ガバナンス" : "P1未設定",
-    initialState: { ...(investable ? REPRESENTATIVE_INITIAL_STATE : DEFAULT_RELATIONSHIP_STATE) },
+      : adopted.purpose,
+    channel: representative ? "共同検証プロトコル" : adopted.channel,
+    ownership,
+    initialState: { ...initialState },
   };
 });
 
@@ -646,6 +679,10 @@ function createRelationshipState(relationshipDefinitions = RELATIONSHIPS) {
     purpose: definition.purpose,
     channel: definition.channel,
     ownership: definition.ownership,
+    archetype: definition.archetype,
+    calibrationVersion: definition.calibrationVersion,
+    actionMultipliers: { ...definition.actionMultipliers },
+    positiveDeltaMultiplier: definition.positiveDeltaMultiplier,
     calibrationFingerprint: definition.investable
       ? relationshipCalibrationFingerprint(definition)
       : null,
@@ -719,15 +756,15 @@ export function migrateSimulationState(candidate) {
         && relationship.target === definition.target
         && relationship.investable === definition.investable
         && definition.investable
-        && activeCalibrationFingerprint === SCHEMA_V2_CALIBRATION_FINGERPRINT
+        && canonicalizeJsonValue(relationship.state) === canonicalizeJsonValue(definition.initialState)
       );
       let calibrationFingerprint = existingFingerprint;
       if (canBackfillKnownV2) {
         if (existingFingerprint == null || existingFingerprint === "") {
           // Absent provenance only: never overwrite an explicit conflicting baseline.
-          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
-        } else if (calibrationFingerprintsMatch(existingFingerprint, SCHEMA_V2_CALIBRATION_FINGERPRINT)) {
-          calibrationFingerprint = SCHEMA_V2_CALIBRATION_FINGERPRINT;
+          calibrationFingerprint = activeCalibrationFingerprint;
+        } else if (calibrationFingerprintsMatch(existingFingerprint, activeCalibrationFingerprint)) {
+          calibrationFingerprint = activeCalibrationFingerprint;
         }
       }
       return [key, { ...relationship, calibrationFingerprint }];
@@ -822,8 +859,11 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       if (typeof definition[field] !== "boolean") errors.push(`${mapKey}: definition ${field} must be boolean`);
       if (typeof relationship[field] !== "boolean") errors.push(`${mapKey}: ${field} must be boolean`);
     }
-    for (const field of ["label", "purpose", "channel", "ownership", "investable", "contested"]) {
+    for (const field of ["label", "purpose", "channel", "ownership", "archetype", "calibrationVersion", "investable", "contested", "positiveDeltaMultiplier"]) {
       if (relationship[field] !== definition[field]) errors.push(`${mapKey}: ${field} drift`);
+    }
+    if (canonicalizeJsonValue(relationship.actionMultipliers) !== canonicalizeJsonValue(definition.actionMultipliers)) {
+      errors.push(`${mapKey}: actionMultipliers drift`);
     }
     for (const field of ["label", "purpose", "channel", "ownership"]) {
       if (typeof relationship[field] !== "string" || relationship[field].trim() === "") errors.push(`${mapKey}: ${field} is required`);
@@ -841,6 +881,12 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
         errors.push(`${mapKey}: calibrated definition baseline is invalid`);
       } else if (matchesCalibratedRelationship(relationship, definition)) {
         calibrated += 1;
+        const hasAnnualEvidence = Array.isArray(state?.ledger) && state.ledger.some((entry) => (
+          isRecord(entry) && entry.action !== "checkpoint-snapshot" && entry.relationshipId === mapKey
+        ));
+        if (!hasAnnualEvidence && canonicalizeJsonValue(relationship.state) !== canonicalizeJsonValue(definition.initialState)) {
+          errors.push(`${mapKey}: calibrated state drift without annual evidence`);
+        }
       } else {
         errors.push(`${mapKey}: calibrated fingerprint drift`);
       }
@@ -966,6 +1012,7 @@ function hasUnresolvedInvestableRelationships(state, relationshipDefinitions = R
 export function previewRelationshipInvestment(state, actionId = state.selectedAction, relationshipId = state.selectedRelationshipId, relationshipDefinitions = RELATIONSHIPS) {
   const relationship = state.relationships[relationshipId];
   const action = ACTIONS.find((item) => item.id === actionId);
+  const definition = relationshipDefinitions.find((item) => item.id === relationshipId);
   if (!relationship || !action) return { eligible: false, relationshipId, actionId, reason: "接続またはアクションが見つかりません" };
   if (hasUnresolvedInvestableRelationships(state, relationshipDefinitions)) {
     return { eligible: false, relationshipId, actionId, reason: "校正済みの接続定義が見つかりません" };
@@ -985,11 +1032,31 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
       tradeoffs: [],
     };
   }
+  const actionMultiplier = definition?.actionMultipliers?.[action.id];
+  if (actionMultiplier == null) {
+    return {
+      eligible: false,
+      relationshipId,
+      actionId,
+      cost: action.cost,
+      project: action.project,
+      reason: `${definition?.archetype ?? "unknown"}接続では${action.label}を適用しません`,
+      before: { ...relationship.state },
+      after: { ...relationship.state },
+      deltas: {},
+      metricDeltas: {},
+      tradeoffs: [],
+    };
+  }
 
   const yearsElapsed = state.year - START_YEAR;
   const fatigue = yearsElapsed >= 12 ? 1 : 0;
   const configured = RELATIONSHIP_ACTION_EFFECTS[action.id];
-  const requestedDeltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => [key, effectiveDelta(delta, fatigue)]));
+  const requestedDeltas = Object.fromEntries(Object.entries(configured.deltas).map(([key, delta]) => {
+    const beneficial = delta * RELATIONSHIP_BENEFIT_DIRECTIONS[key] > 0;
+    const multiplier = beneficial ? actionMultiplier * (definition.positiveDeltaMultiplier ?? 1) : 1;
+    return [key, effectiveDelta(Math.trunc(delta * multiplier), fatigue)];
+  }));
   const after = { ...relationship.state };
   for (const [key, delta] of Object.entries(requestedDeltas)) {
     after[key] = key === "alternateRoutes" ? clamp(after[key] + delta, 0, 5) : clamp(after[key] + delta);
@@ -1020,6 +1087,7 @@ export function previewRelationshipInvestment(state, actionId = state.selectedAc
     actionLabel: action.label,
     cost: action.cost,
     project: action.project,
+    ruleVersion: definition.calibrationVersion,
     reason: state.year >= END_YEAR ? "2045年の最終評価に到達しています" : checkpointPending ? `${state.year}年の終末の1ヶ月テストを先に記録してください` : state.budget < action.cost ? "年間ポイントが不足しています" : !beneficialRelationshipChanged ? "この接続への改善効果はすべて上限または下限に達しています" : "実行可能",
     before: { ...relationship.state },
     after,
@@ -1127,7 +1195,7 @@ export function advanceYear(state, relationshipDefinitions = RELATIONSHIPS) {
       sideEffects: preview.tradeoffs,
     },
     reason: `${preview.actionLabel}の年間投資を${preview.relationshipLabel}へ適用`,
-    ruleVersion: RULE_VERSION,
+    ruleVersion: preview.ruleVersion ?? RULE_VERSION,
     seed: state.seed,
   };
   return {

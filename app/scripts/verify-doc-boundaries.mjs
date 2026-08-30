@@ -66,8 +66,8 @@ if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証�
 if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
   throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
 }
-if (!roadmap.includes("M2 mechanical foundation・`meta-security-run-bundle/v1`は`main`へ統合済み")) {
-  throw new Error("ROADMAP.md must record the current mechanical-foundation and run-bundle boundary");
+if (!roadmap.includes("現在candidateは全20接続の架空校正v1をruntimeへ実装済み")) {
+  throw new Error("ROADMAP.md must record the current M2 runtime candidate boundary");
 }
 const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
 const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
@@ -76,14 +76,14 @@ if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEqu
   throw new Error("country-equivalence completion gate belongs to M3 actor constraints, not closed M1");
 }
 
-if (!calibrationPacket.includes("status: **提案 / 未採用**") || !calibrationPacket.includes("採用されるまでruntime、結果、完了証拠へ反映しない")) {
-  throw new Error("M2 calibration packet must remain an explicitly unadopted human-decision input");
+if (!calibrationPacket.includes("status: **採用済み / ハッカソン用架空校正**") || !calibrationPacket.includes("経験的校正へ置換する場合はversionを更新")) {
+  throw new Error("M2 calibration packet must record the adopted fictional calibration boundary");
 }
 const calibrationCandidate = JSON.parse(calibrationCandidateJson);
 if (
-  calibrationCandidate.status !== "proposed-unadopted"
-  || calibrationCandidate.version !== "relationship-v1.1.0-candidate"
-  || !calibrationPacket.includes(`proposed calibration version: \`${calibrationCandidate.version}\``)
+  calibrationCandidate.status !== "adopted-hackathon-fictional"
+  || calibrationCandidate.version !== "relationship-v1.1.0"
+  || !calibrationPacket.includes(`adopted calibration version: \`${calibrationCandidate.version}\``)
 ) {
   throw new Error("M2 calibration candidate status/version drift");
 }
