@@ -27,12 +27,44 @@ const PORTFOLIO_TYPES = Object.freeze({
   }),
 });
 
+const ACTION_REQUIRED_CAPABILITY = Object.freeze({
+  translation: "translate",
+  verification: "verify",
+  reversibility: "propose",
+  redundancy: "observe",
+  coownership: "approve",
+});
+const AUTHORIZATION_ERRORS = new Set([
+  "proposal_not_authorized",
+  "approval_not_authorized",
+  "execution_not_authorized",
+  "action_capability_not_authorized",
+  "proposal_not_accepted",
+]);
+
 function rightsFor(actor) {
   return Object.freeze({
     propose: true,
     approve: actor.id === "B1" || actor.portfolio === "ownership",
     execute: actor.id === "B1",
   });
+}
+
+function transactionErrors(receipt, proposerId, approverId, executorId) {
+  const errors = [];
+  const proposer = ACTOR_CONSTRAINTS[proposerId];
+  const approver = ACTOR_CONSTRAINTS[approverId];
+  const executor = ACTOR_CONSTRAINTS[executorId];
+  if (!proposer?.decisionRights.propose || proposerId !== receipt?.actorId) errors.push("proposal_not_authorized");
+  if (!approver?.decisionRights.approve) errors.push("approval_not_authorized");
+  if (!executor?.decisionRights.execute) errors.push("execution_not_authorized");
+  const actionId = receipt?.appliedProposal?.actionId;
+  const requiredCapability = ACTION_REQUIRED_CAPABILITY[actionId];
+  if (!requiredCapability || !executor?.capabilities.includes(requiredCapability)) {
+    errors.push("action_capability_not_authorized");
+  }
+  if (receipt?.outcome !== "accepted") errors.push("proposal_not_accepted");
+  return errors;
 }
 
 export function buildActorConstraintProfile(actor) {
@@ -43,7 +75,9 @@ export function buildActorConstraintProfile(actor) {
     constraintVersion: ACTOR_CONSTRAINT_VERSION,
     portfolio: actor.portfolio,
     role: type.role,
-    capabilities: type.capabilities,
+    capabilities: actor.id === "B1"
+      ? Object.freeze([...new Set([...type.capabilities, ...Object.values(ACTION_REQUIRED_CAPABILITY)])])
+      : type.capabilities,
     interests: type.interests,
     constraints: type.constraints,
     evidenceAccess: type.evidenceAccess,
@@ -67,6 +101,8 @@ export function recordGovernanceOutcome({ receipt, proposerId, approverId, execu
     turn: receipt?.turn ?? null,
     observationHash: receipt?.observationHash ?? null,
     proposalOutputHash: receipt?.provider?.outputHash ?? null,
+    actionId: receipt?.appliedProposal?.actionId ?? null,
+    proposalAccepted: receipt?.outcome === "accepted",
     proposerId,
     approverId,
     executorId,
@@ -81,14 +117,7 @@ export function authorizeAiTransaction(receipt, {
   approverId = receipt?.actorId === "B1" ? "B1" : "C6",
   executorId = "B1",
 } = {}) {
-  const errors = [];
-  const proposer = ACTOR_CONSTRAINTS[proposerId];
-  const approver = ACTOR_CONSTRAINTS[approverId];
-  const executor = ACTOR_CONSTRAINTS[executorId];
-  if (!proposer?.decisionRights.propose || proposerId !== receipt?.actorId) errors.push("proposal_not_authorized");
-  if (!approver?.decisionRights.approve) errors.push("approval_not_authorized");
-  if (!executor?.decisionRights.execute) errors.push("execution_not_authorized");
-  if (receipt?.outcome !== "accepted") errors.push("proposal_not_accepted");
+  const errors = transactionErrors(receipt, proposerId, approverId, executorId);
   const outcome = errors.length === 0 ? "approved" : "rejected";
   return {
     approved: outcome === "approved",
@@ -100,9 +129,18 @@ export function authorizeAiTransaction(receipt, {
 export function validateGovernanceEntry(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
   const { governanceId, ...payload } = entry;
-  return typeof governanceId === "string"
-    && governanceId === observationFingerprint(payload)
-    && Array.isArray(entry.errors)
-    && entry.errors.every((error) => typeof error === "string")
-    && canonicalize(entry.errors) === canonicalize([...entry.errors]);
+  if (typeof governanceId !== "string"
+    || governanceId !== observationFingerprint(payload)
+    || !Array.isArray(entry.errors)
+    || !entry.errors.every((error) => typeof error === "string")) return false;
+  const receipt = {
+    actorId: entry.proposerId,
+    outcome: entry.proposalAccepted === true ? "accepted" : "fallback",
+    appliedProposal: { actionId: entry.actionId },
+  };
+  const expectedErrors = transactionErrors(receipt, entry.proposerId, entry.approverId, entry.executorId);
+  const recordedAuthorizationErrors = entry.errors.filter((error) => AUTHORIZATION_ERRORS.has(error));
+  if (canonicalize(recordedAuthorizationErrors) !== canonicalize(expectedErrors)) return false;
+  if (entry.outcome === "approved") return expectedErrors.length === 0 && entry.errors.length === 0;
+  return entry.outcome === "rejected" && entry.errors.length > 0;
 }

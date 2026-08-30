@@ -159,7 +159,7 @@ npm run verify
 app/
   src/
     simulation.js      決定論的な状態遷移、施策、評価
-    calibration-v0.js  架空係数の正本 (docs/calibration-v0.md と対)
+    calibration-v0.js  代表接続の架空係数正本 (docs/calibration-v0.md と対)
     ai/                scripted Policy Engineの契約・検証・ローカルPDCA
     App.jsx            操作可能なUIと比較表示
     styles.css         選択済みデザインシステム
@@ -170,6 +170,8 @@ docs/
   design/              選択済みUIコンセプト
   images/              実装プレビュー
 ```
+
+M2の残り19接続は、採用済み機械可読SSOT [`docs/m2-calibration-v1.json`](docs/m2-calibration-v1.json) をruntimeが直接読み込む。判断理由と人間可読表は[`docs/m2-calibration-decision-packet.md`](docs/m2-calibration-decision-packet.md)が所有し、値を重複定義しない。
 
 設計上、シミュレーション状態と描画を分離しています。保存・比較・将来の推論アダプターは、DOMやネットワーク描画を状態の正本にしません。
 

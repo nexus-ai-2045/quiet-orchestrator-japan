@@ -20,7 +20,7 @@ const [design, contract, results, roadmap, projectSsot, readme, preflight, publi
   read("PUBLIC_READY.md"),
   read("app/package.json"),
   read("docs/m2-calibration-decision-packet.md"),
-  read("docs/m2-calibration-candidate-v1.json"),
+  read("docs/m2-calibration-v1.json"),
   read("app/src/simulation.js"),
 ]);
 
@@ -49,6 +49,26 @@ if (!results.includes("EXPERIMENT_DESIGN.md") || !results.includes("結論に使
   throw new Error("RESULTS.md must link the frozen design and state its limits");
 }
 
+const requiredCurrentMvpClaims = [
+  "M2架空校正",
+  "M3制約と権限分離",
+  "M4の120ターン決定論危機再生",
+  "M5のA〜E・5 seed・日本除去比較",
+];
+for (const claim of requiredCurrentMvpClaims) {
+  if (!results.includes(claim)) throw new Error(`RESULTS.md current MVP scope missing: ${claim}`);
+}
+const staleResultsScopeClaims = [
+  "未校正19接続の採用、18主体の制約、120個の逐次危機event、A〜E・日本除去の同一engine比較は完了証拠に含めない",
+  "アクターごとの利害、制約、証拠アクセスは行動差へ反映していない",
+  "終末の1ヶ月試験は120ターンのイベント列をまだ持たない",
+  "比較条件の一部は固定値で、同じエンジンによる再実行ではない",
+  "次段階はM4危機イベント機械",
+];
+for (const claim of staleResultsScopeClaims) {
+  if (results.includes(claim)) throw new Error(`RESULTS.md stale MVP scope claim: ${claim}`);
+}
+
 if (!design.includes("事前登録証拠ではない") || !results.includes("事前登録証拠ではない")) {
   throw new Error("design chronology limitation must remain explicit");
 }
@@ -69,6 +89,19 @@ if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) 
 if (!roadmap.includes("現在candidateはM2〜M5のローカルMVPを実装済み")) {
   throw new Error("ROADMAP.md must record the current M2-M5 runtime candidate boundary");
 }
+const staleRoadmapMvpClaims = [
+  "全20接続を投資可能にする校正 |",
+  "主体ごとの能力・利害・制約 |",
+  "| 全接続の状態遷移 |",
+  "| 120ターンのイベント列 |",
+  "| A〜Eを同じエンジン・seedで再実行 |",
+  "| 日本ノード除去後の実動テスト |",
+  "現在candidateはM2 runtime差分を保持する",
+  "M3・M4の実装統合は依存順で行う",
+];
+for (const claim of staleRoadmapMvpClaims) {
+  if (roadmap.includes(claim)) throw new Error(`ROADMAP.md stale MVP scope claim: ${claim}`);
+}
 const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
 const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
 const countryEquivalenceGate = "日本、中国、米国の国名を入れ替えた制約同等fixture";
@@ -78,6 +111,22 @@ if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEqu
 
 if (!calibrationPacket.includes("status: **採用済み / ハッカソン用架空校正**") || !calibrationPacket.includes("経験的校正へ置換する場合はversionを更新")) {
   throw new Error("M2 calibration packet must record the adopted fictional calibration boundary");
+}
+if (
+  !calibrationPacket.includes("M2残り19接続の採用済み機械可読SSOT: [`m2-calibration-v1.json`](m2-calibration-v1.json)")
+  || calibrationPacket.includes("machine-readable candidate")
+  || calibrationPacket.includes("m2-calibration-candidate-v1.json")
+) {
+  throw new Error("M2 calibration packet must point to the adopted machine-readable SSOT");
+}
+if (
+  !readme.includes("採用済み機械可読SSOT [`docs/m2-calibration-v1.json`](docs/m2-calibration-v1.json)")
+  || !readme.includes("代表接続の架空係数正本")
+) {
+  throw new Error("README.md must distinguish M1 and M2 calibration ownership");
+}
+if (!simulationSource.includes('from "../../docs/m2-calibration-v1.json" with { type: "json" }')) {
+  throw new Error("M2 runtime must import the adopted calibration SSOT");
 }
 const calibrationCandidate = JSON.parse(calibrationCandidateJson);
 if (

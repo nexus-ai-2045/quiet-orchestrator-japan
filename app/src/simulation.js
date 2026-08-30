@@ -11,7 +11,7 @@ import {
   REPRESENTATIVE_INITIAL_STATE,
   SCHEMA_V2_REPRESENTATIVE_CALIBRATION,
 } from "./calibration-v0.js";
-import M2_CALIBRATION from "../../docs/m2-calibration-candidate-v1.json" with { type: "json" };
+import M2_CALIBRATION from "../../docs/m2-calibration-v1.json" with { type: "json" };
 
 export const START_YEAR = 2026;
 export const END_YEAR = 2045;
@@ -515,7 +515,7 @@ export function validateSimulationExecutionState(state, relationshipDefinitions 
   if (!isValidRelationshipDefinitionContainer(relationshipDefinitions)) {
     return { valid: false, errors: ["relationship definitions must be an array of objects"], portfolio: null };
   }
-  if (state.schemaVersion !== 3) errors.push("simulation state must use schema version 3");
+  if (state.schemaVersion !== 4) errors.push("simulation state must use schema version 4");
   if (!isNonEmptyString(state.seed)) errors.push("seed must be a nonempty string");
   if (!isValidSimulationYear(state.year)) errors.push(`year must be an integer within ${START_YEAR}-${END_YEAR}`);
   if (!Number.isFinite(state.budget) || state.budget < 0 || state.budget > 100) errors.push("budget must be within 0-100");
@@ -694,7 +694,7 @@ function createRelationshipState(relationshipDefinitions = RELATIONSHIPS) {
 
 export function createInitialState(relationshipDefinitions = RELATIONSHIPS) {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     seed: "baseline-0",
     year: START_YEAR,
     budget: 100,
@@ -739,8 +739,29 @@ function backfillSchemaV3ExecutionEvidence(candidate) {
 }
 
 export function migrateSimulationState(candidate) {
-  if (candidate?.schemaVersion === 3) {
+  if (candidate?.schemaVersion === 4) {
     return backfillSchemaV3ExecutionEvidence(candidate);
+  }
+  if (candidate?.schemaVersion === 3) {
+    const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
+      const definition = RELATIONSHIPS.find((item) => item.id === key);
+      if (!definition || !relationship || typeof relationship !== "object" || Array.isArray(relationship)) return [key, relationship];
+      const migrated = { ...relationship };
+      for (const field of ["archetype", "calibrationVersion", "positiveDeltaMultiplier"]) {
+        if (migrated[field] === undefined) migrated[field] = definition[field];
+      }
+      if (migrated.actionMultipliers === undefined) migrated.actionMultipliers = { ...definition.actionMultipliers };
+      if ((migrated.calibrationFingerprint == null || migrated.calibrationFingerprint === "")
+        && migrated.id === definition.id
+        && migrated.source === definition.source
+        && migrated.target === definition.target
+        && migrated.investable === definition.investable
+        && canonicalizeJsonValue(migrated.state) === canonicalizeJsonValue(definition.initialState)) {
+        migrated.calibrationFingerprint = relationshipCalibrationFingerprint(definition);
+      }
+      return [key, migrated];
+    }));
+    return backfillSchemaV3ExecutionEvidence({ ...candidate, schemaVersion: 4, relationships });
   }
   if (candidate?.schemaVersion === 2) {
     const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
@@ -771,7 +792,7 @@ export function migrateSimulationState(candidate) {
     }));
     return backfillSchemaV3ExecutionEvidence({
       ...candidate,
-      schemaVersion: 3,
+      schemaVersion: 4,
       relationships,
       stressTests: normalizeStressTests(candidate.stressTests),
     });
@@ -780,7 +801,7 @@ export function migrateSimulationState(candidate) {
   return {
     ...initial,
     ...(candidate ?? {}),
-    schemaVersion: 3,
+    schemaVersion: 4,
     seed: candidate?.seed ?? initial.seed,
     metrics: { ...initial.metrics, ...(candidate?.metrics ?? {}) },
     relationships: createRelationshipState(),
@@ -838,6 +859,19 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
       if (!Number.isFinite(value) || value < 0 || value > max) errors.push(`${definition.id}: definition ${key} must be within 0-${max}`);
       if (key === "alternateRoutes" && Number.isFinite(value) && !Number.isInteger(value)) errors.push(`${definition.id}: definition alternateRoutes must be an integer`);
     }
+    const actionKeys = Object.keys(definition.actionMultipliers ?? {}).sort();
+    const expectedActionKeys = ACTIONS.map((action) => action.id).sort();
+    if (actionKeys.join("|") !== expectedActionKeys.join("|")) errors.push(`${definition.id}: definition actionMultipliers schema drift`);
+    for (const actionId of expectedActionKeys) {
+      const multiplier = definition.actionMultipliers?.[actionId];
+      if (multiplier !== null && (!Number.isFinite(multiplier) || multiplier < 0 || multiplier > 1)) {
+        errors.push(`${definition.id}: definition ${actionId} multiplier must be null or within 0-1`);
+      }
+    }
+    if (!Number.isFinite(definition.positiveDeltaMultiplier)
+      || definition.positiveDeltaMultiplier < 0 || definition.positiveDeltaMultiplier > 1) {
+      errors.push(`${definition.id}: definition positiveDeltaMultiplier must be within 0-1`);
+    }
   }
   for (const [mapKey, relationship] of entries) {
     const definition = definitionsById.get(mapKey);
@@ -864,6 +898,19 @@ export function validateRelationshipPortfolio(state, relationshipDefinitions = R
     }
     if (canonicalizeJsonValue(relationship.actionMultipliers) !== canonicalizeJsonValue(definition.actionMultipliers)) {
       errors.push(`${mapKey}: actionMultipliers drift`);
+    }
+    const relationshipActionKeys = Object.keys(relationship.actionMultipliers ?? {}).sort();
+    const expectedActionKeys = ACTIONS.map((action) => action.id).sort();
+    if (relationshipActionKeys.join("|") !== expectedActionKeys.join("|")) errors.push(`${mapKey}: actionMultipliers schema drift`);
+    for (const actionId of expectedActionKeys) {
+      const multiplier = relationship.actionMultipliers?.[actionId];
+      if (multiplier !== null && (!Number.isFinite(multiplier) || multiplier < 0 || multiplier > 1)) {
+        errors.push(`${mapKey}: ${actionId} multiplier must be null or within 0-1`);
+      }
+    }
+    if (!Number.isFinite(relationship.positiveDeltaMultiplier)
+      || relationship.positiveDeltaMultiplier < 0 || relationship.positiveDeltaMultiplier > 1) {
+      errors.push(`${mapKey}: positiveDeltaMultiplier must be within 0-1`);
     }
     for (const field of ["label", "purpose", "channel", "ownership"]) {
       if (typeof relationship[field] !== "string" || relationship[field].trim() === "") errors.push(`${mapKey}: ${field} is required`);

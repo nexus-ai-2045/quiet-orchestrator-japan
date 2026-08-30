@@ -6,20 +6,20 @@
 
 設計の正本は[プロダクト設計](docs/product-architecture.md)、実験上の不変条件は[シミュレーション契約](simulation-contract.md)に置く。
 
-## 現在地｜Cloud handoff可能 + M2 runtime candidate実装済み
+## 現在地｜M2〜M5ローカルMVP candidate実装済み
 
 状態: **`main`はP0・P1・M1.5・M2 mechanical foundation・run bundleまで / 現在candidateはM2〜M5のローカルMVPを実装済み / 次はrun bundle統合とUI証拠**
 
-| 実装済み | 未実装 |
+| ローカルMVP candidateで実装済み | 統合前の残務・対象外 |
 |---|---|
-| 2026〜2045年の決定論的年次更新 | 全20接続を投資可能にする校正 |
-| 18主体、20接続の安定IDと共通schema | 主体ごとの能力・利害・制約 |
-| `B1 ↔ C6`の状態遷移、差分preview、因果台帳、全履歴drawer | 全接続の状態遷移 |
-| 5施策による全体指標の差 | 投資先による施策効果の差 |
-| 30日・6時間×120ターンという契約 | 120ターンのイベント列 |
-| 2030、2035、2040、2045年の集約試験 | 何ターン目に何が効いたかの再生 |
-| 3戦略の比較表示 | A〜Eを同じエンジン・seedで再実行 |
-| 2045年の継続性スコア | 日本ノード除去後の実動テスト |
+| 2026〜2045年の決定論的年次更新と全20接続の架空校正 | 経験的係数への置換は対象外 |
+| 18主体、20接続の安定ID・共通schema・主体制約と権限分離 | 実在主体の行動推定は対象外 |
+| 全接続の状態遷移、差分preview、因果台帳、全履歴drawer | 現在HEADのUI・アクセシビリティ証拠 |
+| 投資先・archetype別の施策適格性と非一律delta | 係数感度と評価軸のreview収束 |
+| 30日・6時間×120ターンの決定論イベント列とreplay | 契約暦・主体別観測・代替経路のreview収束 |
+| A〜Eを同じengineで5 seed比較 | run bundleへのevent・replay・evidence統合 |
+| 日本ノード除去後の停止接続・残存主体の試験 | 2045年最終状態への束縛確認 |
+| `meta-security-run-bundle/v1`出力境界 | 同一HEADのfull verify・browser証拠・PR統合 |
 
 P1の代表接続を含め、現時点の数値は架空であり、構想の有効性を示す実証結果ではない。
 
@@ -78,7 +78,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 終末の1ヶ月の接続寄与からInspectorへ戻る導線と、drawer選択は同じ`ledgerEntryId` focus契約を共有する。
 - state version 3、schema-v2校正fingerprint backfill、旧集約状態のmigration入口を追加した。
 - 校正fingerprintはキー挿入順に依存せず、preview前に全investableを検証し、schema-v2の競合fingerprintは上書きせずfail closedにする。
-- unit test 123件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在candidateのsame-HEAD実測には数えない。
+- unit test 127件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在candidateのsame-HEAD実測には数えない。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。M2全20接続の校正はハッカソン用架空archetypeである。M3では18主体へ国名非依存の再利用可能な制約型を割り当て、提案・承認・実行権限と拒否証拠を分離した。国名・表示名の置換で制約fingerprintが変わらないfixtureを回帰固定している。
 
@@ -244,11 +244,11 @@ repo goalから逆算し、次の依存順で閉じる。
 3. M5のA〜E、複数seed、日本除去を同一engineで実行し、反証結果を`RESULTS.md`へ記録する。
 4. 同一HEADのfull verify、browser、狭幅、keyboard、reduced-motion、accessibilityを閉じる。
 
-M2校正はハッカソン用架空値として採用済みであり、経験的政策効果として扱わない。M3・M4の実装統合は依存順で行う。
+M2校正はハッカソン用架空値として採用済みであり、経験的政策効果として扱わない。M3〜M5はローカルMVP candidateへ依存順で実装済みであり、残る作業はreviewで再現した契約不整合の根因修正、run bundle統合、同一HEADのUI・アクセシビリティ・full verify証拠である。
 
 ## 現時点の人間判断
 
-P1の視覚変更案と代表接続の架空係数v0、残り19接続の架空校正v1は採用済みである。`main`はM2 mechanical foundationとCloud handoff用run bundleまでのcanonicalであり、現在candidateはM2 runtime差分を保持する。push、merge、経験的校正、外部AI接続、Cloud実行、release、告知はそれぞれ別の停止線とする。
+P1の視覚変更案と代表接続の架空係数v0、残り19接続の架空校正v1は採用済みである。`main`はM2 mechanical foundationとCloud handoff用run bundleまでのcanonicalであり、現在candidateはM2〜M5のローカルMVP差分を保持する。push、merge、経験的校正、外部AI接続、Cloud実行、release、告知はそれぞれ別の停止線とする。
 
 ## マイルストーン呼称
 

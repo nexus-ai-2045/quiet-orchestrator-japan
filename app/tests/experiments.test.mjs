@@ -11,17 +11,26 @@ test("A-E use the same state budget action count and causal seed across five see
     assert.equal(new Set(rows.map((row) => row.initialStateHash)).size, 1);
     assert.equal(new Set(rows.map((row) => row.budget)).size, 1);
     assert.equal(new Set(rows.map((row) => row.actionCount)).size, 1);
-    assert.equal(new Set(rows.map((row) => row.causalScenarioHash)).size, 1);
+    assert.equal(new Set(rows.map((row) => row.causalSeedHash)).size, 1);
+    assert.ok(rows.every((row) => row.evaluationAxes && row.score === undefined));
+    assert.ok(rows.every((row) => ["reversibilityWindowTurns", "surveillanceDependencyExposure", "thirdPartyVerificationCoverage", "decisionRightDiversity"].every((key) => Number.isFinite(row.evaluationAxes[key]))));
   }
-  assert.ok(study.dLossSeeds.length >= 1);
+  assert.equal(study.evaluationPolicy, "axes-first-no-scalar-winner");
+  assert.equal(study.sensitivityVariants.length, 3);
   const dRows = study.results.filter((row) => row.strategyId === "D");
-  assert.ok(new Set(dRows.map((row) => row.causalScenarioHash)).size >= 5);
-  assert.ok(new Set(dRows.map((row) => row.score)).size > 1);
+  assert.equal(new Set(dRows.map((row) => row.causalSeedHash)).size, 5);
+  assert.ok(dRows.every((row) => row.sensitivity.length === 3));
 });
 
-test("Japan removal reports remaining operators and stopped functions", () => {
-  const study = runComparativeStudy(createDemoState(2035));
+test("Japan removal remains pending before 2045 and executes only at 2045", () => {
+  const pending = runComparativeStudy(createDemoState(2035));
+  assert.deepEqual(pending.japanRemoval, { status: "pending", executed: false, reason: "Japan removal evidence is only valid at 2045", requiredYear: 2045, currentYear: 2035 });
+  const study = runComparativeStudy(createDemoState(2045));
+  assert.equal(study.japanRemoval.status, "executed");
   assert.ok(study.japanRemoval.removedRelationshipIds.length > 0);
   assert.ok(study.japanRemoval.remainingOperatorIds.every((id) => !id.startsWith("J")));
-  assert.equal(study.japanRemoval.stoppedFunctions.length, study.japanRemoval.removedRelationshipIds.length);
+  assert.ok(Array.isArray(study.japanRemoval.stoppedFunctions));
+  assert.ok(study.japanRemoval.stoppedFunctions.length > 0);
+  assert.ok(study.japanRemoval.coveredFunctions.length > 0);
+  assert.ok(study.japanRemoval.evaluationAxes.coordinationFailedTurns > 0);
 });

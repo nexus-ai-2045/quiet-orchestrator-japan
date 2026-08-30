@@ -29,6 +29,11 @@ test("meta-security-run-bundle/v1 binds request, events, replay, and evidence to
   assert.deepEqual(first.events.map((event) => event.sequence), Array.from({ length: 130 }, (_, index) => index));
   assert.equal(first.events.filter((event) => event.event_type === "crisis.turn.completed").length, 120);
   assert.equal(first.events.at(-1).event_type, "comparative-study.completed");
+  assert.equal(first.events.at(-1).payload.evaluation_policy, "axes-first-no-scalar-winner");
+  assert.equal(first.events.at(-1).payload.japan_removal.status, "pending");
+  assert.equal(first.events.at(-1).payload.japan_removal.requiredYear, 2045);
+  assert.equal(Array.isArray(first.events.at(-1).payload.sensitivity_variants), true);
+  assert.equal(Array.isArray(first.events.at(-1).payload.reversal_thresholds), true);
   assert.equal(first.events.every((event) => event.run_id === first.run_request.run_id), true);
   assert.equal(first.replay.event_stream_sha256, first.evidence.event_stream_sha256);
   assert.equal(validateBundle(first).valid, true);

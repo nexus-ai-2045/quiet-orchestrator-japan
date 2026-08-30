@@ -51,12 +51,29 @@ test("proposal approval and execution rights are separate and rejection is audit
   const rejected = applyValidatedAiProposal(state, receipt, { proposerId: "J2", approverId: "J2", executorId: "J2" });
   assert.equal(rejected.applied, false);
   assert.strictEqual(rejected.state, state);
-  assert.deepEqual(rejected.errors, ["approval_not_authorized", "execution_not_authorized"]);
+  assert.deepEqual(rejected.errors, ["approval_not_authorized", "execution_not_authorized", "action_capability_not_authorized"]);
   assert.equal(rejected.governanceLedger[0].outcome, "rejected");
   assert.equal(validateGovernanceEntry(rejected.governanceLedger[0]), true);
   const approved = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
   assert.equal(approved.approved, true);
   assert.equal(approved.entry.outcome, "approved");
+});
+
+test("authorization requires the action capability and governance validation rebuilds semantics", () => {
+  const observation = buildObservation({ actorId: "J2", turn: 1, seed: "capability-0" });
+  const proposal = { proposalVersion: 1, actorId: "J2", turn: 1, observationHash: observation.observationHash, actionId: "translation", relationshipId: "B1-C6", rationale: "翻訳能力を持つ実行者へ渡す", confidence: 0.8 };
+  const receipt = createAiReceipt({ observation, proposal });
+  const denied = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "C1" });
+  assert.equal(denied.approved, false);
+  assert.ok(denied.errors.includes("execution_not_authorized"));
+  assert.ok(denied.errors.includes("action_capability_not_authorized"));
+
+  const approved = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
+  assert.equal(validateGovernanceEntry(approved.entry), true);
+  const forged = { ...approved.entry, actionId: "unsupported-action" };
+  const { governanceId: _oldId, ...payload } = forged;
+  forged.governanceId = observationFingerprint(payload);
+  assert.equal(validateGovernanceEntry(forged), false);
 });
 
 test("forged hash and unauthorized action fail closed to a fixed fallback", () => {

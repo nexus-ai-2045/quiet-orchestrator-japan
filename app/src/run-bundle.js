@@ -184,8 +184,11 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
       engine_version: study.engineVersion,
       initial_state_hash: study.initialStateHash,
       seeds: study.seeds,
+      evaluation_policy: study.evaluationPolicy,
       d_loss_seeds: study.dLossSeeds,
       japan_removal: study.japanRemoval,
+      sensitivity_variants: study.sensitivityVariants,
+      reversal_thresholds: study.reversalThresholds,
       result_hash: observationFingerprint(study.results),
     },
   }];

@@ -13,7 +13,7 @@
 
 READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
 
-この文書が記録する現在の実装段階は、代表接続の因果縦切り、scripted Policy EngineによるM1.5、全20接続のM2 mechanical foundation、Cloud handoff用`meta-security-run-bundle/v1`までである。未校正19接続の採用、18主体の制約、120個の逐次危機event、A〜E・日本除去の同一engine比較は完了証拠に含めない。
+この文書が記録する現在の実装段階は、代表接続の因果縦切り、scripted Policy EngineによるM1.5、全20接続のM2架空校正、18主体のM3制約と権限分離、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、Cloud handoff用`meta-security-run-bundle/v1`までである。これらはハッカソン用ローカルMVP candidateの機械検証範囲であり、経験的政策効果、研究上の妥当性、外部AIによる自律交渉の完了証拠ではない。
 
 ## 機械検証
 
@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 123件pass |
+| `npm test` | 127件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-123件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。5 seedは真因・訂正時点・不可逆行動時点・障害区間が異なり、Dのscoreもseedごとに変化する。反証seed `cause-4` ではD網状調整がB同盟代理を下回る。日本除去試験では11接続が停止し、残存11主体を明示した。
+127件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed比較、係数感度・反転条件、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。5 seedは真因・訂正時点・不可逆行動時点・障害区間が異なり、結果は単一scoreではなく訂正・協調・不可逆性・市民影響・代替経路の軸ごとに比較する。日本除去試験は2045年だけ実行し、それ以前はpendingとして証拠化する。
 
 ### M1.5 ローカルPDCA実測
 
@@ -126,10 +126,10 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 ## 現時点で結論に使えないこと
 
 - 全20接続は共通schemaと架空校正v1を持つが、経験的な政策効果としては未校正である。
-- アクターごとの利害、制約、証拠アクセスは行動差へ反映していない。
-- 終末の1ヶ月試験は120ターンのイベント列をまだ持たない。
-- 比較条件の一部は固定値で、同じエンジンによる再実行ではない。
+- M3の役割、能力、利害、制約、証拠アクセス、決定権は決定論的な架空profileであり、実在主体の行動を推定する経験モデルではない。
+- M4の120ターンイベント列は固定契約と架空の因果worldを再生するMVPであり、現実の危機確率や時系列を予測しない。
+- M5のA〜E・5 seed・日本除去は同じ決定論engineで比較するが、現時点の結果は採用済み架空係数と限定したseed集合に依存する。
 - 数値と係数は架空で、経験的な確率や政策効果を表さない。
 - AI/LLM推論や自律交渉は未実装である。現M1.5は固定seed・固定action表のscripted Policy Engineによる3主体×3ターンPDCA基準線である。
 
-したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、全20接続のM2架空校正、M3主体制約と権限分離、Cloud handoff契約である。次段階はM4危機イベント機械であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。
+したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、M2全20接続架空校正、M3主体制約と権限分離、M4危機イベント機械、M5反証・日本不在比較、Cloud handoff契約を一つのローカルMVP candidateとして機械検証できる状態である。残る境界は同一HEADのUI・アクセシビリティ証拠、run bundle統合証拠、review収束、PR統合であり、順序は[ロードマップ](ROADMAP.md)を参照する。

@@ -131,7 +131,7 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
 
 test("relationship v1 gives every connection a stable schema", () => {
   const state = createInitialState();
-  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.schemaVersion, 4);
   assert.equal(RELATIONSHIPS.length, 20);
   assert.equal(Object.keys(state.relationships).length, 20);
   assert.equal(state.selectedRelationshipId, "B1-C6");
@@ -356,7 +356,7 @@ test("legacy aggregate state has an explicit migration path", () => {
     history: [],
     stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
   });
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(migrated.year, 2030);
   assert.equal(migrated.metrics.verification, 61);
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
@@ -374,7 +374,7 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   }
 
   const migrated = migrateSimulationState(legacy);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(
     migrated.relationships["B1-C6"].calibrationFingerprint,
     'relationship-v1.0.0:{"alternateRoutes":1,"coOwnership":28,"dependency":48,"disclosureCost":12,"interoperability":36,"maturity":46,"trust":42,"verificationAgreement":38}',
@@ -382,6 +382,42 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   assert.equal(previewRelationshipInvestment(migrated).eligible, true);
   assert.notEqual(advanceYear(migrated), migrated);
   assert.ok(runStressTest(migrated).stressTests[migrated.year]);
+});
+
+test("schema-v3 migration backfills only absent M2 metadata and preserves conflicts", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 3;
+  const absent = legacy.relationships["J1-B1"];
+  delete absent.archetype;
+  delete absent.calibrationVersion;
+  delete absent.actionMultipliers;
+  delete absent.positiveDeltaMultiplier;
+  delete absent.calibrationFingerprint;
+  legacy.relationships["J2-U2"].archetype = "forged-archetype";
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.relationships["J1-B1"].archetype, RELATIONSHIPS.find((item) => item.id === "J1-B1").archetype);
+  assert.deepEqual(migrated.relationships["J1-B1"].actionMultipliers, RELATIONSHIPS.find((item) => item.id === "J1-B1").actionMultipliers);
+  assert.match(migrated.relationships["J1-B1"].calibrationFingerprint, /^relationship-v1\.1\.0:/);
+  assert.equal(migrated.relationships["J2-U2"].archetype, "forged-archetype");
+  assert.equal(validateSimulationExecutionState(migrated).valid, false);
+});
+
+test("runtime rejects incomplete or out-of-range calibration multiplier metadata", () => {
+  const state = createInitialState();
+  const missingAction = structuredClone(state);
+  delete missingAction.relationships["J1-B1"].actionMultipliers.translation;
+  assert.ok(validateSimulationExecutionState(missingAction).errors.some((error) => error.includes("actionMultipliers")));
+
+  const invalidPositive = structuredClone(state);
+  invalidPositive.relationships["J1-B1"].positiveDeltaMultiplier = Number.POSITIVE_INFINITY;
+  assert.ok(validateSimulationExecutionState(invalidPositive).errors.some((error) => error.includes("positiveDeltaMultiplier")));
+
+  const badDefinitions = RELATIONSHIPS.map((definition) => definition.id === "J1-B1"
+    ? { ...definition, actionMultipliers: { ...definition.actionMultipliers, verification: 1.01 } }
+    : definition);
+  assert.ok(validateSimulationExecutionState(state, badDefinitions).errors.some((error) => error.includes("multiplier must be null or within 0-1")));
 });
 
 test("calibration fingerprints ignore initialState key insertion order", () => {
@@ -439,7 +475,7 @@ test("schema-v2 migration preserves a conflicting calibration fingerprint", () =
   }
 
   const migrated = migrateSimulationState(legacy);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(migrated.relationships["B1-C6"].calibrationFingerprint, 'relationship-v0.9.0:{"maturity":0}');
   assert.equal(previewRelationshipInvestment(migrated).eligible, false);
   assert.strictEqual(advanceYear(migrated), migrated);

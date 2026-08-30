@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoState } from "../src/simulation.js";
-import { replayCrisisEvent, runCrisisSimulation } from "../src/crisis.js";
+import { CRISIS_PHASES, replayCrisisEvent, runCrisisSimulation } from "../src/crisis.js";
 
 test("the crisis engine deterministically emits all 120 ordered turns without strategic growth", () => {
   const state = createDemoState(2035);
@@ -13,7 +13,27 @@ test("the crisis engine deterministically emits all 120 ordered turns without st
   assert.equal(first.events.length, 120);
   assert.deepEqual(first.events.map((event) => event.sequence), Array.from({ length: 120 }, (_, index) => index));
   assert.equal(new Set(first.events.map((event) => event.phase)).size, 7);
+  assert.deepEqual(CRISIS_PHASES.map(({ start, end, name }) => [start, end, name]), [
+    [0, 11, "衝撃"], [12, 27, "帰属競争"], [28, 55, "生活圧力"],
+    [56, 83, "制度疲労"], [84, 99, "二次衝撃"], [100, 111, "復旧競争"], [112, 119, "出口"],
+  ]);
+  for (const { start, end, name } of CRISIS_PHASES) assert.ok(first.events.slice(start, end + 1).every((event) => event.phase === name));
   assert.equal(replayCrisisEvent(first, 119).turn, 120);
+});
+
+test("fallback is assessed per disabled function and actors receive constrained fragments", () => {
+  const state = createDemoState(2035);
+  const relationshipIds = Object.keys(state.relationships);
+  const target = "J5-U5";
+  const run = runCrisisSimulation(state, { seed: "fragment-0", disabledRelationshipIds: [target] });
+  assert.equal(run.fallbackAssessments.length, 1);
+  assert.equal(run.fallbackAssessments[0].relationshipId, target);
+  assert.equal(run.fallbackAssessments[0].available, true);
+  assert.deepEqual(run.fallbackAssessments[0].alternateRelationshipIds, ["J5-C4", "U5-C4"]);
+  const views = run.actorObservationFrames[0].observations;
+  assert.equal(views.length, 18);
+  assert.ok(new Set(views.map((view) => view.visibleConfidence)).size > 1);
+  assert.ok(new Set(views.map((view) => view.decision)).size > 1);
 });
 
 test("misattribution correction irreversible action and route failure remain replayable", () => {

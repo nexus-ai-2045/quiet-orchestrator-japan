@@ -1,11 +1,11 @@
-# M2校正判断packet｜未校正19接続
+# M2校正判断packet｜採用済み19接続
 
 - status: **採用済み / ハッカソン用架空校正**
 - adopted calibration version: `relationship-v1.1.0`
-- scope: ハッカソン用の架空校正v1候補
+- scope: ハッカソン用の採用済み架空校正v1
 - canonical runtime: `app/src/simulation.js`
-- adopted calibration SSOT: `app/src/calibration-v0.js`
-- machine-readable candidate: [`m2-calibration-candidate-v1.json`](m2-calibration-candidate-v1.json)
+- M1代表接続の校正SSOT: `app/src/calibration-v0.js`
+- M2残り19接続の採用済み機械可読SSOT: [`m2-calibration-v1.json`](m2-calibration-v1.json)
 - decision owner: 人間レビュー
 
 ## 判断の目的
@@ -29,7 +29,7 @@ M2 mechanical foundationは20接続を検証できるが、旧baselineで投資�
 
 ## 数値候補
 
-この表とmachine-readable candidateを同じ提案として採用する。値域は既存state schemaと同じで、経験的推定ではない。
+この表は判断理由の人間可読記録であり、`m2-calibration-v1.json`をM2残り19接続の実行入力となる機械可読SSOTとして採用する。値域は既存state schemaと同じで、経験的推定ではない。
 
 | archetype | 成熟 | 信頼 | 検証合意 | 相互運用 | 共同所有 | 単一依存 | 代替経路 | 開示コスト |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|

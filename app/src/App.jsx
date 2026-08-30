@@ -406,14 +406,27 @@ function Comparison({ state, onClose }) {
   const study = useMemo(() => runComparativeStudy(state), [state]);
   const strategies = STRATEGIES.map((strategy) => {
     const rows = study.results.filter((row) => row.strategyId === strategy.id);
-    return { ...strategy, score: rows.reduce((sum, row) => sum + row.score, 0) / rows.length, failures: rows.reduce((sum, row) => sum + row.failed, 0) };
+    const average = (key) => rows.reduce((sum, row) => sum + row.evaluationAxes[key], 0) / rows.length;
+    return {
+      ...strategy,
+      correctionTurn: average("attributionCorrectionTurn"),
+      maintainedTurns: average("coordinationMaintainedTurns"),
+      failedTurns: average("coordinationFailedTurns"),
+      irreversibleTurn: average("irreversibleActionTurn"),
+      reversibilityWindow: average("reversibilityWindowTurns"),
+      fallbackCoverage: average("fallbackCoverage"),
+      riskExposure: average("surveillanceDependencyExposure"),
+      thirdPartyVerification: average("thirdPartyVerificationCoverage"),
+      decisionDiversity: average("decisionRightDiversity"),
+    };
   });
   return (
     <div className="comparison-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="comparison" role="dialog" aria-modal="true" aria-labelledby="comparison-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-heading"><strong id="comparison-title">戦略比較 A〜E / 5 seed</strong><button onClick={onClose}>閉じる</button></div><p>全戦略を同じ初期状態・予算・行動回数・危機因果列で再実行しています。値は架空モデルの比較で、現実の予測ではありません。</p>
-        {strategies.map((strategy) => <article key={strategy.id}><h2>{strategy.id} {strategy.label}</h2><div><span>平均score <b>{strategy.score.toFixed(1)}</b></span><span>失敗turn合計 <b>{strategy.failures}</b></span></div></article>)}
-        <p>D敗北seed: {study.dLossSeeds.join(", ") || "なし"} / 日本除去後の残存主体 {study.japanRemoval.remainingOperatorIds.length}</p>
+        {strategies.map((strategy) => <article key={strategy.id}><h2>{strategy.id} {strategy.label}</h2><div><span>訂正turn <b>{strategy.correctionTurn.toFixed(1)}</b></span><span>協調維持/失敗 <b>{strategy.maintainedTurns.toFixed(1)} / {strategy.failedTurns.toFixed(1)}</b></span><span>不可逆行動/撤退猶予 <b>{strategy.irreversibleTurn.toFixed(1)} / {strategy.reversibilityWindow.toFixed(1)}</b></span><span>代替経路充足率 <b>{(strategy.fallbackCoverage * 100).toFixed(0)}%</b></span><span>監視・依存リスク <b>{strategy.riskExposure.toFixed(1)}</b></span><span>第三者検証率 <b>{(strategy.thirdPartyVerification * 100).toFixed(0)}%</b></span><span>決定権の多様性 <b>{strategy.decisionDiversity.toFixed(1)}</b></span></div></article>)}
+        <p>D敗北seed: {study.dLossSeeds.join(", ") || "なし"} / 感度分析の順位反転 {study.reversalThresholds.length}件</p>
+        <p>{study.japanRemoval.executed ? `日本除去後の残存主体 ${study.japanRemoval.remainingOperatorIds.length}` : `日本除去試験は${study.japanRemoval.requiredYear}年に実行（現在${study.japanRemoval.currentYear}年）`}</p>
       </section>
     </div>
   );
