@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/run-bundle-v1`
-- content HEAD: `4373ebe014b67c508b2d0de7ba40e6e414953924`（既存決定論コアを正本とする`meta-security-run-bundle/v1`、反復JSON輸送境界、独立implementation SHA照合、seed・event container境界、115件回帰）
+- content HEAD: `eb35086fd52eb350de1802ae009de9062f156037`（既存決定論コアを正本とする`meta-security-run-bundle/v1`、trusted JSON snapshot輸送境界、実装repo固定provenance、seed・event container境界、116件回帰）
 - base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 115件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、run bundleの標準prototype・連続array index・data descriptor・深さ上限を統合した反復JSON輸送境界、seed役割・成否・独立implementation SHA・event container・再実行一致、台帳drawer、校正・migration・最終checkpointを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 116件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、run bundleのProxy拒否・標準prototype・連続array index・data descriptor・深さ上限を統合したtrusted JSON snapshot、実装repo固定provenance、seed役割・成否・独立implementation SHA・event container・再実行一致、台帳drawer、校正・migration・最終checkpointを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"4373ebe014b67c508b2d0de7ba40e6e414953924","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"eb35086fd52eb350de1802ae009de9062f156037","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
