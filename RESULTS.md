@@ -2,7 +2,7 @@
 
 確認日: 2026-08-30
 
-機械検証対象content HEAD: `ed1436f691ce4aaa74cf3d3214f735153d4f61d4`
+機械検証対象content HEAD: `6e41587d976d0e02a30aef67a7aa7cc1c9c4254f`
 
 ## 実行環境
 
@@ -19,13 +19,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 113件pass |
+| `npm test` | 115件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-113件には`meta-security-run-bundle/v1`の同一`run_id`束縛、JSON外値拒否、seed役割分離、失敗event保持、implementation SHA束縛、決定論的再実行の6件を含む。
+115件には`meta-security-run-bundle/v1`の同一`run_id`束縛、accessorを含むJSON外値拒否、seed役割分離、失敗event保持、独立implementation SHA照合、event container fail-closed、決定論的再実行の8件を含む。
 
 ### M1.5 ローカルPDCA実測
 
