@@ -20,10 +20,10 @@ test("misattribution correction irreversible action and route failure remain rep
   const state = createDemoState(2035);
   const run = runCrisisSimulation(state, { seed: "crisis-evidence-0" });
   assert.equal(run.events[18].claim.status, "misattributed");
-  assert.equal(run.events[31].action.irreversible, true);
-  assert.equal(run.events[46].claim.status, "corrected");
-  assert.equal(run.importantEvents.some((event) => event.sequence === 72), true);
+  assert.equal(run.events[run.causalParameters.irreversibleTurn].action.irreversible, true);
+  assert.equal(run.events[run.causalParameters.correctionTurn].claim.status, "corrected");
+  assert.equal(run.importantEvents.some((event) => event.sequence === run.causalParameters.disruptionStart), true);
   const disconnected = runCrisisSimulation(state, { disabledRelationshipIds: Object.keys(state.relationships) });
-  assert.equal(disconnected.events[72].consequence.fallbackAvailable, false);
-  assert.equal(disconnected.events[72].consequence.coordination, "failed");
+  assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.fallbackAvailable, false);
+  assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.coordination, "failed");
 });

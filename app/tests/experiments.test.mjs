@@ -14,6 +14,9 @@ test("A-E use the same state budget action count and causal seed across five see
     assert.equal(new Set(rows.map((row) => row.causalScenarioHash)).size, 1);
   }
   assert.ok(study.dLossSeeds.length >= 1);
+  const dRows = study.results.filter((row) => row.strategyId === "D");
+  assert.ok(new Set(dRows.map((row) => row.causalScenarioHash)).size >= 5);
+  assert.ok(new Set(dRows.map((row) => row.score)).size > 1);
 });
 
 test("Japan removal reports remaining operators and stopped functions", () => {

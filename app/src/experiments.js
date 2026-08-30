@@ -43,7 +43,11 @@ export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
       initialStateHash,
       budget: state.budget,
       actionCount: state.ledger.filter((entry) => entry.action !== "checkpoint-snapshot").length,
-      causalScenarioHash: observationFingerprint({ seed, turns: run.turns, truth: run.events.map((event) => event.truth.causeCode) }),
+      causalScenarioHash: observationFingerprint({
+        turns: run.turns,
+        causalParameters: run.causalParameters,
+        causalChain: run.events.map((event) => [event.truth, event.claim.status, event.action.irreversible]),
+      }),
       disabledRelationshipIds,
       ...summarize(run),
     };

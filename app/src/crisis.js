@@ -6,6 +6,13 @@ const PHASES = Object.freeze([
   [0, "初動"], [12, "帰属競争"], [30, "警戒上昇"], [48, "持久"],
   [72, "連鎖障害"], [92, "出口形成"], [108, "復旧"],
 ]);
+const FICTIONAL_CAUSES = Object.freeze([
+  "fictional-third-party-spoof",
+  "fictional-sensor-cascade",
+  "fictional-insider-manipulation",
+  "fictional-routing-failure",
+  "fictional-coordinated-deception",
+]);
 
 const phaseAt = (turn) => [...PHASES].reverse().find(([start]) => turn >= start)[1];
 const seededUnit = (seed, turn) => parseInt(observationFingerprint(`${seed}:${turn}`).slice(-8), 16) / 0xffffffff;
@@ -27,12 +34,17 @@ export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", d
   );
   const verification = state.metrics.verification;
   const continuity = state.metrics.continuity;
+  const causeCode = FICTIONAL_CAUSES[Math.floor(seededUnit(seed, 900) * FICTIONAL_CAUSES.length) % FICTIONAL_CAUSES.length];
+  const correctionTurn = 40 + Math.floor(seededUnit(seed, 901) * 20);
+  const irreversibleTurn = 26 + Math.floor(seededUnit(seed, 902) * 12);
+  const disruptionStart = 66 + Math.floor(seededUnit(seed, 903) * 16);
+  const disruptionEnd = Math.min(108, disruptionStart + 12 + Math.floor(seededUnit(seed, 904) * 18));
   const events = Array.from({ length: CRISIS_TURNS }, (_, turn) => {
     const phase = phaseAt(turn);
-    const falseAttribution = turn >= 18 && turn < 46;
-    const correction = turn === 46;
-    const irreversible = turn === 31;
-    const disruption = turn >= 72 && turn < 92;
+    const falseAttribution = turn >= 18 && turn < correctionTurn;
+    const correction = turn === correctionTurn;
+    const irreversible = turn === irreversibleTurn;
+    const disruption = turn >= disruptionStart && turn < disruptionEnd;
     const fallbackAvailable = enabledRelationshipCount > 0 && alternateRoutes >= enabledRelationshipCount * 1.5;
     const noise = Math.round(seededUnit(seed, turn) * 12);
     const observationConfidence = Math.max(5, Math.min(95, verification - (disruption ? 25 : 8) + noise));
@@ -45,7 +57,7 @@ export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", d
       elapsedHours: turn * CRISIS_TURN_HOURS,
       day: Math.floor((turn * CRISIS_TURN_HOURS) / 24) + 1,
       phase,
-      truth: { causeCode: "fictional-third-party-spoof", physicalIntegrity: disruption ? "degraded" : "operational" },
+      truth: { causeCode, physicalIntegrity: disruption ? "degraded" : "operational" },
       observation: { confidence: observationConfidence, communications: disruption ? "delayed" : "available" },
       claim: { status: claimStatus, attributionCode: falseAttribution ? "fictional-rival" : null },
       proposal: { action, basedOnVerifiedAttribution: !falseAttribution && observationConfidence >= 60 },
@@ -55,13 +67,14 @@ export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", d
         coordination: failed ? "failed" : continuity >= 45 ? "maintained" : "strained",
         civilianImpact: failed ? "high" : irreversible ? "elevated" : "contained",
       },
-      important: turn === 0 || turn === 18 || irreversible || correction || turn === 72 || turn === 92 || turn === 119,
+      important: turn === 0 || turn === 18 || irreversible || correction || turn === disruptionStart || turn === disruptionEnd || turn === 119,
     };
   });
   return {
     engineVersion: CRISIS_ENGINE_VERSION,
     seed,
     disabledRelationshipIds: [...disabledRelationshipIds].sort(),
+    causalParameters: { causeCode, correctionTurn, irreversibleTurn, disruptionStart, disruptionEnd },
     frozenStrategicYear: state.year,
     frozenStateHash: observationFingerprint(state),
     turns: CRISIS_TURNS,
