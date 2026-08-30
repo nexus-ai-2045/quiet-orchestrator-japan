@@ -71,5 +71,11 @@ test("Japan removal remains pending before 2045 and executes only at 2045", () =
   const forgedVerdict = structuredClone(study);
   forgedVerdict.japanRemoval.assessment.verdict = "協調継続";
   assert.throws(() => recordJapanRemovalStudy(createDemoState(2045), forgedVerdict), /only an executed 2045 study/);
+  const forgedCaseEvidence = structuredClone(study);
+  forgedCaseEvidence.japanRemoval.cases[0].eventStreamHash = "fnv1a32:00000000";
+  assert.throws(() => recordJapanRemovalStudy(createDemoState(2045), forgedCaseEvidence), /canonical 2045 study/);
+  const forgedCaseOutcome = structuredClone(study);
+  forgedCaseOutcome.japanRemoval.cases[0].evaluationAxes.attributionCorrectionTurn += 1;
+  assert.throws(() => recordJapanRemovalStudy(createDemoState(2045), forgedCaseOutcome), /canonical 2045 study/);
   assert.throws(() => recordJapanRemovalStudy(createDemoState(2035), pending), /only an executed 2045 study/);
 });

@@ -1,5 +1,5 @@
 import { runCrisisSimulationBatch } from "./crisis.js";
-import { observationFingerprint } from "./ai/contract.js";
+import { canonicalize, observationFingerprint } from "./ai/contract.js";
 import { ACTOR_CONSTRAINTS } from "./ai/actor-governance.js";
 import { ACTORS } from "./simulation.js";
 
@@ -153,18 +153,26 @@ export function recordJapanRemovalStudy(state, study) {
     || result.assessment.allCasesMaintainCoordination !== allCasesMaintainCoordination || result.assessment.verdict !== expectedVerdict) {
     throw new TypeError("only an executed 2045 study for the exact state can be recorded");
   }
+  // The supplied packet is untrusted evidence. Re-run the canonical matrix
+  // from the exact state and require byte-equivalent canonical content before
+  // persisting anything from it.
+  const canonicalStudy = runComparativeStudy(state);
+  if (canonicalize(study) !== canonicalize(canonicalStudy)) {
+    throw new TypeError("supplied packet does not match the canonical 2045 study");
+  }
+  const canonicalResult = canonicalStudy.japanRemoval;
   return {
     ...state,
     japanRemovalStressTest: {
       year: 2045,
-      verdict: result.assessment.verdict,
-      removedRelationshipIds: [...result.removedRelationshipIds],
-      stoppedFunctions: [...result.stoppedFunctions],
-      coveredFunctions: [...result.coveredFunctions],
-      evaluationAxes: structuredClone(result.evaluationAxes),
-      assessment: structuredClone(result.assessment),
-      cases: structuredClone(result.cases),
-      studyHash: observationFingerprint(study),
+      verdict: canonicalResult.assessment.verdict,
+      removedRelationshipIds: [...canonicalResult.removedRelationshipIds],
+      stoppedFunctions: [...canonicalResult.stoppedFunctions],
+      coveredFunctions: [...canonicalResult.coveredFunctions],
+      evaluationAxes: structuredClone(canonicalResult.evaluationAxes),
+      assessment: structuredClone(canonicalResult.assessment),
+      cases: structuredClone(canonicalResult.cases),
+      studyHash: observationFingerprint(canonicalStudy),
     },
   };
 }

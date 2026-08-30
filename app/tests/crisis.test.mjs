@@ -31,7 +31,8 @@ test("fallback is assessed per disabled function and actors receive constrained 
   assert.equal(run.fallbackAssessments[0].available, true);
   assert.deepEqual(run.fallbackAssessments[0].alternateRelationshipIds, ["J5-C4", "U5-C4"]);
   const views = run.actorObservationFrames[0].observations;
-  assert.equal(views.length, 18);
+  const expectedActiveActors = new Set(Object.entries(state.relationships).flatMap(([id, item]) => id === target ? [] : [item.source, item.target]));
+  assert.equal(views.length, expectedActiveActors.size);
   assert.ok(new Set(views.map((view) => view.visibleConfidence)).size > 1);
   assert.ok(new Set(views.map((view) => view.decision)).size > 1);
 });
@@ -80,7 +81,7 @@ test("topology and fallback loss causally delay correction and accelerate irreve
   const connected = runCrisisSimulation(state, { seed: "cause-1" });
   const disconnected = runCrisisSimulation(state, { seed: "cause-1", disabledRelationshipIds: Object.keys(state.relationships) });
   assert.ok(disconnected.transitionParameters.topologyPenalty > connected.transitionParameters.topologyPenalty);
-  assert.ok(disconnected.transitionParameters.correctionTurn >= connected.transitionParameters.correctionTurn);
+  assert.ok(disconnected.transitionParameters.correctionTurn === null || disconnected.transitionParameters.correctionTurn >= connected.transitionParameters.correctionTurn);
   assert.ok(disconnected.transitionParameters.irreversibleTurn < connected.transitionParameters.irreversibleTurn);
   assert.notEqual(disconnected.eventStreamHash, connected.eventStreamHash);
 });
@@ -94,4 +95,22 @@ test("per-turn actor observations and decision rights drive proposals and conseq
   assert.equal(correction.proposal.basedOnVerifiedAttribution, correction.decision.corroboratingActors >= 6 && correction.decision.authorizedApprovers >= 1);
   const noFallback = runCrisisSimulation(state, { seed: "cause-2", disabledRelationshipIds: Object.keys(state.relationships) });
   assert.equal(noFallback.events[noFallback.transitionParameters.disruptionStart].consequence.coordination, "failed");
+});
+
+test("disabled topology removes isolated Japan actors from observations and decisions", () => {
+  const state = createDemoState(2045);
+  const japanRelationshipIds = Object.keys(state.relationships).filter((id) => id.split("-").some((actorId) => actorId.startsWith("J")));
+  const run = runCrisisSimulation(state, { seed: "cause-0", disabledRelationshipIds: japanRelationshipIds });
+  const observedActorIds = new Set(run.actorObservationFrames.flatMap((frame) => frame.observations.map((item) => item.actorId)));
+  assert.ok(["J1", "J2", "J3", "J4", "J5", "J6"].every((actorId) => !observedActorIds.has(actorId)));
+  assert.ok(run.events.every((event) => event.decision.activeActors === observedActorIds.size));
+});
+
+test("correction remains explicitly uncorrected when active governance never authorizes it", () => {
+  const state = createDemoState(2035);
+  const run = runCrisisSimulation(state, { seed: "cause-4", disabledRelationshipIds: Object.keys(state.relationships) });
+  assert.equal(run.transitionParameters.correctionTurn, null);
+  assert.equal(run.transitionParameters.correctionStatus, "uncorrected");
+  assert.equal(run.events.some((event) => event.claim.status === "corrected"), false);
+  assert.equal(run.events.at(-1).claim.status, "misattributed");
 });
