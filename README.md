@@ -157,12 +157,13 @@ npm run verify
 ```text
 app/
   src/
-    simulation.js     決定論的な状態遷移、施策、評価
+    simulation.js      決定論的な状態遷移、施策、評価
+    calibration-v0.js  架空係数の正本 (docs/calibration-v0.md と対)
+    ai/                scripted Policy Engineの契約・検証・ローカルPDCA
     App.jsx            操作可能なUIと比較表示
     styles.css         選択済みデザインシステム
-  tests/
-    simulation.test.mjs
-    sites-worker.test.mjs
+  tests/               決定論エンジン、AI契約、UI契約、Sites互換のテスト
+  scripts/             baseline実行、文書境界検証、Sites packaging
 docs/
   adr/                 設計判断記録
   design/              選択済みUIコンセプト
