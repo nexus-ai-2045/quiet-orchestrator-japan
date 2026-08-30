@@ -166,10 +166,11 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
 
 export function validateMetaSecurityRunBundle(bundle, { expectedImplementationRevision } = {}) {
   const errors = [];
-  if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) return { valid: false, errors: ["bundle_not_object"] };
+  if (!bundle || typeof bundle !== "object") return { valid: false, errors: ["bundle_not_object"] };
   const bundleSnapshot = snapshotJsonValue(bundle);
   if (!bundleSnapshot.valid) return { valid: false, errors: ["non_json_value"] };
   const trustedBundle = bundleSnapshot.value;
+  if (Array.isArray(trustedBundle)) return { valid: false, errors: ["bundle_not_object"] };
   if (typeof expectedImplementationRevision !== "string" || !/^[0-9a-f]{40}$/.test(expectedImplementationRevision)) {
     errors.push("expected_implementation_revision_invalid");
   } else if (trustedBundle.run_request?.parameters?.implementation_revision !== expectedImplementationRevision) {
