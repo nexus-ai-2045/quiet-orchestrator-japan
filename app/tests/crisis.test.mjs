@@ -82,7 +82,9 @@ test("topology and fallback loss causally delay correction and accelerate irreve
   const disconnected = runCrisisSimulation(state, { seed: "cause-1", disabledRelationshipIds: Object.keys(state.relationships) });
   assert.ok(disconnected.transitionParameters.topologyPenalty > connected.transitionParameters.topologyPenalty);
   assert.ok(disconnected.transitionParameters.correctionTurn === null || disconnected.transitionParameters.correctionTurn >= connected.transitionParameters.correctionTurn);
-  assert.ok(disconnected.transitionParameters.irreversibleTurn < connected.transitionParameters.irreversibleTurn);
+  assert.equal(disconnected.transitionParameters.irreversibleTurn, null);
+  assert.equal(disconnected.transitionParameters.irreversibleStatus, "not-executed-no-authorized-executor");
+  assert.ok(Number.isInteger(connected.transitionParameters.irreversibleTurn));
   assert.notEqual(disconnected.eventStreamHash, connected.eventStreamHash);
 });
 
@@ -106,6 +108,15 @@ test("disabled topology removes isolated Japan actors from observations and deci
   assert.ok(run.events.every((event) => event.decision.activeActors === observedActorIds.size));
 });
 
+test("Japan removal retains the explicit fictional emergency-stop fallback", () => {
+  const state = createDemoState(2045);
+  const japanRelationshipIds = Object.keys(state.relationships).filter((id) => id.split("-").some((actorId) => actorId.startsWith("J")));
+  const run = runCrisisSimulation(state, { seed: "cause-0", disabledRelationshipIds: japanRelationshipIds });
+  const stopAssessments = run.fallbackAssessments.filter((item) => item.function === "crisis-stop-conditions");
+  assert.ok(stopAssessments.length > 0);
+  assert.ok(stopAssessments.every((item) => item.available && item.alternateRelationshipIds.includes("U4-C3")));
+});
+
 test("correction remains explicitly uncorrected when active governance never authorizes it", () => {
   const state = createDemoState(2035);
   const run = runCrisisSimulation(state, { seed: "cause-4", disabledRelationshipIds: Object.keys(state.relationships) });
@@ -113,4 +124,27 @@ test("correction remains explicitly uncorrected when active governance never aut
   assert.equal(run.transitionParameters.correctionStatus, "uncorrected");
   assert.equal(run.events.some((event) => event.claim.status === "corrected"), false);
   assert.equal(run.events.at(-1).claim.status, "misattributed");
+});
+
+test("irreversible readiness is not fabricated without an active authorized executor", () => {
+  const state = createDemoState(2035);
+  const executorRelationshipIds = Object.keys(state.relationships).filter((id) => id.split("-").includes("B1"));
+  const run = runCrisisSimulation(state, { seed: "cause-0", disabledRelationshipIds: executorRelationshipIds });
+  assert.equal(run.transitionParameters.irreversibleTurn, null);
+  assert.equal(run.transitionParameters.irreversibleStatus, "not-executed-no-authorized-executor");
+  assert.equal(run.events.some((event) => event.action.id === "raise-readiness" || event.action.irreversible), false);
+});
+
+test("organizational failure parameters causally degrade active decisions and consequences", () => {
+  const state = createDemoState(2035);
+  const baseline = runCrisisSimulation(state, { seed: "cause-1" });
+  const failed = runCrisisSimulation(state, {
+    seed: "cause-1",
+    organizationalFailure: { dissentCompression: 1, leakage: 1, interagencyConflict: 1 },
+  });
+  assert.equal(failed.organizationalFailureVersion, "organizational-failure-v1");
+  assert.ok(failed.events[0].decision.corroboratingActors < baseline.events[0].decision.corroboratingActors);
+  assert.ok(failed.events[0].decision.authorizedApprovers <= baseline.events[0].decision.authorizedApprovers);
+  assert.ok(failed.events.filter((event) => event.consequence.coordination === "failed").length > baseline.events.filter((event) => event.consequence.coordination === "failed").length);
+  assert.throws(() => runCrisisSimulation(state, { organizationalFailure: { leakage: 2 } }), /organizational failure/);
 });

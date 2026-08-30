@@ -384,7 +384,7 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   assert.ok(runStressTest(migrated).stressTests[migrated.year]);
 });
 
-test("schema-v3 migration backfills only absent M2 metadata and preserves conflicts", () => {
+test("schema-v3 migration adopts canonical M2 metadata instead of preserving legacy conflicts", () => {
   const legacy = createInitialState();
   legacy.schemaVersion = 3;
   const absent = legacy.relationships["J1-B1"];
@@ -400,8 +400,52 @@ test("schema-v3 migration backfills only absent M2 metadata and preserves confli
   assert.equal(migrated.relationships["J1-B1"].archetype, RELATIONSHIPS.find((item) => item.id === "J1-B1").archetype);
   assert.deepEqual(migrated.relationships["J1-B1"].actionMultipliers, RELATIONSHIPS.find((item) => item.id === "J1-B1").actionMultipliers);
   assert.match(migrated.relationships["J1-B1"].calibrationFingerprint, /^relationship-v1\.1\.0:/);
-  assert.equal(migrated.relationships["J2-U2"].archetype, "forged-archetype");
-  assert.equal(validateSimulationExecutionState(migrated).valid, false);
+  assert.equal(migrated.relationships["J2-U2"].archetype, RELATIONSHIPS.find((item) => item.id === "J2-U2").archetype);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+});
+
+test("schema-v3 migration replaces pre-M2 relationship definitions with the adopted canonical portfolio", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 3;
+  for (const relationship of Object.values(legacy.relationships)) {
+    relationship.investable = relationship.id === "B1-C6";
+    relationship.contested = false;
+    relationship.purpose = "legacy purpose";
+    relationship.channel = "legacy channel";
+    relationship.ownership = "legacy ownership";
+    relationship.archetype = undefined;
+    relationship.calibrationVersion = undefined;
+    relationship.actionMultipliers = undefined;
+    relationship.positiveDeltaMultiplier = undefined;
+    relationship.calibrationFingerprint = null;
+    relationship.state = Object.fromEntries(Object.keys(relationship.state).map((key) => [key, key === "alternateRoutes" ? 0 : 50]));
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+  for (const definition of RELATIONSHIPS) {
+    const relationship = migrated.relationships[definition.id];
+    for (const field of ["source", "target", "label", "investable", "contested", "purpose", "channel", "ownership", "archetype", "calibrationVersion", "positiveDeltaMultiplier"]) {
+      assert.equal(relationship[field], definition[field], `${definition.id}.${field}`);
+    }
+    assert.deepEqual(relationship.actionMultipliers, definition.actionMultipliers);
+    assert.deepEqual(relationship.state, definition.initialState);
+    assert.match(relationship.calibrationFingerprint, /^relationship-v1\./);
+  }
+});
+
+test("schema-v3 migration preserves evidenced investment state and ledger without inventing history", () => {
+  const invested = advanceYear(createInitialState());
+  const expectedState = structuredClone(invested.relationships[invested.ledger[0].relationshipId].state);
+  const expectedLedger = structuredClone(invested.ledger);
+  invested.schemaVersion = 3;
+  invested.relationships[invested.ledger[0].relationshipId].purpose = "legacy purpose";
+  invested.relationships[invested.ledger[0].relationshipId].calibrationFingerprint = null;
+
+  const migrated = migrateSimulationState(invested);
+  assert.deepEqual(migrated.relationships[invested.ledger[0].relationshipId].state, expectedState);
+  assert.deepEqual(migrated.ledger, expectedLedger);
+  assert.equal(migrated.history.length, invested.history.length);
 });
 
 test("runtime rejects incomplete or out-of-range calibration multiplier metadata", () => {

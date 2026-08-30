@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 137件pass |
+| `npm test` | 143件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-137件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed比較、係数感度・反転条件、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。5 seedは真因・訂正時点・不可逆行動時点・障害区間が異なり、結果は単一scoreではなく訂正・協調・不可逆性・市民影響・代替経路の軸ごとに比較する。日本除去試験は2045年だけ実行し、それ以前はpendingとして証拠化する。
+143件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed比較、係数感度・反転条件、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。5 seedは真因・訂正時点・不可逆行動時点・障害区間が異なり、結果は単一scoreではなく訂正・協調・不可逆性・市民影響・代替経路の軸ごとに比較する。日本除去試験は2045年だけ実行し、それ以前はpendingとして証拠化する。
 
 ### M1.5 ローカルPDCA実測
 

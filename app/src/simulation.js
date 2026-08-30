@@ -743,23 +743,32 @@ export function migrateSimulationState(candidate) {
     return backfillSchemaV3ExecutionEvidence(candidate);
   }
   if (candidate?.schemaVersion === 3) {
-    const relationships = Object.fromEntries(Object.entries(candidate.relationships ?? {}).map(([key, relationship]) => {
-      const definition = RELATIONSHIPS.find((item) => item.id === key);
-      if (!definition || !relationship || typeof relationship !== "object" || Array.isArray(relationship)) return [key, relationship];
-      const migrated = { ...relationship };
-      for (const field of ["archetype", "calibrationVersion", "positiveDeltaMultiplier"]) {
-        if (migrated[field] === undefined) migrated[field] = definition[field];
-      }
-      if (migrated.actionMultipliers === undefined) migrated.actionMultipliers = { ...definition.actionMultipliers };
-      if ((migrated.calibrationFingerprint == null || migrated.calibrationFingerprint === "")
-        && migrated.id === definition.id
-        && migrated.source === definition.source
-        && migrated.target === definition.target
-        && migrated.investable === definition.investable
-        && canonicalizeJsonValue(migrated.state) === canonicalizeJsonValue(definition.initialState)) {
-        migrated.calibrationFingerprint = relationshipCalibrationFingerprint(definition);
-      }
-      return [key, migrated];
+    const evidencedRelationshipIds = new Set((Array.isArray(candidate.ledger) ? candidate.ledger : [])
+      .filter((entry) => isRecord(entry) && entry.action !== "checkpoint-snapshot" && typeof entry.relationshipId === "string")
+      .map((entry) => entry.relationshipId));
+    const relationships = Object.fromEntries(RELATIONSHIPS.map((definition) => {
+      const legacy = isRecord(candidate.relationships?.[definition.id]) ? candidate.relationships[definition.id] : {};
+      const preserveInvestedState = evidencedRelationshipIds.has(definition.id) && isValidRelationshipStateShape(legacy.state);
+      return [definition.id, {
+        ...legacy,
+        id: definition.id,
+        source: definition.source,
+        target: definition.target,
+        label: definition.label,
+        investable: definition.investable,
+        contested: definition.contested,
+        purpose: definition.purpose,
+        channel: definition.channel,
+        ownership: definition.ownership,
+        archetype: definition.archetype,
+        calibrationVersion: definition.calibrationVersion,
+        actionMultipliers: { ...definition.actionMultipliers },
+        positiveDeltaMultiplier: definition.positiveDeltaMultiplier,
+        calibrationFingerprint: relationshipCalibrationFingerprint(definition),
+        state: preserveInvestedState ? { ...legacy.state } : { ...definition.initialState },
+        lastChangedYear: preserveInvestedState ? (legacy.lastChangedYear ?? null) : null,
+        lastAction: preserveInvestedState ? (legacy.lastAction ?? null) : null,
+      }];
     }));
     return backfillSchemaV3ExecutionEvidence({ ...candidate, schemaVersion: 4, relationships });
   }

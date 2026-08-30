@@ -44,6 +44,28 @@ for (const phrase of forbiddenDesignPhrases) {
 if (contract.includes("| A ブロック分断")) {
   throw new Error("comparison design duplicated in simulation-contract.md");
 }
+const requiredCurrentContractClaims = [
+  "現在candidateのM4は30日・6時間刻みの120イベントを決定論的に逐次生成",
+  "M5はS1〜S5へ対応する5真因seed、A〜E、係数感度、日本除去を同じ危機エンジンへ一括投入",
+  "外部LLM対話層は必須MVPの外",
+  "U4-C3 海上現場停止回線",
+  "最小限の `crisis-stop-conditions`",
+  "実在する能力・制度・政策の証拠ではない",
+];
+for (const claim of requiredCurrentContractClaims) {
+  if (!contract.includes(claim)) throw new Error(`simulation-contract.md current M4/M5 boundary missing: ${claim}`);
+}
+for (const claim of ["U4-C3 海上現場停止回線", "最小限の `crisis-stop-conditions`", "実在する能力・制度・政策の証拠ではない"]) {
+  if (!calibrationPacket.includes(claim)) throw new Error(`M2 calibration fallback assumption missing: ${claim}`);
+}
+const staleContractClaims = [
+  "現在は全体指標を決定論的に更新し、30日・6時間×120ターンという期間契約から集約結果を算出する",
+  "120個のイベントを逐次実行しているわけではない",
+  "5真因seed、30日間の120イベント実行、A〜Eの同一seed一括実行、LLM対話層は次段階とする",
+];
+for (const claim of staleContractClaims) {
+  if (contract.includes(claim)) throw new Error(`simulation-contract.md stale M4/M5 boundary: ${claim}`);
+}
 
 if (!results.includes("EXPERIMENT_DESIGN.md") || !results.includes("結論に使えない")) {
   throw new Error("RESULTS.md must link the frozen design and state its limits");

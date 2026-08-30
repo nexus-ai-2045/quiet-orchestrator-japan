@@ -160,14 +160,17 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedge
   );
 }
 
-function Inspector({ state, focusedLedgerEntry }) {
+function Inspector({ state, focusedLedgerEntry, finalEvidence }) {
   const relationship = getSelectedRelationship(state);
   const historicalEntry = focusedLedgerEntry?.relationshipId === relationship.id ? focusedLedgerEntry : null;
   const relationshipState = historicalEntry?.after ?? relationship.state;
   const source = ACTORS.find((item) => item.id === relationship.source);
   const target = ACTORS.find((item) => item.id === relationship.target);
   const preview = previewSelectedInvestment(state);
-  const final = getFinalAssessment(state);
+  const final = finalEvidence
+    ? { label: state.japanRemovalStressTest ? finalEvidence.assessment.verdict : `${finalEvidence.assessment.verdict}（記録待ち）` }
+    : getFinalAssessment(state);
+  const canonicalMaintainedTurns = finalEvidence ? 120 - finalEvidence.canonicalCheckpoint.run.events.filter((event) => event.consequence.coordination === "failed").length : null;
   return (
     <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
         <div className="panel-heading"><strong>{historicalEntry ? `${historicalEntry.year}年の接続` : "選択中の接続"}</strong><span>{relationship.label}</span></div>
@@ -186,7 +189,7 @@ function Inspector({ state, focusedLedgerEntry }) {
         </div>
         {historicalEntry && <p className="scope-note">因果台帳 {historicalEntry.id} 適用後の接続状態です。{historicalEntry.reason}</p>}
         {!preview.eligible && <p className="scope-note">{preview.reason}</p>}
-        <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{state.metrics.continuity}</b><span>/100<br />日本不在時の継続性<br />{final.label}</span></div></div>
+        <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{finalEvidence ? canonicalMaintainedTurns : state.metrics.continuity}</b><span>{finalEvidence ? "/120" : "/100"}<br />{finalEvidence ? "canonical危機の協調維持turn" : "日本不在時の継続性"}<br />{final.label}</span></div></div>
       </div>
     </aside>
   );
@@ -404,8 +407,7 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
   );
 }
 
-function Comparison({ state, onClose, onRecordJapanRemoval }) {
-  const study = useMemo(() => runComparativeStudy(state), [state]);
+function Comparison({ state, study, onClose, onRecordJapanRemoval }) {
   const strategies = STRATEGIES.map((strategy) => {
     const rows = study.results.filter((row) => row.strategyId === strategy.id);
     const average = (key) => rows.reduce((sum, row) => sum + row.evaluationAxes[key], 0) / rows.length;
@@ -445,7 +447,7 @@ function CrisisReplay({ run, index, running, speed, onToggle, onSpeed, onSeek })
         {[1, 4, 12].map((value) => <button key={value} className={speed === value ? "active" : ""} onClick={() => onSpeed(value)}>×{value}</button>)}
         <input aria-label="危機ターン" type="range" min="0" max="119" value={index} onChange={(event_) => onSeek(Number(event_.target.value))} />
       </div>
-      <p><b>{event.claim.status}</b> → {event.action.id} → {event.consequence.coordination} / 通信 {event.observation.communications}</p>
+      <p><b>{event.claim.status}</b> → {event.action.id} → {event.consequence.coordination} / 通信 {event.observation.communications}</p><code>{run.eventStreamHash}</code>
       <div className="crisis-jumps">{run.importantEvents.map((item) => <button key={item.sequence} onClick={() => onSeek(item.sequence)}>{item.turn}: {item.phase}</button>)}</div>
     </section>
   );
@@ -462,7 +464,10 @@ export function App() {
   const [crisisIndex, setCrisisIndex] = useState(0);
   const [crisisRunning, setCrisisRunning] = useState(false);
   const [crisisSpeed, setCrisisSpeed] = useState(4);
-  const crisisRun = useMemo(() => runCrisisSimulation(state, { seed: `${state.seed}:crisis` }), [state]);
+  const canonicalFinalStudy = useMemo(() => state.year === 2045 && !state.japanRemovalStressTest ? runComparativeStudy(state) : null, [state]);
+  const comparisonStudy = useMemo(() => comparing ? canonicalFinalStudy ?? runComparativeStudy(state) : null, [canonicalFinalStudy, comparing, state]);
+  const finalEvidence = state.japanRemovalStressTest ?? canonicalFinalStudy?.japanRemoval ?? null;
+  const crisisRun = useMemo(() => finalEvidence?.canonicalCheckpoint?.run ?? runCrisisSimulation(state, { seed: `${state.seed}:crisis` }), [finalEvidence, state]);
   useEffect(() => {
     if (!crisisRunning) return undefined;
     const timer = window.setInterval(() => setCrisisIndex((current) => {
@@ -544,11 +549,11 @@ export function App() {
   return (
     <main className="app-shell">
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
-      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
+      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} finalEvidence={finalEvidence} /></div>
       <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <CrisisReplay run={crisisRun} index={crisisIndex} running={crisisRunning} speed={crisisSpeed} onToggle={() => setCrisisRunning((value) => !value)} onSpeed={setCrisisSpeed} onSeek={(value) => { setCrisisIndex(value); setCrisisRunning(false); }} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
-      {comparing && <Comparison state={state} onClose={() => setComparing(false)} onRecordJapanRemoval={handleJapanRemovalRecord} />}
+      {comparing && <Comparison state={state} study={comparisonStudy} onClose={() => setComparing(false)} onRecordJapanRemoval={handleJapanRemovalRecord} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}
     </main>
   );

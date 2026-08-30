@@ -22,8 +22,11 @@ test("A-E use the same state budget action count and causal seed across five see
   assert.equal(new Set(dRows.map((row) => JSON.stringify(row.disabledRelationshipIds))).size, 1);
   assert.ok(dRows.every((row) => row.disabledRelationshipIds.length === 0));
   const eRows = study.results.filter((row) => row.strategyId === "E");
-  assert.ok(eRows.every((row) => row.disabledRelationshipIds.length > 0));
-  assert.notDeepEqual(dRows[0].disabledRelationshipIds, eRows[0].disabledRelationshipIds);
+  assert.ok(eRows.every((row) => row.disabledRelationshipIds.length === 0));
+  assert.deepEqual(dRows[0].disabledRelationshipIds, eRows[0].disabledRelationshipIds);
+  assert.ok(dRows.every((row) => Object.values(row.organizationalFailure).every((value) => value === 0)));
+  assert.ok(eRows.every((row) => Object.values(row.organizationalFailure).every((value) => value === 1)));
+  assert.ok(eRows.every((row) => row.evaluationAxes.coordinationFailedTurns > dRows.find((d) => d.seed === row.seed).evaluationAxes.coordinationFailedTurns));
   assert.ok(dRows.every((row) => row.sensitivity.length === 3));
   assert.ok(dRows.every((row) => new Set(row.sensitivity.map((item) => item.eventStreamHash)).size > 1));
   assert.ok(dRows.every((row) => row.sensitivity.every((item) => item.coefficientVersion === "crisis-coefficients-v1")));
@@ -37,8 +40,8 @@ test("governance axes use active actor groups and declared decision rights", () 
   const e = study.results.find((row) => row.strategyId === "E" && row.seed === study.seeds[0]);
   assert.equal(d.evaluationAxes.thirdPartyVerificationCoverage, 5 / 7);
   assert.equal(d.evaluationAxes.decisionRightDiversity, 3);
-  assert.equal(e.evaluationAxes.thirdPartyVerificationCoverage, 0);
-  assert.equal(e.evaluationAxes.decisionRightDiversity, 0);
+  assert.equal(e.evaluationAxes.thirdPartyVerificationCoverage, d.evaluationAxes.thirdPartyVerificationCoverage);
+  assert.equal(e.evaluationAxes.decisionRightDiversity, d.evaluationAxes.decisionRightDiversity);
 });
 
 test("Japan removal remains pending before 2045 and executes only at 2045", () => {
@@ -56,12 +59,18 @@ test("Japan removal remains pending before 2045 and executes only at 2045", () =
   assert.equal(study.japanRemoval.assessment.complete, true);
   assert.equal(study.japanRemoval.assessment.actualCaseCount, study.japanRemoval.assessment.expectedCaseCount);
   assert.equal(new Set(study.japanRemoval.cases.map((item) => `${item.seed}:${item.variantId}`)).size, study.japanRemoval.cases.length);
+  assert.equal(study.japanRemoval.canonicalCheckpoint.turns, 120);
+  assert.equal(study.japanRemoval.canonicalCheckpoint.run.events.length, 120);
+  assert.equal(study.japanRemoval.canonicalCheckpoint.eventStreamHash, study.japanRemoval.canonicalCheckpoint.run.eventStreamHash);
+  const checkpointCase = study.japanRemoval.cases.find((item) => item.seed === study.japanRemoval.canonicalCheckpoint.seed && item.variantId === study.japanRemoval.canonicalCheckpoint.variantId);
+  assert.equal(checkpointCase.eventStreamHash, study.japanRemoval.canonicalCheckpoint.eventStreamHash);
   const recorded = recordJapanRemovalStudy(createDemoState(2045), study);
   assert.equal(recorded.japanRemovalStressTest.year, 2045);
   assert.equal(recorded.japanRemovalStressTest.verdict, "改善余地");
   assert.ok(recorded.japanRemovalStressTest.stoppedFunctions.length > 0);
   assert.equal(recorded.japanRemovalStressTest.cases.length, study.seeds.length * SENSITIVITY_VARIANTS.length);
   assert.equal(recorded.japanRemovalStressTest.assessment.complete, true);
+  assert.deepEqual(recorded.japanRemovalStressTest.canonicalCheckpoint, study.japanRemoval.canonicalCheckpoint);
   const incomplete = structuredClone(study);
   incomplete.japanRemoval.cases.pop();
   assert.throws(() => recordJapanRemovalStudy(createDemoState(2045), incomplete), /only an executed 2045 study/);

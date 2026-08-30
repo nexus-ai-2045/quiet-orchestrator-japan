@@ -1,4 +1,4 @@
-import { runCrisisSimulationBatch } from "./crisis.js";
+import { DEFAULT_ORGANIZATIONAL_FAILURE, runCrisisSimulationBatch } from "./crisis.js";
 import { canonicalize, observationFingerprint } from "./ai/contract.js";
 import { ACTOR_CONSTRAINTS } from "./ai/actor-governance.js";
 import { ACTORS } from "./simulation.js";
@@ -12,13 +12,15 @@ export const SENSITIVITY_VARIANTS = Object.freeze([
   { id: "slower-correction-longer-disruption", coefficients: Object.freeze({ attributionCorrectionOffset: 4, disruptionDurationScale: 1.25 }) },
 ].map(Object.freeze));
 const endpoints = (id) => id.split("-");
+const ORGANIZATIONAL_FAILURE_BY_STRATEGY = Object.freeze({
+  E: Object.freeze({ interagencyConflict: 1, dissentCompression: 1, leakage: 1 }),
+});
 
 function disabledFor(state, strategyId) {
   const ids = Object.keys(state.relationships);
   if (strategyId === "A") return ids.filter((id) => !endpoints(id).every((actor) => actor[0] === endpoints(id)[0][0]));
   if (strategyId === "B") return ids.filter((id) => endpoints(id).includes("B1") || endpoints(id).some((actor) => actor.startsWith("C")));
   if (strategyId === "C") return ids.filter((id) => !endpoints(id).some((actor) => actor.startsWith("J")));
-  if (strategyId === "E") return ids;
   return [];
 }
 
@@ -79,11 +81,11 @@ function paretoConclusion(left, right) {
 export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
   if (!Array.isArray(seeds) || seeds.length < 5 || new Set(seeds).size !== seeds.length) throw new TypeError("at least five unique seeds are required");
   const initialStateHash = observationFingerprint(state);
-  const scenarios = STRATEGIES.flatMap((strategy) => seeds.flatMap((seed) => SENSITIVITY_VARIANTS.map((variant) => ({ strategy, seed, variant, disabledRelationshipIds: disabledFor(state, strategy.id, seed) }))));
+  const scenarios = STRATEGIES.flatMap((strategy) => seeds.flatMap((seed) => SENSITIVITY_VARIANTS.map((variant) => ({ strategy, seed, variant, disabledRelationshipIds: disabledFor(state, strategy.id, seed), organizationalFailure: ORGANIZATIONAL_FAILURE_BY_STRATEGY[strategy.id] ?? DEFAULT_ORGANIZATIONAL_FAILURE }))));
   const japanRelationshipIds = Object.keys(state.relationships).filter((id) => endpoints(id).some((actor) => actor.startsWith("J")));
   const japanScenarios = state.year < 2045 ? [] : seeds.flatMap((seed) => SENSITIVITY_VARIANTS.map((variant) => ({ strategy: null, seed, variant, disabledRelationshipIds: japanRelationshipIds })));
   const allScenarios = [...scenarios, ...japanScenarios];
-  const runs = runCrisisSimulationBatch(state, allScenarios.map(({ seed, disabledRelationshipIds, variant }) => ({ seed, disabledRelationshipIds, coefficients: variant.coefficients })));
+  const runs = runCrisisSimulationBatch(state, allScenarios.map(({ seed, disabledRelationshipIds, variant, organizationalFailure }) => ({ seed, disabledRelationshipIds, coefficients: variant.coefficients, organizationalFailure })));
   const results = STRATEGIES.flatMap((strategy) => seeds.map((seed) => {
     const variants = scenarios.map((scenario, index) => ({ scenario, run: runs[index] })).filter(({ scenario }) => scenario.strategy.id === strategy.id && scenario.seed === seed);
     const registered = variants.find(({ scenario }) => scenario.variant.id === "registered");
@@ -92,6 +94,7 @@ export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
       actionCount: state.ledger.filter((entry) => entry.action !== "checkpoint-snapshot").length,
       causalSeedHash: observationFingerprint({ seed, causeWorldId: registered.run.causalParameters.causeWorldId, causeCode: registered.run.causalParameters.causeCode }),
       disabledRelationshipIds: registered.scenario.disabledRelationshipIds,
+      organizationalFailure: registered.run.organizationalFailure,
       evaluationAxes: evaluationAxes(registered.run, state),
       sensitivity: variants.map(({ scenario, run }) => ({ variantId: scenario.variant.id, coefficientVersion: run.coefficientVersion, coefficients: run.coefficients, evaluationAxes: evaluationAxes(run, state), eventStreamHash: run.eventStreamHash })),
     };
@@ -111,7 +114,10 @@ export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
     const coveredFunctions = [...new Set(cases.flatMap((item) => item.coveredFunctions))].sort();
     const allCasesMaintainCoordination = complete && cases.every((item) => item.evaluationAxes.coordinationFailedTurns === 0 && item.stoppedFunctions.length === 0);
     const worstCase = cases.reduce((worst, item) => !worst || item.evaluationAxes.coordinationFailedTurns > worst.evaluationAxes.coordinationFailedTurns ? item : worst, null);
-    japanRemoval = { status: complete ? "executed" : "incomplete", executed: complete, removedRelationshipIds: japanRelationshipIds, remainingOperatorIds: [...new Set(Object.keys(state.relationships).flatMap(endpoints).filter((id) => !id.startsWith("J")))].sort(), stoppedFunctions, coveredFunctions, evaluationAxes: worstCase?.evaluationAxes ?? null, cases, assessment: { complete, expectedCaseCount, actualCaseCount: cases.length, allCasesMaintainCoordination, verdict: allCasesMaintainCoordination ? "協調継続" : "改善余地" } };
+    const canonicalScenarioIndex = japanScenarios.findIndex((scenario) => scenario.seed === seeds[0] && scenario.variant.id === "registered");
+    const canonicalRun = japanRuns[canonicalScenarioIndex];
+    const canonicalCheckpoint = { seed: seeds[0], variantId: "registered", turns: canonicalRun.turns, eventStreamHash: canonicalRun.eventStreamHash, run: structuredClone(canonicalRun) };
+    japanRemoval = { status: complete ? "executed" : "incomplete", executed: complete, removedRelationshipIds: japanRelationshipIds, remainingOperatorIds: [...new Set(Object.keys(state.relationships).flatMap(endpoints).filter((id) => !id.startsWith("J")))].sort(), stoppedFunctions, coveredFunctions, evaluationAxes: worstCase?.evaluationAxes ?? null, cases, canonicalCheckpoint, assessment: { complete, expectedCaseCount, actualCaseCount: cases.length, allCasesMaintainCoordination, verdict: allCasesMaintainCoordination ? "協調継続" : "改善余地" } };
   }
   const reversalThresholds = seeds.flatMap((seed) => {
     const d = results.find((item) => item.strategyId === "D" && item.seed === seed);
@@ -172,6 +178,7 @@ export function recordJapanRemovalStudy(state, study) {
       evaluationAxes: structuredClone(canonicalResult.evaluationAxes),
       assessment: structuredClone(canonicalResult.assessment),
       cases: structuredClone(canonicalResult.cases),
+      canonicalCheckpoint: structuredClone(canonicalResult.canonicalCheckpoint),
       studyHash: observationFingerprint(canonicalStudy),
     },
   };
