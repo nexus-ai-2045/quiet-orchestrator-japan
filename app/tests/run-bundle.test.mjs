@@ -149,6 +149,7 @@ test("rejected PDCA cycles remain rejected evidence", () => {
   const bundle = buildBundle(createDemoState(2037), { maxSteps: 9 });
   assert.equal(bundle.events.at(-1).payload.applied, false);
   assert.equal(bundle.events.at(-1).event_type, "pdca.step.rejected");
+  assert.equal(bundle.events.at(-1).payload.governance_entries.at(-1).outcome, "rejected");
   assert.equal(validateBundle(bundle).valid, true);
 });
 

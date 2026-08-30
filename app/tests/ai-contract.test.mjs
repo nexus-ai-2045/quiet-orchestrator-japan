@@ -11,6 +11,8 @@ import {
   validateAiReceipt,
 } from "../src/ai/contract.js";
 import { applyValidatedAiProposal, buildAiStateSummary, fixtureReceiptIndex, nextFixtureStep } from "../src/ai/apply-proposal.js";
+import { ACTOR_CONSTRAINTS, actorConstraintFingerprint, authorizeAiTransaction, validateGovernanceEntry } from "../src/ai/actor-governance.js";
+import { ACTORS } from "../src/simulation.js";
 import { createDemoState } from "../src/simulation.js";
 
 test("valid proposal is accepted only for the exact observation hash", () => {
@@ -31,6 +33,30 @@ test("valid proposal is accepted only for the exact observation hash", () => {
   assert.equal(receipt.fallbackUsed, false);
   assert.equal(receipt.provider.promptVersion, "ai-proposal-v1");
   assert.match(receipt.provider.outputHash, /^fnv1a32:/);
+});
+
+test("all 18 actors receive country-name-independent reusable constraint profiles", () => {
+  assert.equal(Object.keys(ACTOR_CONSTRAINTS).length, 18);
+  const relabeled = ACTORS.map((actor) => ({ ...actor, group: `hidden-${actor.id}`, name: `role-${actor.id}` }));
+  assert.equal(actorConstraintFingerprint(relabeled), actorConstraintFingerprint(ACTORS));
+  assert.equal(ACTOR_CONSTRAINTS.B1.decisionRights.execute, true);
+  assert.equal(ACTOR_CONSTRAINTS.J2.decisionRights.execute, false);
+});
+
+test("proposal approval and execution rights are separate and rejection is auditable", () => {
+  const state = createDemoState(2035);
+  const observation = buildObservation({ actorId: "J2", turn: 1, seed: "authority-0", stateSummary: buildAiStateSummary(state) });
+  const proposal = { proposalVersion: 1, actorId: "J2", turn: 1, observationHash: observation.observationHash, actionId: "translation", relationshipId: "B1-C6", rationale: "役割に基づく提案を承認経路へ渡す", confidence: 0.8 };
+  const receipt = createAiReceipt({ observation, proposal });
+  const rejected = applyValidatedAiProposal(state, receipt, { proposerId: "J2", approverId: "J2", executorId: "J2" });
+  assert.equal(rejected.applied, false);
+  assert.strictEqual(rejected.state, state);
+  assert.deepEqual(rejected.errors, ["approval_not_authorized", "execution_not_authorized"]);
+  assert.equal(rejected.governanceLedger[0].outcome, "rejected");
+  assert.equal(validateGovernanceEntry(rejected.governanceLedger[0]), true);
+  const approved = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
+  assert.equal(approved.approved, true);
+  assert.equal(approved.entry.outcome, "approved");
 });
 
 test("forged hash and unauthorized action fail closed to a fixed fallback", () => {

@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/run-bundle-v1`
-- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（履歴証拠。現candidateではM2全20接続校正を追加し117件回帰）
+- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（履歴証拠。現candidateではM2全20接続校正とM3主体制約を追加し119件回帰）
 - base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -19,7 +19,7 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 117件pass。提案・receipt・PDCA、全20接続のarchetype校正・非一律適格性、baseline制約説明、annual replay、保存証拠、run bundle、台帳drawer、migration、最終checkpointを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 119件pass。提案・承認・実行権限と拒否証拠、全18主体の国名非依存制約型、全20接続のarchetype校正、annual replay、保存証拠、run bundle、台帳drawer、migration、最終checkpointを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |

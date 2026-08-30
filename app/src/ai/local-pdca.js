@@ -78,6 +78,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
       applied: planned.result.applied,
       errors: [...planned.result.errors],
       execution: planned.result.execution ?? null,
+      governanceLedger: planned.result.governanceLedger ?? [],
       attempts,
       checkpoint,
     },

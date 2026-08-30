@@ -45,7 +45,7 @@ console.log(JSON.stringify({
   },
   limitations: [
     "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
-    "actors-do-not-yet-change-behavior",
+    "actor-constraints-and-decision-rights-are-fictional-not-empirical",
     "crisis-does-not-yet-execute-120-events",
     "comparison-strategies-are-not-yet-run-by-one-engine",
   ],

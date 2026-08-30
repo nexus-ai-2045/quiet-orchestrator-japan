@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 117件pass |
+| `npm test` | 119件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-117件にはM2全20接続のarchetype校正・非一律施策適格性、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
+119件にはM2全20接続のarchetype校正・非一律施策適格性、M3全18主体の国名非依存制約型、提案・承認・実行権限と拒否台帳、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
 
 ### M1.5 ローカルPDCA実測
 
@@ -132,4 +132,4 @@ PR #4の`a05abc5`に対するCodex review P2 4件を、local `2263b50`で次の�
 - 数値と係数は架空で、経験的な確率や政策効果を表さない。
 - AI/LLM推論や自律交渉は未実装である。現M1.5は固定seed・固定action表のscripted Policy Engineによる3主体×3ターンPDCA基準線である。
 
-したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、全20接続のM2架空校正、Cloud handoff契約である。次段階はM3主体制約であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。
+したがって、この結果は「日本の構想が有効」という実証ではない。現在の成果は、決定論的baseline、代表因果縦切り、M1.5 scripted PDCA、全20接続のM2架空校正、M3主体制約と権限分離、Cloud handoff契約である。次段階はM4危機イベント機械であり、その後の順序は[ロードマップ](ROADMAP.md)を参照する。

@@ -51,4 +51,6 @@ test("baseline output identifies the frozen design and implementation inputs", (
     "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
   ));
   assert.ok(!baseline.limitations.includes("only-one-relationship-is-investable-and-calibrated"));
+  assert.ok(baseline.limitations.includes("actor-constraints-and-decision-rights-are-fictional-not-empirical"));
+  assert.ok(!baseline.limitations.includes("actors-do-not-yet-change-behavior"));
 });
