@@ -9,6 +9,10 @@ const buildBundle = (state = createDemoState(2035), options = {}) => buildMetaSe
   implementationRevision: IMPLEMENTATION_REVISION,
   ...options,
 });
+const validateBundle = (bundle, expectedImplementationRevision = IMPLEMENTATION_REVISION) => validateMetaSecurityRunBundle(
+  bundle,
+  { expectedImplementationRevision },
+);
 
 test("meta-security-run-bundle/v1 binds request, events, replay, and evidence to one deterministic run", () => {
   const initial = createDemoState(2035);
@@ -24,7 +28,7 @@ test("meta-security-run-bundle/v1 binds request, events, replay, and evidence to
   assert.deepEqual(first.events.map((event) => event.sequence), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
   assert.equal(first.events.every((event) => event.run_id === first.run_request.run_id), true);
   assert.equal(first.replay.event_stream_sha256, first.evidence.event_stream_sha256);
-  assert.equal(validateMetaSecurityRunBundle(first).valid, true);
+  assert.equal(validateBundle(first).valid, true);
 });
 
 test("run bundle validation fails closed on run identity and event-order drift", () => {
@@ -32,24 +36,30 @@ test("run bundle validation fails closed on run identity and event-order drift",
 
   const wrongRun = structuredClone(bundle);
   wrongRun.events[0].run_id = "qoj-0000000000000000";
-  assert.equal(validateMetaSecurityRunBundle(wrongRun).valid, false);
+  assert.equal(validateBundle(wrongRun).valid, false);
 
   const reordered = structuredClone(bundle);
   [reordered.events[0], reordered.events[1]] = [
     reordered.events[1],
     reordered.events[0],
   ];
-  assert.equal(validateMetaSecurityRunBundle(reordered).valid, false);
+  assert.equal(validateBundle(reordered).valid, false);
 });
 
 test("run bundle rejects non-JSON values before deterministic comparison", () => {
   const bundle = buildBundle();
   bundle.events[0].payload.errors = [undefined];
-  assert.deepEqual(validateMetaSecurityRunBundle(bundle), { valid: false, errors: ["non_json_value"] });
+  assert.deepEqual(validateBundle(bundle), { valid: false, errors: ["non_json_value"] });
 
   const hidden = buildBundle();
   Object.defineProperty(hidden.events[0].payload, "hidden", { value: "tamper", enumerable: false });
-  assert.deepEqual(validateMetaSecurityRunBundle(hidden), { valid: false, errors: ["non_json_value"] });
+  assert.deepEqual(validateBundle(hidden), { valid: false, errors: ["non_json_value"] });
+
+  const accessor = buildBundle();
+  let reads = 0;
+  Object.defineProperty(accessor, "product_id", { enumerable: true, get() { reads += 1; return "quiet-orchestrator-japan"; } });
+  assert.deepEqual(validateBundle(accessor), { valid: false, errors: ["non_json_value"] });
+  assert.equal(reads, 0);
 
   const invalidState = createDemoState(2035);
   invalidState.metrics.coordinationCapital = Number.NaN;
@@ -66,29 +76,45 @@ test("run seed range does not control timestamp representability and seed roles 
   assert.equal(bundle.run_request.parameters.policy_seed, String(Number.MAX_SAFE_INTEGER));
   assert.equal(bundle.run_request.parameters.simulation_state_seed, "baseline-0");
   assert.doesNotThrow(() => new Date(bundle.run_request.requested_at).toISOString());
-  assert.equal(validateMetaSecurityRunBundle(bundle).valid, true);
+  assert.equal(validateBundle(bundle).valid, true);
 
   const policySeedTamper = structuredClone(bundle);
   policySeedTamper.run_request.parameters.policy_seed = "different";
-  assert.equal(validateMetaSecurityRunBundle(policySeedTamper).valid, false);
+  assert.equal(validateBundle(policySeedTamper).valid, false);
 
   const stateSeedTamper = structuredClone(bundle);
   stateSeedTamper.run_request.parameters.simulation_state_seed = "different";
-  assert.equal(validateMetaSecurityRunBundle(stateSeedTamper).valid, false);
+  assert.equal(validateBundle(stateSeedTamper).valid, false);
 });
 
 test("rejected PDCA cycles remain rejected evidence", () => {
   const bundle = buildBundle(createDemoState(2037), { maxSteps: 9 });
   assert.equal(bundle.events.at(-1).payload.applied, false);
   assert.equal(bundle.events.at(-1).event_type, "pdca.step.rejected");
-  assert.equal(validateMetaSecurityRunBundle(bundle).valid, true);
+  assert.equal(validateBundle(bundle).valid, true);
 });
 
 test("implementation revision is a full run-identity input", () => {
   const bundle = buildBundle();
   assert.equal(bundle.run_request.parameters.implementation_revision, IMPLEMENTATION_REVISION);
   bundle.run_request.parameters.implementation_revision = "2".repeat(40);
-  assert.equal(validateMetaSecurityRunBundle(bundle).valid, false);
+  assert.equal(validateBundle(bundle).valid, false);
+  assert.equal(validateMetaSecurityRunBundle(buildBundle()).valid, false);
+  assert.equal(validateBundle(buildBundle(), "2".repeat(40)).valid, false);
   assert.throws(() => buildMetaSecurityRunBundle(createDemoState(2035), { seed: 404 }), /implementationRevision/);
   assert.throws(() => buildMetaSecurityRunBundle(createDemoState(2035), { seed: 404, implementationRevision: "abc123" }), /implementationRevision/);
+});
+
+test("validator returns invalid for every non-array event container", () => {
+  for (const events of [{}, "x", 1, true]) {
+    const bundle = buildBundle();
+    bundle.events = events;
+    assert.equal(validateBundle(bundle).valid, false);
+  }
+});
+
+test("builder requires the canonical simulation state seed", () => {
+  const state = createDemoState(2035);
+  delete state.seed;
+  assert.throws(() => buildBundle(state), /simulation state seed/);
 });

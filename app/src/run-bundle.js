@@ -34,13 +34,15 @@ function isJsonValue(value, ancestors = new WeakSet()) {
   if (Object.getOwnPropertySymbols(value).length > 0) return false;
   const prototype = Object.getPrototypeOf(value);
   if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) return false;
-  if (Array.isArray(value) && (Object.keys(value).length !== value.length
-    || Object.getOwnPropertyNames(value).length !== value.length + 1)) return false;
-  if (!Array.isArray(value) && Object.getOwnPropertyNames(value).length !== Object.keys(value).length) return false;
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const propertyNames = Object.getOwnPropertyNames(value);
+  if (propertyNames.some((name) => descriptors[name].get || descriptors[name].set)) return false;
+  if (Array.isArray(value) && (propertyNames.length !== value.length + 1
+    || propertyNames.some((name) => name !== "length" && !descriptors[name].enumerable))) return false;
+  if (!Array.isArray(value) && propertyNames.some((name) => !descriptors[name].enumerable)) return false;
   ancestors.add(value);
-  const valid = Array.isArray(value)
-    ? value.every((entry) => isJsonValue(entry, ancestors))
-    : Object.values(value).every((entry) => isJsonValue(entry, ancestors));
+  const values = propertyNames.filter((name) => name !== "length").map((name) => descriptors[name].value);
+  const valid = values.every((entry) => isJsonValue(entry, ancestors));
   ancestors.delete(value);
   return valid;
 }
@@ -51,6 +53,9 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
     throw new TypeError("initialState must be an object");
   }
   if (!isJsonValue(initialState)) throw new TypeError("initialState must contain only JSON values");
+  if (typeof initialState.seed !== "string" || initialState.seed.length === 0) {
+    throw new TypeError("simulation state seed must be a non-empty string");
+  }
 
   const initialStateSnapshot = structuredClone(initialState);
   const parameters = {
@@ -95,17 +100,25 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
   };
 }
 
-export function validateMetaSecurityRunBundle(bundle) {
+export function validateMetaSecurityRunBundle(bundle, { expectedImplementationRevision } = {}) {
   const errors = [];
   if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) return { valid: false, errors: ["bundle_not_object"] };
   if (!isJsonValue(bundle)) return { valid: false, errors: ["non_json_value"] };
+  if (typeof expectedImplementationRevision !== "string" || !/^[0-9a-f]{40}$/.test(expectedImplementationRevision)) {
+    errors.push("expected_implementation_revision_invalid");
+  } else if (bundle.run_request?.parameters?.implementation_revision !== expectedImplementationRevision) {
+    errors.push("implementation_revision_mismatch");
+  }
   if (bundle.schema !== META_SECURITY_RUN_BUNDLE_SCHEMA) errors.push("schema_mismatch");
   if (bundle.product_id !== PRODUCT_ID) errors.push("product_id_mismatch");
   const runId = bundle.run_request?.run_id;
   if (typeof runId !== "string" || !/^qoj-[0-9a-f]{16}$/.test(runId)) errors.push("run_id_invalid");
   for (const section of [bundle.replay, bundle.evidence]) if (section?.run_id !== runId) errors.push("run_id_mismatch");
   if (!Array.isArray(bundle.events) || bundle.events.length === 0) errors.push("events_invalid");
-  if (bundle.events?.some((event, index) => event?.run_id !== runId || event?.sequence !== index)) errors.push("event_identity_or_order_mismatch");
+  if (Array.isArray(bundle.events)
+    && bundle.events.some((event, index) => event?.run_id !== runId || event?.sequence !== index)) {
+    errors.push("event_identity_or_order_mismatch");
+  }
   if (errors.length > 0) return { valid: false, errors };
 
   let rebuilt;
