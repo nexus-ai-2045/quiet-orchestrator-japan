@@ -40,6 +40,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
     stateHash: planned.receipt.observation.stateSummary.stateHash,
     applied: planned.result.applied,
     errors: [...planned.result.errors],
+    governanceLedger: structuredClone(planned.result.governanceLedger ?? []),
   }];
 
   const checkpointPending = CHECKPOINTS.includes(state.year) && !state.stressTests[state.year];
@@ -58,6 +59,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
       stateHash: planned.receipt.observation.stateSummary.stateHash,
       applied: planned.result.applied,
       errors: [...planned.result.errors],
+      governanceLedger: structuredClone(planned.result.governanceLedger ?? []),
     });
   }
 
@@ -78,6 +80,7 @@ export function runOneLocalPdcaStep(state, step, seed = "hackathon-mvp-0") {
       applied: planned.result.applied,
       errors: [...planned.result.errors],
       execution: planned.result.execution ?? null,
+      governanceLedger: planned.result.governanceLedger ?? [],
       attempts,
       checkpoint,
     },

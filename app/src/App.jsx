@@ -12,6 +12,8 @@ import {
 import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
 import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
+import { runCrisisSimulation } from "./crisis.js";
+import { recordJapanRemovalStudy, runComparativeStudy, STRATEGIES } from "./experiments.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -100,7 +102,7 @@ function Header({ state, preview, onAdvance, onStress, onCompare, onReset, compa
       <div className="command-bar">
         <StrategicTimeline year={state.year} />
         <div className="command-actions">
-          <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "代表接続を選択"}<span aria-hidden="true">→</span></button>
+          <button className="button primary" onClick={onAdvance} disabled={!preview.eligible} title={preview.reason}>{state.year >= END_YEAR ? "2045年に到達" : preview.eligible ? "投資して次の1年へ" : "接続と施策を選択"}<span aria-hidden="true">→</span></button>
           <button className="button" onClick={onStress} title={`${state.year}年の接続状態を固定して${atCheckpoint ? "標準チェックポイント" : "任意年"}として検証`}>{atCheckpoint ? "終末の1ヶ月テスト" : "任意年テスト"}</button>
           <button className={`button ${comparing ? "active" : ""}`} onClick={onCompare}>比較</button>
           <button className="button quiet" onClick={onReset}>リセット</button>
@@ -141,7 +143,7 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedge
     <section className="network-stage" aria-label="長期接続ネットワーク">
       <div className="stage-title">
         <strong>長期ポートフォリオ・レイヤー</strong>
-        <label className="relationship-picker">接続を選択<select value={state.selectedRelationshipId} onChange={(event) => onSelectRelationship(event.target.value)}>{RELATIONSHIPS.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.label}{relationship.investable ? " / P1代表" : " / 表示のみ"}</option>)}</select></label>
+        <label className="relationship-picker">接続を選択<select value={state.selectedRelationshipId} onChange={(event) => onSelectRelationship(event.target.value)}>{RELATIONSHIPS.map((relationship) => <option key={relationship.id} value={relationship.id}>{relationship.label} / {relationship.archetype}</option>)}</select></label>
       </div>
       <div className="layer-labels" aria-hidden="true">
         <div><strong>検証基盤</strong><span>共通の事実を確かめる</span></div>
@@ -158,19 +160,22 @@ function NetworkStage({ state, onSelectActor, onSelectRelationship, focusedLedge
   );
 }
 
-function Inspector({ state, focusedLedgerEntry }) {
+function Inspector({ state, focusedLedgerEntry, finalEvidence }) {
   const relationship = getSelectedRelationship(state);
   const historicalEntry = focusedLedgerEntry?.relationshipId === relationship.id ? focusedLedgerEntry : null;
   const relationshipState = historicalEntry?.after ?? relationship.state;
   const source = ACTORS.find((item) => item.id === relationship.source);
   const target = ACTORS.find((item) => item.id === relationship.target);
   const preview = previewSelectedInvestment(state);
-  const final = getFinalAssessment(state);
+  const final = finalEvidence
+    ? { label: state.japanRemovalStressTest ? finalEvidence.assessment.verdict : `${finalEvidence.assessment.verdict}（記録待ち）` }
+    : getFinalAssessment(state);
+  const canonicalMaintainedTurns = finalEvidence ? 120 - finalEvidence.canonicalCheckpoint.run.events.filter((event) => event.consequence.coordination === "failed").length : null;
   return (
     <aside className="inspector" aria-label="選択中の接続詳細" tabIndex={0}>
         <div className="panel-heading"><strong>{historicalEntry ? `${historicalEntry.year}年の接続` : "選択中の接続"}</strong><span>{relationship.label}</span></div>
       <div className="inspector-body">
-        <div className={`scope-badge ${relationship.investable ? "active" : ""}`}>{relationship.investable ? "P1 代表接続 / 投資可能" : "P1 表示のみ / 未校正"}</div>
+        <div className="scope-badge active">M2 {relationship.archetype} / 投資可能</div>
         <h2>{source.name}<span> ↔ </span>{target.name}</h2>
         <dl>
           <div><dt>関係の目的</dt><dd>{relationship.purpose}</dd></div>
@@ -184,7 +189,7 @@ function Inspector({ state, focusedLedgerEntry }) {
         </div>
         {historicalEntry && <p className="scope-note">因果台帳 {historicalEntry.id} 適用後の接続状態です。{historicalEntry.reason}</p>}
         {!preview.eligible && <p className="scope-note">{preview.reason}</p>}
-        <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{state.metrics.continuity}</b><span>/100<br />日本不在時の継続性<br />{final.label}</span></div></div>
+        <div className="final-condition"><span>2045 最終条件</span><strong>日本が中心から退いても、<br />協調ネットワークが機能する</strong><div><b>{finalEvidence ? canonicalMaintainedTurns : state.metrics.continuity}</b><span>{finalEvidence ? "/120" : "/100"}<br />{finalEvidence ? "canonical危機の協調維持turn" : "日本不在時の継続性"}<br />{final.label}</span></div></div>
       </div>
     </aside>
   );
@@ -353,10 +358,12 @@ function StressStrip({ state, onSelectContribution }) {
       {displayYears.map((year) => {
         const result = state.stressTests[year];
         const exploratory = !CHECKPOINTS.includes(year);
+        const selectedContribution = result?.relationshipContributions.find((item) => item.relationshipId === state.selectedRelationshipId)
+          ?? result?.relationshipContributions.toSorted((a, b) => b.coordinationSurvival - a.coordinationSurvival)[0];
         return (
           <article key={year} className={state.year === year ? "current" : ""}>
             <div><strong>{year}{exploratory ? " 任意" : ""}</strong><span>{result ? result.verdict : "未実施"}</span></div>
-            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, result.relationshipContributions[0])}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
+            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, selectedContribution)}>{selectedContribution.relationshipLabel} 寄与 +{selectedContribution.coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
           </article>
         );
       })}
@@ -400,19 +407,49 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
   );
 }
 
-function Comparison({ state, onClose }) {
-  const strategies = [
-    { name: "同盟代理", continuity: 38, dependency: 76, measured: false, note: "即応性は高いが、単一依存が残る" },
-    { name: "単独仲介", continuity: 45, dependency: 58, measured: false, note: "日本の負荷と失敗時の空白が大きい" },
-    { name: "静かなオーケストレーション", continuity: state.metrics.continuity, dependency: state.metrics.dependency, measured: true, note: "共同所有へ移し、日本不在でも残す" },
-  ];
+function Comparison({ state, study, onClose, onRecordJapanRemoval }) {
+  const strategies = STRATEGIES.map((strategy) => {
+    const rows = study.results.filter((row) => row.strategyId === strategy.id);
+    const average = (key) => rows.reduce((sum, row) => sum + row.evaluationAxes[key], 0) / rows.length;
+    return {
+      ...strategy,
+      correctionTurn: average("attributionCorrectionTurn"),
+      maintainedTurns: average("coordinationMaintainedTurns"),
+      failedTurns: average("coordinationFailedTurns"),
+      irreversibleTurn: average("irreversibleActionTurn"),
+      reversibilityWindow: average("reversibilityWindowTurns"),
+      fallbackCoverage: average("fallbackCoverage"),
+      riskExposure: average("surveillanceDependencyExposure"),
+      thirdPartyVerification: average("thirdPartyVerificationCoverage"),
+      decisionDiversity: average("decisionRightDiversity"),
+    };
+  });
   return (
     <div className="comparison-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="comparison" role="dialog" aria-modal="true" aria-labelledby="comparison-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="panel-heading"><strong id="comparison-title">戦略比較</strong><button onClick={onClose}>閉じる</button></div><p>調整方式の違いを説明する表示です。静かなオーケストレーションは現在の実行値、同盟代理・単独仲介は同一エンジンで再実行していない固定の参考値です。A〜E比較の実測はM5で行います。</p>
-        {strategies.map((strategy) => <article key={strategy.name}><h2>{strategy.name} <small>{strategy.measured ? "現在の実行値" : "固定参考値 / 未実測"}</small></h2><div><span>日本不在時の継続性 <b>{strategy.continuity}</b></span><span>単一依存 <b>{strategy.dependency}</b></span></div><p>{strategy.note}</p></article>)}
+        <div className="panel-heading"><strong id="comparison-title">戦略比較 A〜E / 5 seed</strong><button onClick={onClose}>閉じる</button></div><p>全戦略を同じ初期状態・予算・行動回数・危機因果列で再実行しています。値は架空モデルの比較で、現実の予測ではありません。</p>
+        {strategies.map((strategy) => <article key={strategy.id}><h2>{strategy.id} {strategy.label}</h2><div><span>訂正turn <b>{strategy.correctionTurn.toFixed(1)}</b></span><span>協調維持/失敗 <b>{strategy.maintainedTurns.toFixed(1)} / {strategy.failedTurns.toFixed(1)}</b></span><span>不可逆行動/撤退猶予 <b>{strategy.irreversibleTurn.toFixed(1)} / {strategy.reversibilityWindow.toFixed(1)}</b></span><span>代替経路充足率 <b>{(strategy.fallbackCoverage * 100).toFixed(0)}%</b></span><span>監視・依存リスク <b>{strategy.riskExposure.toFixed(1)}</b></span><span>第三者検証率 <b>{(strategy.thirdPartyVerification * 100).toFixed(0)}%</b></span><span>決定権の多様性 <b>{strategy.decisionDiversity.toFixed(1)}</b></span></div></article>)}
+        <p>D敗北seed: {study.dLossSeeds.join(", ") || "なし"} / 感度分析の順位反転 {study.reversalThresholds.length}件</p>
+        <p>{study.japanRemoval.executed ? `日本除去後の残存主体 ${study.japanRemoval.remainingOperatorIds.length}` : `日本除去試験は${study.japanRemoval.requiredYear}年に実行（現在${study.japanRemoval.currentYear}年）`}</p>
+        {study.japanRemoval.executed && <button className="button primary" onClick={() => onRecordJapanRemoval(study)}>2045年日本除去試験を状態へ記録</button>}
       </section>
     </div>
+  );
+}
+
+function CrisisReplay({ run, index, running, speed, onToggle, onSpeed, onSeek }) {
+  const event = run.events[index];
+  return (
+    <section className="crisis-replay" aria-label="終末の1ヶ月 120ターン再生">
+      <div className="panel-heading"><strong>危機再生 / {event.phase}</strong><span>Turn {event.turn}/120 · Day {event.day}</span></div>
+      <div className="crisis-controls">
+        <button onClick={onToggle}>{running ? "停止" : "再生"}</button>
+        {[1, 4, 12].map((value) => <button key={value} className={speed === value ? "active" : ""} onClick={() => onSpeed(value)}>×{value}</button>)}
+        <input aria-label="危機ターン" type="range" min="0" max="119" value={index} onChange={(event_) => onSeek(Number(event_.target.value))} />
+      </div>
+      <p><b>{event.claim.status}</b> → {event.action.id} → {event.consequence.coordination} / 通信 {event.observation.communications}</p><code>{run.eventStreamHash}</code>
+      <div className="crisis-jumps">{run.importantEvents.map((item) => <button key={item.sequence} onClick={() => onSeek(item.sequence)}>{item.turn}: {item.phase}</button>)}</div>
+    </section>
   );
 }
 
@@ -424,6 +461,21 @@ export function App() {
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
   const [pdcaCycles, setPdcaCycles] = useState([]);
   const [pdcaStep, setPdcaStep] = useState(0);
+  const [crisisIndex, setCrisisIndex] = useState(0);
+  const [crisisRunning, setCrisisRunning] = useState(false);
+  const [crisisSpeed, setCrisisSpeed] = useState(4);
+  const canonicalFinalStudy = useMemo(() => state.year === 2045 && !state.japanRemovalStressTest ? runComparativeStudy(state) : null, [state]);
+  const comparisonStudy = useMemo(() => comparing ? canonicalFinalStudy ?? runComparativeStudy(state) : null, [canonicalFinalStudy, comparing, state]);
+  const finalEvidence = state.japanRemovalStressTest ?? canonicalFinalStudy?.japanRemoval ?? null;
+  const crisisRun = useMemo(() => finalEvidence?.canonicalCheckpoint?.run ?? runCrisisSimulation(state, { seed: `${state.seed}:crisis` }), [finalEvidence, state]);
+  useEffect(() => {
+    if (!crisisRunning) return undefined;
+    const timer = window.setInterval(() => setCrisisIndex((current) => {
+      if (current >= 119) { setCrisisRunning(false); return 119; }
+      return Math.min(119, current + crisisSpeed);
+    }), 500);
+    return () => window.clearInterval(timer);
+  }, [crisisRunning, crisisSpeed]);
   const preview = previewSelectedInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
@@ -438,7 +490,7 @@ export function App() {
     setState(next);
     setNotice(next === state ? "state検証に失敗したため、危機テストを記録しませんでした" : `${state.year}年時点の終末の1ヶ月テストを記録しました`);
   };
-  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setCrisisIndex(0); setCrisisRunning(false); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
     const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
@@ -488,14 +540,20 @@ export function App() {
     setPdcaStep(currentStep);
     setNotice(currentStep === 9 ? `ローカルPDCA 3主体×3ターンを完走しました / ${addedCycles.at(-1)?.check.afterStateHash}` : `PDCAを${currentStep + 1}手目で安全停止しました`);
   };
+  const handleJapanRemovalRecord = (study) => {
+    setState((current) => recordJapanRemovalStudy(current, study));
+    setComparing(false);
+    setNotice("2045年日本除去試験を最終評価へ記録しました");
+  };
 
   return (
     <main className="app-shell">
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
-      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
+      <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} finalEvidence={finalEvidence} /></div>
       <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
+      <CrisisReplay run={crisisRun} index={crisisIndex} running={crisisRunning} speed={crisisSpeed} onToggle={() => setCrisisRunning((value) => !value)} onSpeed={setCrisisSpeed} onSeek={(value) => { setCrisisIndex(value); setCrisisRunning(false); }} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
-      {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
+      {comparing && <Comparison state={state} study={comparisonStudy} onClose={() => setComparing(false)} onRecordJapanRemoval={handleJapanRemovalRecord} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}
     </main>
   );

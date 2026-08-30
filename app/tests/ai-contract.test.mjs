@@ -11,6 +11,8 @@ import {
   validateAiReceipt,
 } from "../src/ai/contract.js";
 import { applyValidatedAiProposal, buildAiStateSummary, fixtureReceiptIndex, nextFixtureStep } from "../src/ai/apply-proposal.js";
+import { ACTOR_CONSTRAINTS, actorConstraintFingerprint, authorizeAiTransaction, validateGovernanceEntry } from "../src/ai/actor-governance.js";
+import { ACTORS } from "../src/simulation.js";
 import { createDemoState } from "../src/simulation.js";
 
 test("valid proposal is accepted only for the exact observation hash", () => {
@@ -31,6 +33,71 @@ test("valid proposal is accepted only for the exact observation hash", () => {
   assert.equal(receipt.fallbackUsed, false);
   assert.equal(receipt.provider.promptVersion, "ai-proposal-v1");
   assert.match(receipt.provider.outputHash, /^fnv1a32:/);
+});
+
+test("all 18 actors receive country-name-independent reusable constraint profiles", () => {
+  assert.equal(Object.keys(ACTOR_CONSTRAINTS).length, 18);
+  const relabeled = ACTORS.map((actor) => ({ ...actor, group: `hidden-${actor.id}`, name: `role-${actor.id}` }));
+  assert.equal(actorConstraintFingerprint(relabeled), actorConstraintFingerprint(ACTORS));
+  assert.equal(ACTOR_CONSTRAINTS.B1.decisionRights.execute, true);
+  assert.equal(ACTOR_CONSTRAINTS.J2.decisionRights.execute, false);
+});
+
+test("proposal approval and execution rights are separate and rejection is auditable", () => {
+  const state = createDemoState(2035);
+  const observation = buildObservation({ actorId: "J2", turn: 1, seed: "authority-0", stateSummary: buildAiStateSummary(state) });
+  const proposal = { proposalVersion: 1, actorId: "J2", turn: 1, observationHash: observation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "役割に基づく提案を承認経路へ渡す", confidence: 0.8 };
+  const receipt = createAiReceipt({ observation, proposal });
+  const rejected = applyValidatedAiProposal(state, receipt, { proposerId: "J2", approverId: "J2", executorId: "J2" });
+  assert.equal(rejected.applied, false);
+  assert.strictEqual(rejected.state, state);
+  assert.deepEqual(rejected.errors, ["approval_not_authorized", "execution_not_authorized"]);
+  assert.equal(rejected.governanceLedger[0].outcome, "rejected");
+  assert.equal(validateGovernanceEntry(rejected.governanceLedger[0]), true);
+  const approved = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
+  assert.equal(approved.approved, true);
+  assert.equal(approved.entry.outcome, "approved");
+});
+
+test("authorization requires the action capability and governance validation rebuilds semantics", () => {
+  const observation = buildObservation({ actorId: "J2", turn: 1, seed: "capability-0" });
+  const proposal = { proposalVersion: 1, actorId: "J2", turn: 1, observationHash: observation.observationHash, actionId: "translation", relationshipId: "B1-C6", rationale: "翻訳能力を持つ実行者へ渡す", confidence: 0.8 };
+  const accepted = createAiReceipt({ observation, proposal: { ...proposal, actionId: "verification" } });
+  const receipt = { ...accepted, appliedProposal: { ...accepted.appliedProposal, actionId: "translation" } };
+  const denied = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "C1" });
+  assert.equal(denied.approved, false);
+  assert.ok(denied.errors.includes("execution_not_authorized"));
+  assert.ok(denied.errors.includes("action_capability_not_authorized"));
+
+  const stillDenied = authorizeAiTransaction(receipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
+  assert.equal(stillDenied.approved, false);
+  assert.deepEqual(stillDenied.errors, ["action_capability_not_authorized"]);
+  assert.equal(validateGovernanceEntry(stillDenied.entry), true);
+  const verificationObservation = buildObservation({ actorId: "J2", turn: 1, seed: "capability-verify" });
+  const verificationReceipt = createAiReceipt({
+    observation: verificationObservation,
+    proposal: { ...proposal, observationHash: verificationObservation.observationHash, actionId: "verification" },
+  });
+  const approved = authorizeAiTransaction(verificationReceipt, { proposerId: "J2", approverId: "C6", executorId: "B1" });
+  assert.equal(approved.approved, true);
+  assert.equal(validateGovernanceEntry(approved.entry), true);
+  const forged = { ...approved.entry, actionId: "unsupported-action" };
+  const { governanceId: _oldId, ...payload } = forged;
+  forged.governanceId = observationFingerprint(payload);
+  assert.equal(validateGovernanceEntry(forged), false);
+});
+
+test("an executor cannot lend verification capability to a C6 proposer", () => {
+  const observation = buildObservation({ actorId: "C6", turn: 1, seed: "capability-c6" });
+  const proposal = { proposalVersion: 1, actorId: "C6", turn: 1, observationHash: observation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "共同検証を提案する", confidence: 0.8 };
+  const fallbackReceipt = createAiReceipt({ observation, proposal });
+  assert.equal(fallbackReceipt.outcome, "fallback");
+  const accepted = createAiReceipt({ observation, proposal: { ...proposal, actionId: "coownership" } });
+  const receipt = { ...accepted, appliedProposal: { ...accepted.appliedProposal, actionId: "verification" } };
+  const denied = authorizeAiTransaction(receipt, { proposerId: "C6", approverId: "C6", executorId: "B1" });
+  assert.equal(denied.approved, false);
+  assert.deepEqual(denied.errors, ["action_capability_not_authorized"]);
+  assert.equal(validateGovernanceEntry(denied.entry), true);
 });
 
 test("forged hash and unauthorized action fail closed to a fixed fallback", () => {
@@ -140,6 +207,14 @@ test("proposal freshness binds the complete canonical state summary", () => {
   const proposal = { proposalVersion: 1, actorId: "B1", turn: 1, observationHash: alteredObservation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "完全な状態要約との一致を要求する", confidence: 0.8 };
   const receipt = createAiReceipt({ observation: alteredObservation, proposal });
   assert.deepEqual(applyValidatedAiProposal(state, receipt).errors, ["stale_state_snapshot"]);
+
+  const relationshipDrift = structuredClone(state);
+  relationshipDrift.relationships["J1-B1"].state.trust += 1;
+  assert.notEqual(buildAiStateSummary(relationshipDrift).executionStateHash, buildAiStateSummary(state).executionStateHash);
+  const exactObservation = buildObservation({ actorId: "B1", turn: 1, seed: "summary-exact", stateSummary: buildAiStateSummary(state) });
+  const exactProposal = { ...proposal, observationHash: exactObservation.observationHash };
+  const exactReceipt = createAiReceipt({ observation: exactObservation, proposal: exactProposal });
+  assert.deepEqual(applyValidatedAiProposal(relationshipDrift, exactReceipt).errors, ["stale_state_snapshot"]);
 });
 
 test("receipt envelope is bound to its observation identity", () => {

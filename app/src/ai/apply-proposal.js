@@ -1,8 +1,10 @@
 import { advanceYear, selectAction, selectRelationship } from "../simulation.js";
 import { AI_RELATIONSHIP_ID, canonicalize, observationFingerprint, validateAiReceipt } from "./contract.js";
+import { authorizeAiTransaction, recordGovernanceOutcome } from "./actor-governance.js";
 
 export function buildAiStateSummary(state) {
   const stateProjection = {
+    executionStateHash: observationFingerprint(state),
     year: state.year,
     seed: state.seed,
     budget: state.budget,
@@ -28,20 +30,44 @@ export function buildAiStateSummary(state) {
   return { ...stateProjection, stateHash: observationFingerprint(stateProjection) };
 }
 
-export function applyValidatedAiProposal(state, receipt) {
+export function applyValidatedAiProposal(state, receipt, authority = undefined) {
   const receiptValidation = validateAiReceipt(receipt);
-  if (!receiptValidation.valid) return { applied: false, errors: receiptValidation.errors, state };
+  const authorization = authorizeAiTransaction(receipt, authority);
+  if (!receiptValidation.valid) {
+    const errors = [...receiptValidation.errors, ...authorization.errors];
+    return {
+      applied: false,
+      errors,
+      state,
+      governanceLedger: [recordGovernanceOutcome({
+        receipt,
+        proposerId: authorization.entry.proposerId,
+        approverId: authorization.entry.approverId,
+        executorId: authorization.entry.executorId,
+        outcome: "rejected",
+        errors,
+      })],
+    };
+  }
+  if (!authorization.approved) {
+    return { applied: false, errors: authorization.errors, state, governanceLedger: [authorization.entry] };
+  }
   const expectedSummary = buildAiStateSummary(state);
   if (canonicalize(receipt.observation.stateSummary) !== canonicalize(expectedSummary)) {
-    return { applied: false, errors: ["stale_state_snapshot"], state };
+    const errors = ["stale_state_snapshot"];
+    return { applied: false, errors, state, governanceLedger: [recordGovernanceOutcome({ ...authorization.entry, receipt, outcome: "rejected", errors })] };
   }
   const selected = selectAction(selectRelationship(state, receipt.appliedProposal.relationshipId), receipt.appliedProposal.actionId);
   const next = advanceYear(selected);
-  if (next.year === state.year) return { applied: false, errors: ["deterministic_core_rejected"], state };
+  if (next.year === state.year) {
+    const errors = ["deterministic_core_rejected"];
+    return { applied: false, errors, state, governanceLedger: [recordGovernanceOutcome({ ...authorization.entry, receipt, outcome: "rejected", errors })] };
+  }
   return {
     applied: true,
     errors: [],
     state: next,
+    governanceLedger: [authorization.entry],
     execution: {
       receiptVersion: 1,
       proposalOutputHash: receipt.provider.outputHash,

@@ -131,7 +131,7 @@ test("the adopted calibration v0 remains explicit and versioned", () => {
 
 test("relationship v1 gives every connection a stable schema", () => {
   const state = createInitialState();
-  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.schemaVersion, 4);
   assert.equal(RELATIONSHIPS.length, 20);
   assert.equal(Object.keys(state.relationships).length, 20);
   assert.equal(state.selectedRelationshipId, "B1-C6");
@@ -147,12 +147,55 @@ test("relationship v1 gives every connection a stable schema", () => {
   assert.equal(relationship.investable, true);
 });
 
-test("the M2 portfolio gate validates all 20 relationships without pretending uncalibrated links are ready", () => {
+test("the adopted M2 portfolio calibrates all 20 relationships from explicit archetypes", () => {
   const report = validateRelationshipPortfolio(createInitialState());
   assert.equal(report.valid, true);
   assert.equal(report.total, 20);
-  assert.deepEqual(report.calibration, { calibrated: 1, uncalibrated: 19 });
+  assert.deepEqual(report.calibration, { calibrated: 20, uncalibrated: 0 });
   assert.deepEqual(report.errors, []);
+
+  const verification = RELATIONSHIPS.find(({ id }) => id === "J1-B1");
+  const interoperability = RELATIONSHIPS.find(({ id }) => id === "J4-U4");
+  const coownership = RELATIONSHIPS.find(({ id }) => id === "B1-C5");
+  const contested = RELATIONSHIPS.find(({ id }) => id === "U3-B1");
+  assert.deepEqual(
+    [verification.archetype, interoperability.archetype, coownership.archetype],
+    ["verification", "interoperability", "coownership"],
+  );
+  assert.equal(verification.calibrationVersion, "relationship-v1.1.0");
+  assert.deepEqual(verification.initialState, {
+    maturity: 36, trust: 34, verificationAgreement: 40, interoperability: 28,
+    coOwnership: 22, dependency: 50, alternateRoutes: 1, disclosureCost: 12,
+  });
+  assert.equal(contested.contested, true);
+  assert.deepEqual(contested.initialState, {
+    maturity: 32, trust: 26, verificationAgreement: 34, interoperability: 28,
+    coOwnership: 22, dependency: 58, alternateRoutes: 1, disclosureCost: 18,
+  });
+});
+
+test("M2 archetypes produce nonuniform action eligibility and deterministic deltas", () => {
+  let state = selectRelationship(createInitialState(), "J1-B1");
+  assert.equal(previewRelationshipInvestment(state, "redundancy", "J1-B1").eligible, false);
+  const verification = previewRelationshipInvestment(state, "verification", "J1-B1");
+  assert.equal(verification.eligible, true);
+  assert.deepEqual(verification.deltas, {
+    maturity: 5, trust: 4, verificationAgreement: 12, dependency: -1, disclosureCost: 2,
+  });
+
+  state = selectRelationship(createInitialState(), "J4-U4");
+  const redundancy = previewRelationshipInvestment(state, "redundancy", "J4-U4");
+  assert.equal(redundancy.eligible, true);
+  assert.deepEqual(redundancy.deltas, {
+    maturity: 4, interoperability: 7, dependency: -8, alternateRoutes: 1, disclosureCost: 1,
+  });
+
+  state = selectRelationship(createInitialState(), "U3-B1");
+  const contested = previewRelationshipInvestment(state, "verification", "U3-B1");
+  assert.equal(contested.eligible, true);
+  assert.deepEqual(contested.deltas, {
+    maturity: 3, trust: 3, verificationAgreement: 9, dependency: 0, disclosureCost: 2,
+  });
 });
 
 test("the M2 portfolio gate fails closed on map identity and state range drift", () => {
@@ -173,7 +216,7 @@ test("the M2 portfolio gate fails closed on map identity and state range drift",
   assert.equal(validateRelationshipPortfolio(malformed).valid, false);
 
   const metadataDrift = createInitialState();
-  metadataDrift.relationships["J1-B1"].investable = true;
+  metadataDrift.relationships["J1-B1"].investable = false;
   metadataDrift.relationships["J1-B1"].purpose = "forged";
   metadataDrift.relationships["J1-B1"].contested = true;
   const metadataReport = validateRelationshipPortfolio(metadataDrift);
@@ -273,10 +316,13 @@ test("an investment portfolio enforces one-to-three unique calibrated targets an
     { relationshipId: "B1-C6", actionId: "verification" },
     { relationshipId: "J1-B1", actionId: "translation" },
   ]).reason, "年間アクションは全配分で同一にしてください");
-  assert.equal(previewInvestmentPortfolio(state, [
+  const multiTarget = previewInvestmentPortfolio(state, [
     { relationshipId: "B1-C6", actionId: "verification" },
     { relationshipId: "J1-B1", actionId: "verification" },
-  ]).eligible, false);
+  ]);
+  assert.equal(multiTarget.eligible, true);
+  assert.equal(multiTarget.items.length, 2);
+  assert.equal(multiTarget.totalCost, 50);
 
   const plan = previewInvestmentPortfolio(state, [{ relationshipId: "B1-C6", actionId: "verification" }]);
   assert.equal(plan.eligible, true);
@@ -310,7 +356,7 @@ test("legacy aggregate state has an explicit migration path", () => {
     history: [],
     stressTests: { 2030: { verdict: "legacy result without a causal contribution" } },
   });
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(migrated.year, 2030);
   assert.equal(migrated.metrics.verification, 61);
   assert.equal(migrated.relationships["B1-C6"].state.maturity, 46);
@@ -328,7 +374,7 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   }
 
   const migrated = migrateSimulationState(legacy);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(
     migrated.relationships["B1-C6"].calibrationFingerprint,
     'relationship-v1.0.0:{"alternateRoutes":1,"coOwnership":28,"dependency":48,"disclosureCost":12,"interoperability":36,"maturity":46,"trust":42,"verificationAgreement":38}',
@@ -336,6 +382,86 @@ test("a legitimate schema-v2 save is backfilled with the known calibration", () 
   assert.equal(previewRelationshipInvestment(migrated).eligible, true);
   assert.notEqual(advanceYear(migrated), migrated);
   assert.ok(runStressTest(migrated).stressTests[migrated.year]);
+});
+
+test("schema-v3 migration adopts canonical M2 metadata instead of preserving legacy conflicts", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 3;
+  const absent = legacy.relationships["J1-B1"];
+  delete absent.archetype;
+  delete absent.calibrationVersion;
+  delete absent.actionMultipliers;
+  delete absent.positiveDeltaMultiplier;
+  delete absent.calibrationFingerprint;
+  legacy.relationships["J2-U2"].archetype = "forged-archetype";
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.relationships["J1-B1"].archetype, RELATIONSHIPS.find((item) => item.id === "J1-B1").archetype);
+  assert.deepEqual(migrated.relationships["J1-B1"].actionMultipliers, RELATIONSHIPS.find((item) => item.id === "J1-B1").actionMultipliers);
+  assert.match(migrated.relationships["J1-B1"].calibrationFingerprint, /^relationship-v1\.1\.0:/);
+  assert.equal(migrated.relationships["J2-U2"].archetype, RELATIONSHIPS.find((item) => item.id === "J2-U2").archetype);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+});
+
+test("schema-v3 migration replaces pre-M2 relationship definitions with the adopted canonical portfolio", () => {
+  const legacy = createInitialState();
+  legacy.schemaVersion = 3;
+  for (const relationship of Object.values(legacy.relationships)) {
+    relationship.investable = relationship.id === "B1-C6";
+    relationship.contested = false;
+    relationship.purpose = "legacy purpose";
+    relationship.channel = "legacy channel";
+    relationship.ownership = "legacy ownership";
+    relationship.archetype = undefined;
+    relationship.calibrationVersion = undefined;
+    relationship.actionMultipliers = undefined;
+    relationship.positiveDeltaMultiplier = undefined;
+    relationship.calibrationFingerprint = null;
+    relationship.state = Object.fromEntries(Object.keys(relationship.state).map((key) => [key, key === "alternateRoutes" ? 0 : 50]));
+  }
+
+  const migrated = migrateSimulationState(legacy);
+  assert.equal(validateSimulationExecutionState(migrated).valid, true);
+  for (const definition of RELATIONSHIPS) {
+    const relationship = migrated.relationships[definition.id];
+    for (const field of ["source", "target", "label", "investable", "contested", "purpose", "channel", "ownership", "archetype", "calibrationVersion", "positiveDeltaMultiplier"]) {
+      assert.equal(relationship[field], definition[field], `${definition.id}.${field}`);
+    }
+    assert.deepEqual(relationship.actionMultipliers, definition.actionMultipliers);
+    assert.deepEqual(relationship.state, definition.initialState);
+    assert.match(relationship.calibrationFingerprint, /^relationship-v1\./);
+  }
+});
+
+test("schema-v3 migration preserves evidenced investment state and ledger without inventing history", () => {
+  const invested = advanceYear(createInitialState());
+  const expectedState = structuredClone(invested.relationships[invested.ledger[0].relationshipId].state);
+  const expectedLedger = structuredClone(invested.ledger);
+  invested.schemaVersion = 3;
+  invested.relationships[invested.ledger[0].relationshipId].purpose = "legacy purpose";
+  invested.relationships[invested.ledger[0].relationshipId].calibrationFingerprint = null;
+
+  const migrated = migrateSimulationState(invested);
+  assert.deepEqual(migrated.relationships[invested.ledger[0].relationshipId].state, expectedState);
+  assert.deepEqual(migrated.ledger, expectedLedger);
+  assert.equal(migrated.history.length, invested.history.length);
+});
+
+test("runtime rejects incomplete or out-of-range calibration multiplier metadata", () => {
+  const state = createInitialState();
+  const missingAction = structuredClone(state);
+  delete missingAction.relationships["J1-B1"].actionMultipliers.translation;
+  assert.ok(validateSimulationExecutionState(missingAction).errors.some((error) => error.includes("actionMultipliers")));
+
+  const invalidPositive = structuredClone(state);
+  invalidPositive.relationships["J1-B1"].positiveDeltaMultiplier = Number.POSITIVE_INFINITY;
+  assert.ok(validateSimulationExecutionState(invalidPositive).errors.some((error) => error.includes("positiveDeltaMultiplier")));
+
+  const badDefinitions = RELATIONSHIPS.map((definition) => definition.id === "J1-B1"
+    ? { ...definition, actionMultipliers: { ...definition.actionMultipliers, verification: 1.01 } }
+    : definition);
+  assert.ok(validateSimulationExecutionState(state, badDefinitions).errors.some((error) => error.includes("multiplier must be null or within 0-1")));
 });
 
 test("calibration fingerprints ignore initialState key insertion order", () => {
@@ -393,7 +519,7 @@ test("schema-v2 migration preserves a conflicting calibration fingerprint", () =
   }
 
   const migrated = migrateSimulationState(legacy);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.equal(migrated.relationships["B1-C6"].calibrationFingerprint, 'relationship-v0.9.0:{"maturity":0}');
   assert.equal(previewRelationshipInvestment(migrated).eligible, false);
   assert.strictEqual(advanceYear(migrated), migrated);
@@ -521,12 +647,13 @@ test("verification investment deterministically increases verification capacity"
   });
 });
 
-test("a display-only relationship cannot silently receive the representative investment", () => {
+test("an archetype rejects an action that is not eligible for that connection", () => {
   const initial = selectRelationship(createInitialState(), "J1-B1");
-  const preview = previewRelationshipInvestment(initial);
+  const preview = previewRelationshipInvestment(initial, "redundancy", "J1-B1");
   assert.equal(preview.eligible, false);
-  assert.match(preview.reason, /P1/);
-  assert.strictEqual(advanceYear(initial), initial);
+  assert.match(preview.reason, /適用しません/);
+  const selected = selectAction(initial, "redundancy");
+  assert.strictEqual(advanceYear(selected), selected);
 });
 
 test("the strategic simulation cannot advance beyond 2045", () => {
@@ -563,7 +690,7 @@ test("the same state always produces the same one-month stress result", () => {
   assert.equal(first.turns, CRISIS_TURNS);
   assert.equal(CRISIS_DAYS, 30);
   assert.equal(CRISIS_TURNS, 120);
-  assert.equal(first.relationshipContributions[0].relationshipId, "B1-C6");
+  assert.ok(first.relationshipContributions.some(({ relationshipId }) => relationshipId === "B1-C6"));
 });
 
 test("role-equivalent labels and ids cannot change preview or stress outcomes", () => {
@@ -757,10 +884,8 @@ test("portfolio execution rejects missing labels and zero calibrated relationshi
   );
 
   const noCalibration = createInitialState();
-  noCalibration.relationships["B1-C6"].investable = false;
-  const noCalibrationDefinitions = RELATIONSHIPS.map((definition) => (
-    definition.id === "B1-C6" ? { ...definition, investable: false } : definition
-  ));
+  for (const relationship of Object.values(noCalibration.relationships)) relationship.investable = false;
+  const noCalibrationDefinitions = RELATIONSHIPS.map((definition) => ({ ...definition, investable: false }));
   assert.equal(validateRelationshipPortfolio(noCalibration, noCalibrationDefinitions).valid, false);
   assert.strictEqual(runStressTest(noCalibration, noCalibrationDefinitions), noCalibration);
 });
@@ -957,12 +1082,14 @@ test("execution state requires exactly one stress contribution per calibrated re
   assert.strictEqual(advanceYear(state), state);
 });
 
-test("execution state rejects annual ledger entries for display-only relationships", () => {
+test("execution state rejects a ledger entry reassigned to another calibrated relationship", () => {
   const state = advanceYear(createInitialState());
   state.ledger[0].relationshipId = "J1-B1";
   state.ledger[0].relationshipLabel = state.relationships["J1-B1"].label;
   assert.equal(validateSimulationExecutionState(state).valid, false);
-  assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("calibrated investable relationship")));
+  assert.ok(validateSimulationExecutionState(state).errors.some((error) => (
+    error.includes("timeline") || error.includes("replayed") || error.includes("canonical")
+  )));
   assert.equal(previewSelectedInvestment(state).eligible, false);
   assert.strictEqual(advanceYear(state), state);
 });
@@ -1026,6 +1153,14 @@ test("execution state permits exactly one annual action per year", () => {
   state.ledger[1].year = state.ledger[0].year;
   assert.equal(validateSimulationExecutionState(state).valid, false);
   assert.ok(validateSimulationExecutionState(state).errors.some((error) => error.includes("one action per year")));
+});
+
+test("annual replay uses each relationship definition calibration version", () => {
+  let state = selectRelationship(createInitialState(), "J1-B1");
+  state = selectAction(state, "verification");
+  state = advanceYear(state);
+  assert.equal(state.ledger[0].ruleVersion, "relationship-v1.1.0");
+  assert.equal(validateSimulationExecutionState(state).valid, true);
 });
 
 test("annual replay rejects a self-consistent forged action projection", () => {
@@ -1102,14 +1237,9 @@ test("causal ledger preserves annual action and checkpoint event order", () => {
   assert.equal(validateSimulationExecutionState(startCheckpoint).valid, true);
   assert.equal(advanceYear(startCheckpoint).year, 2027);
 
-  const representative = RELATIONSHIPS.find((definition) => definition.id === "B1-C6");
-  const definitions = RELATIONSHIPS.map((definition) => (
-    definition.id === "J1-B1"
-      ? { ...definition, investable: true, initialState: { ...representative.initialState } }
-      : definition
-  ));
+  const definitions = RELATIONSHIPS;
   const multiRelationshipCheckpoint = runStressTest(createInitialState(definitions), definitions);
-  assert.equal(multiRelationshipCheckpoint.stressTests[START_YEAR].relationshipContributions.length, 2);
+  assert.equal(multiRelationshipCheckpoint.stressTests[START_YEAR].relationshipContributions.length, 20);
   assert.equal(validateSimulationExecutionState(multiRelationshipCheckpoint, definitions).valid, true);
 
   const state = createDemoState(2031);
@@ -1282,7 +1412,7 @@ test("the latest arbitrary-year stress result remains visible beside standard ch
 
 test("a stress contribution keeps the checkpoint ledger context", () => {
   const state = runStressTest(createDemoState(2035));
-  const contribution = state.stressTests[2035].relationshipContributions[0];
+  const contribution = state.stressTests[2035].relationshipContributions.find(({ relationshipId }) => relationshipId === "B1-C6");
   const focus = getStressContributionFocus(state, 2035, contribution.relationshipId);
   assert.equal(focus.checkpointYear, 2035);
   assert.equal(focus.relationshipId, "B1-C6");
@@ -1305,7 +1435,7 @@ test("ledger drawer focus restores an earlier investment without breaking stress
   });
   assert.equal(selectRelationship(state, drawerFocus.relationshipId).selectedRelationshipId, investment.entry.relationshipId);
 
-  const contribution = state.stressTests[2035].relationshipContributions[0];
+  const contribution = state.stressTests[2035].relationshipContributions.find(({ relationshipId }) => relationshipId === "B1-C6");
   const stressFocus = getStressContributionFocus(state, 2035, contribution.relationshipId);
   assert.equal(stressFocus.ledgerEntryId, contribution.ledgerEntryId);
   assert.notEqual(drawerFocus.ledgerEntryId, stressFocus.ledgerEntryId);
@@ -1341,19 +1471,20 @@ test("relationship investment is traceable to a larger crisis contribution", () 
   assert.ok(after.attributionSafety > before.attributionSafety);
 
   const result = runStressTest(invested).stressTests[2027];
+  const recorded = result.relationshipContributions.find(({ relationshipId }) => relationshipId === "B1-C6");
   assert.deepEqual(
     {
-      relationshipId: result.relationshipContributions[0].relationshipId,
-      relationshipLabel: result.relationshipContributions[0].relationshipLabel,
-      attributionSafety: result.relationshipContributions[0].attributionSafety,
-      coordinationSurvival: result.relationshipContributions[0].coordinationSurvival,
-      civilianProtection: result.relationshipContributions[0].civilianProtection,
+      relationshipId: recorded.relationshipId,
+      relationshipLabel: recorded.relationshipLabel,
+      attributionSafety: recorded.attributionSafety,
+      coordinationSurvival: recorded.coordinationSurvival,
+      civilianProtection: recorded.civilianProtection,
     },
     after,
   );
-  assert.equal(result.relationshipContributions[0].checkpointYear, 2027);
+  assert.equal(recorded.checkpointYear, 2027);
   const tested = runStressTest(invested);
-  const cumulativeEntry = tested.ledger.find((entry) => entry.id === result.relationshipContributions[0].ledgerEntryId);
+  const cumulativeEntry = tested.ledger.find((entry) => entry.id === recorded.ledgerEntryId);
   assert.deepEqual(cumulativeEntry.before, initial.relationships["B1-C6"].state);
   assert.deepEqual(cumulativeEntry.after, invested.relationships["B1-C6"].state);
   assert.equal(cumulativeEntry.deltas.verificationAgreement, 12);

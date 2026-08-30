@@ -50,3 +50,11 @@ test("the 320px drawer stays within the padded backdrop content width", async ()
   const width = styles.match(/\.ledger-drawer\s*\{[^}]*width:\s*min\(560px,\s*([^;)]+)\)/s)?.[1];
   assert.equal(width, "100%");
 });
+
+test("the 2045 final display and replay share the recorded canonical checkpoint", async () => {
+  const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(source, /finalEvidence\?\.canonicalCheckpoint\?\.run \?\? runCrisisSimulation/);
+  assert.match(source, /canonicalMaintainedTurns = finalEvidence \? 120 - finalEvidence\.canonicalCheckpoint\.run\.events/);
+  assert.match(source, /canonical危機の協調維持turn/);
+  assert.match(source, /<code>\{run\.eventStreamHash\}<\/code>/);
+});

@@ -44,9 +44,9 @@ console.log(JSON.stringify({
     stressTest: demo.stressTests[2035],
   },
   limitations: [
-    "only-one-relationship-is-investable-and-calibrated",
-    "actors-do-not-yet-change-behavior",
-    "crisis-does-not-yet-execute-120-events",
-    "comparison-strategies-are-not-yet-run-by-one-engine",
+    "all-relationships-use-fictional-archetype-calibration-not-empirical-effects",
+    "actor-constraints-and-decision-rights-are-fictional-not-empirical",
+    "crisis-events-and-causal-chain-are-fictional-not-forecast-evidence",
+    "comparative-strategies-and-removal-results-are-fictional-not-policy-evidence",
   ],
 }, null, 2));

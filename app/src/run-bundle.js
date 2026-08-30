@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { types as utilTypes } from "node:util";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
+import { runCrisisSimulation } from "./crisis.js";
+import { runComparativeStudy } from "./experiments.js";
 import { canonicalize, observationFingerprint } from "./ai/contract.js";
 import { runLocalPdcaSimulation } from "./ai/local-pdca.js";
 
@@ -138,7 +140,7 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
   const runId = `qoj-${sha256({ scenario_id: "policy-orchestration", seed, requested_at: requestedAt, parameters }).slice(0, 16)}`;
   const runRequest = { run_id: runId, scenario_id: "policy-orchestration", seed, requested_at: requestedAt, parameters };
   const execution = runLocalPdcaSimulation(initialStateSnapshot, { seed: String(seed), maxSteps });
-  const events = execution.steps.map((cycle, sequence) => ({
+  const pdcaEvents = execution.steps.map((cycle, sequence) => ({
     run_id: runId,
     sequence,
     event_type: cycle.completed ? "pdca.step.completed" : "pdca.step.rejected",
@@ -152,10 +154,59 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
       before_state_hash: cycle.check.beforeStateHash,
       after_state_hash: cycle.check.afterStateHash,
       ledger_entry_ids: [...cycle.check.appendedLedgerIds],
+      governance_entries: cycle.do.governanceLedger.map((entry) => ({
+        governance_id: entry.governanceId,
+        outcome: entry.outcome,
+        proposer_id: entry.proposerId,
+        approver_id: entry.approverId,
+        executor_id: entry.executorId,
+        errors: [...entry.errors],
+      })),
+      attempts: cycle.do.attempts.map((attempt) => ({
+        observation_hash: attempt.observationHash,
+        state_hash: attempt.stateHash,
+        applied: attempt.applied,
+        errors: [...attempt.errors],
+        governance_entries: attempt.governanceLedger.map((entry) => ({
+          governance_id: entry.governanceId,
+          outcome: entry.outcome,
+          proposer_id: entry.proposerId,
+          approver_id: entry.approverId,
+          executor_id: entry.executorId,
+          errors: [...entry.errors],
+        })),
+      })),
+      checkpoint: cycle.do.checkpoint ? { ...cycle.do.checkpoint } : null,
       receipt_hash: observationFingerprint(cycle.plan.receipt),
       ...(sequence === execution.steps.length - 1 ? { final_state_summary: buildAiStateSummary(execution.state) } : {}),
     },
   }));
+  const crisis = runCrisisSimulation(execution.state, { seed: `${seed}:crisis` });
+  const crisisEvents = crisis.events.map((event, index) => ({
+    run_id: runId,
+    sequence: pdcaEvents.length + index,
+    event_type: "crisis.turn.completed",
+    occurred_at: timestamp(pdcaEvents.length + index + 1),
+    payload: event,
+  }));
+  const study = runComparativeStudy(execution.state);
+  const events = [...pdcaEvents, ...crisisEvents, {
+    run_id: runId,
+    sequence: pdcaEvents.length + crisisEvents.length,
+    event_type: "comparative-study.completed",
+    occurred_at: timestamp(pdcaEvents.length + crisisEvents.length + 1),
+    payload: {
+      engine_version: study.engineVersion,
+      initial_state_hash: study.initialStateHash,
+      seeds: study.seeds,
+      evaluation_policy: study.evaluationPolicy,
+      d_loss_seeds: study.dLossSeeds,
+      japan_removal: study.japanRemoval,
+      sensitivity_variants: study.sensitivityVariants,
+      reversal_thresholds: study.reversalThresholds,
+      result_hash: observationFingerprint(study.results),
+    },
+  }];
   const eventStreamSha256 = sha256(events);
   const draft = {
     schema: META_SECURITY_RUN_BUNDLE_SCHEMA,
@@ -163,7 +214,7 @@ export function buildMetaSecurityRunBundle(initialState, { seed = 404, maxSteps 
     run_request: runRequest,
     events,
     replay: { run_id: runId, product_id: PRODUCT_ID, seed, event_count: events.length, event_stream_sha256: eventStreamSha256, deterministic: true },
-    evidence: { run_id: runId, product_id: PRODUCT_ID, verification: "live-command", generated_at: timestamp(events.length + 1), source_repository: SOURCE_REPOSITORY, event_stream_sha256: eventStreamSha256 },
+    evidence: { run_id: runId, product_id: PRODUCT_ID, verification: "live-command", generated_at: timestamp(events.length + 1), source_repository: SOURCE_REPOSITORY, event_stream_sha256: eventStreamSha256, crisis_event_stream_hash: crisis.eventStreamHash, comparative_study_engine: study.engineVersion },
   };
   const completedSnapshot = snapshotJsonValue(draft);
   if (!completedSnapshot.valid) throw new TypeError("generated bundle exceeds the JSON transport boundary");

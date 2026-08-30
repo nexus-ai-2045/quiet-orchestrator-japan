@@ -5,9 +5,9 @@
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
-- branch: `codex/run-bundle-v1`
-- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（既存決定論コアを正本とする`meta-security-run-bundle/v1`、trusted JSON snapshot輸送境界、実装repo固定provenance、seed・event container境界、116件回帰）
-- base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
+- branch: `codex/m2-calibration-decision-packet`
+- content HEAD: `8d1e738799ec6997eceb7133dd3a53b39e349c5b`（M2〜M5ローカルMVP、根因収束、143件回帰、Sites 4件、build、audit 0）
+- base: `origin/main@3f2372696ba4e9b79d187407f728401bee4e226b`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
 - expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
@@ -19,27 +19,27 @@
 | 検査 | 結果 | 証拠・限界 |
 |---|---|---|
 | repo-preflight target diff | pass | machine-readable result v1 |
-| 決定論・AI・UI境界テスト | pass | `npm test`: 116件pass。提案・receipt・PDCAに加え、annual deterministic replay、action/history/ledger完全projection、全年度checkpoint束縛、legacy保存fail-closed、definition単一入口、checkpoint完全projection、Canonical event順序、run bundleのProxy拒否・標準prototype・連続array index・data descriptor・深さ上限を統合したtrusted JSON snapshot、実装repo固定provenance、seed役割・成否・独立implementation SHA・event container・再実行一致、台帳drawer、校正・migration・最終checkpointを回帰固定 |
+| 決定論・AI・UI境界テスト | pass | `npm test`: 143件pass。M2〜M5、120ターン危機再生、A〜E・5 seed・2045年日本除去境界、権限拒否証拠、run bundle、台帳drawerを回帰固定 |
 | Sites互換テスト | pass | `npm run test:sites`: 4件pass |
 | production build | pass-current-branch | Vite 8.2.2 production build、Sites package生成 |
 | 依存脆弱性監査 | pass-current | `npm audit --audit-level=high`: 0 vulnerabilities |
 | 架空係数v0 | pass-local | version、代表初期値、検証delta、危機寄与weight、deep-freezeを回帰テストで固定 |
 | ブラウザ操作・デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で実操作済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | ai-ratchet-gate | pass | baseline 0件、現存0件、新規0件。baseline変更なし |
-| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@bdb9902b`、archived `false` |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@3f237269`、archived `false` |
 | GitHub PR / Codex review | pending-current-branch | 同一HEAD CI・reviewをPRで回収する。本記録はpush前のローカル証拠 |
 | remote CI | pending-current-branch | merge済みPRの成功証拠は現在branchを代替しない。push後に同一HEADのvalidateとCodeQLを確認する |
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"f4bae46d4f0940aff70e38dbc9ba87276ca2abe3","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"8d1e738799ec6997eceb7133dd3a53b39e349c5b","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
 
 ## 採用済みの人間判断
 
-- 代表接続の初期値、5施策の接続delta、危機寄与weightを、ハッカソン体験検証用の架空係数v0として採用する。
+- 代表接続v0と残り19接続のarchetype校正v1を、ハッカソン体験検証用の架空係数として採用する。
 - 現行UIの情報密度とREADME画像を採用する。
 - 公開名義を`nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`として検査する。
 
