@@ -34,6 +34,7 @@ function snapshotJsonValue(root) {
   const pending = [{ source: root, depth: 0, assign: (value) => { result.value = value; }, exiting: false }];
   const ancestors = new WeakSet();
   let nodeCount = 0;
+  let pendingValueCount = 1;
 
   try {
     while (pending.length > 0) {
@@ -42,6 +43,7 @@ function snapshotJsonValue(root) {
         ancestors.delete(source);
         continue;
       }
+      pendingValueCount -= 1;
       nodeCount += 1;
       if (depth > MAX_JSON_DEPTH || nodeCount > MAX_JSON_NODES) return { valid: false };
       if (source === null || typeof source === "string" || typeof source === "boolean") {
@@ -70,6 +72,8 @@ function snapshotJsonValue(root) {
         const length = descriptors.length?.value;
         if (!Number.isSafeInteger(length) || length < 0 || propertyNames.length !== length + 1) return { valid: false };
         if (propertyNames.some((name) => name !== "length" && !/^(0|[1-9]\d*)$/.test(name))) return { valid: false };
+        if (nodeCount + pendingValueCount + length > MAX_JSON_NODES) return { valid: false };
+        pendingValueCount += length;
         const snapshot = new Array(length);
         assign(snapshot);
         for (let index = length - 1; index >= 0; index -= 1) {
@@ -83,6 +87,8 @@ function snapshotJsonValue(root) {
           });
         }
       } else {
+        if (nodeCount + pendingValueCount + propertyNames.length > MAX_JSON_NODES) return { valid: false };
+        pendingValueCount += propertyNames.length;
         const snapshot = {};
         assign(snapshot);
         for (const name of propertyNames.toReversed()) {

@@ -105,6 +105,12 @@ test("run bundle rejects non-JSON values before deterministic comparison", () =>
   assert.doesNotThrow(() => validateBundle(revoked.proxy));
   assert.deepEqual(validateBundle(revoked.proxy), { valid: false, errors: ["non_json_value"] });
 
+  const tooWide = buildBundle();
+  tooWide.events[0].payload.wide = Object.fromEntries(
+    Array.from({ length: 100_001 }, (_, index) => [`key${index}`, index]),
+  );
+  assert.deepEqual(validateBundle(tooWide), { valid: false, errors: ["non_json_value"] });
+
   const invalidState = createDemoState(2035);
   invalidState.metrics.coordinationCapital = Number.NaN;
   assert.throws(() => buildBundle(invalidState), /only JSON values/);

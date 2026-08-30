@@ -63,11 +63,11 @@ npm test
 npm run build
 npm run test:sites
 npm run simulate
-npm run simulate:bundle -- --seed 404 --max-steps 9
+npm run --silent simulate:bundle -- --seed 404 --max-steps 9
 npm run verify
 ```
 
-`npm run simulate` は現在の決定論コアからP0 baselineをJSONで標準出力へ生成します。`npm run simulate:bundle` は同じコアを使い、request、event stream、replay、evidenceを同一`run_id`で束縛した`meta-security-run-bundle/v1`を標準出力へ生成します。`npm run verify` は、事前設計と実測結果の文書境界、test、production build、Sites packaging、baseline実行を一括確認します。
+`npm run simulate` は現在の決定論コアからP0 baselineをJSONで標準出力へ生成します。`npm run --silent simulate:bundle -- --seed 404 --max-steps 9` はnpm bannerを抑止し、同じコアを使ってrequest、event stream、replay、evidenceを同一`run_id`で束縛した`meta-security-run-bundle/v1`だけを標準出力へ生成します。`npm run verify` は、事前設計と実測結果の文書境界、test、production build、Sites packaging、baseline実行を一括確認します。
 
 現在のP0 baselineは次を実装しています。
 
