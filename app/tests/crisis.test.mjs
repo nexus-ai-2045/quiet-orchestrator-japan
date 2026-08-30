@@ -48,6 +48,16 @@ test("misattribution correction irreversible action and route failure remain rep
   assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.coordination, "failed");
 });
 
+test("versioned coefficient perturbations rerun transitions rather than reweighting output", () => {
+  const state = createDemoState(2035);
+  const fast = runCrisisSimulation(state, { seed: "coefficient-0", coefficients: { attributionCorrectionOffset: -4, disruptionDurationScale: 0.75 } });
+  const slow = runCrisisSimulation(state, { seed: "coefficient-0", coefficients: { attributionCorrectionOffset: 4, disruptionDurationScale: 1.25 } });
+  assert.equal(fast.coefficientVersion, slow.coefficientVersion);
+  assert.ok(fast.causalParameters.correctionTurn < slow.causalParameters.correctionTurn);
+  assert.ok(fast.causalParameters.disruptionEnd <= slow.causalParameters.disruptionEnd);
+  assert.notEqual(fast.eventStreamHash, slow.eventStreamHash);
+});
+
 test("the five registered study seeds map bijectively to five true causes", () => {
   const state = createDemoState(2035);
   const causes = Array.from({ length: 5 }, (_, index) => runCrisisSimulation(state, { seed: `cause-${index}` }).causalParameters.causeCode);

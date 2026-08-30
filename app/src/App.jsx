@@ -13,7 +13,7 @@ import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
 import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
 import { runCrisisSimulation } from "./crisis.js";
-import { runComparativeStudy, STRATEGIES } from "./experiments.js";
+import { recordJapanRemovalStudy, runComparativeStudy, STRATEGIES } from "./experiments.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -355,10 +355,12 @@ function StressStrip({ state, onSelectContribution }) {
       {displayYears.map((year) => {
         const result = state.stressTests[year];
         const exploratory = !CHECKPOINTS.includes(year);
+        const selectedContribution = result?.relationshipContributions.find((item) => item.relationshipId === state.selectedRelationshipId)
+          ?? result?.relationshipContributions.toSorted((a, b) => b.coordinationSurvival - a.coordinationSurvival)[0];
         return (
           <article key={year} className={state.year === year ? "current" : ""}>
             <div><strong>{year}{exploratory ? " 任意" : ""}</strong><span>{result ? result.verdict : "未実施"}</span></div>
-            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, result.relationshipContributions[0])}>{result.relationshipContributions[0].relationshipLabel} 寄与 +{result.relationshipContributions[0].coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
+            {result ? <><ul><li><span>誤帰属回避</span><b>{result.attributionSafety}</b></li><li><span>協調継続</span><b>{result.coordinationSurvival}</b></li><li><span>民間保護</span><b>{result.civilianProtection}</b></li></ul><button className="contribution" onClick={() => onSelectContribution(year, selectedContribution)}>{selectedContribution.relationshipLabel} 寄与 +{selectedContribution.coordinationSurvival}</button></> : <p>{year > state.year ? "この年まで接続を育てる" : "テストを実行して記録する"}</p>}
           </article>
         );
       })}
@@ -402,7 +404,7 @@ function AiProposalTrace({ state, cycles, nextStep, onStep, onAuto }) {
   );
 }
 
-function Comparison({ state, onClose }) {
+function Comparison({ state, onClose, onRecordJapanRemoval }) {
   const study = useMemo(() => runComparativeStudy(state), [state]);
   const strategies = STRATEGIES.map((strategy) => {
     const rows = study.results.filter((row) => row.strategyId === strategy.id);
@@ -427,6 +429,7 @@ function Comparison({ state, onClose }) {
         {strategies.map((strategy) => <article key={strategy.id}><h2>{strategy.id} {strategy.label}</h2><div><span>訂正turn <b>{strategy.correctionTurn.toFixed(1)}</b></span><span>協調維持/失敗 <b>{strategy.maintainedTurns.toFixed(1)} / {strategy.failedTurns.toFixed(1)}</b></span><span>不可逆行動/撤退猶予 <b>{strategy.irreversibleTurn.toFixed(1)} / {strategy.reversibilityWindow.toFixed(1)}</b></span><span>代替経路充足率 <b>{(strategy.fallbackCoverage * 100).toFixed(0)}%</b></span><span>監視・依存リスク <b>{strategy.riskExposure.toFixed(1)}</b></span><span>第三者検証率 <b>{(strategy.thirdPartyVerification * 100).toFixed(0)}%</b></span><span>決定権の多様性 <b>{strategy.decisionDiversity.toFixed(1)}</b></span></div></article>)}
         <p>D敗北seed: {study.dLossSeeds.join(", ") || "なし"} / 感度分析の順位反転 {study.reversalThresholds.length}件</p>
         <p>{study.japanRemoval.executed ? `日本除去後の残存主体 ${study.japanRemoval.remainingOperatorIds.length}` : `日本除去試験は${study.japanRemoval.requiredYear}年に実行（現在${study.japanRemoval.currentYear}年）`}</p>
+        {study.japanRemoval.executed && <button className="button primary" onClick={() => onRecordJapanRemoval(study)}>2045年日本除去試験を状態へ記録</button>}
       </section>
     </div>
   );
@@ -532,6 +535,11 @@ export function App() {
     setPdcaStep(currentStep);
     setNotice(currentStep === 9 ? `ローカルPDCA 3主体×3ターンを完走しました / ${addedCycles.at(-1)?.check.afterStateHash}` : `PDCAを${currentStep + 1}手目で安全停止しました`);
   };
+  const handleJapanRemovalRecord = (study) => {
+    setState((current) => recordJapanRemovalStudy(current, study));
+    setComparing(false);
+    setNotice("2045年日本除去試験を最終評価へ記録しました");
+  };
 
   return (
     <main className="app-shell">
@@ -540,7 +548,7 @@ export function App() {
       <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
       <CrisisReplay run={crisisRun} index={crisisIndex} running={crisisRunning} speed={crisisSpeed} onToggle={() => setCrisisRunning((value) => !value)} onSpeed={setCrisisSpeed} onSeek={(value) => { setCrisisIndex(value); setCrisisRunning(false); }} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
-      {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
+      {comparing && <Comparison state={state} onClose={() => setComparing(false)} onRecordJapanRemoval={handleJapanRemovalRecord} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}
     </main>
   );

@@ -4,7 +4,11 @@ import { observationFingerprint } from "./ai/contract.js";
 export const EXPERIMENT_ENGINE_VERSION = "comparative-study-v2";
 export const STRATEGIES = Object.freeze([{ id: "A", label: "ブロック分断" }, { id: "B", label: "同盟代理" }, { id: "C", label: "単独仲介" }, { id: "D", label: "網状調整" }, { id: "E", label: "調整崩壊" }]);
 export const STUDY_SEEDS = Object.freeze(["cause-0", "cause-1", "cause-2", "cause-3", "cause-4"]);
-export const SENSITIVITY_VARIANTS = Object.freeze([{ id: "low-failure-cost", failureCost: 1 }, { id: "registered", failureCost: 2 }, { id: "high-failure-cost", failureCost: 3 }].map(Object.freeze));
+export const SENSITIVITY_VARIANTS = Object.freeze([
+  { id: "faster-correction-shorter-disruption", coefficients: Object.freeze({ attributionCorrectionOffset: -4, disruptionDurationScale: 0.75 }) },
+  { id: "registered", coefficients: Object.freeze({ attributionCorrectionOffset: 0, disruptionDurationScale: 1 }) },
+  { id: "slower-correction-longer-disruption", coefficients: Object.freeze({ attributionCorrectionOffset: 4, disruptionDurationScale: 1.25 }) },
+].map(Object.freeze));
 const endpoints = (id) => id.split("-");
 
 function disabledFor(state, strategyId, seed) {
@@ -37,31 +41,49 @@ function evaluationAxes(run, state) {
     decisionRightDiversity: new Set(actorObservations.map((item) => item.decision)).size,
   };
 }
-const sensitivityFor = (axes) => SENSITIVITY_VARIANTS.map((variant) => ({ variantId: variant.id, failureCost: variant.failureCost, diagnosticIndex: axes.coordinationMaintainedTurns - axes.coordinationFailedTurns * variant.failureCost - axes.attributionCorrectionTurn / 10 }));
+function equalOrBetter(left, right) {
+  return left.attributionCorrectionTurn <= right.attributionCorrectionTurn
+    && left.coordinationMaintainedTurns >= right.coordinationMaintainedTurns
+    && left.coordinationFailedTurns <= right.coordinationFailedTurns
+    && left.irreversibleActionTurn >= right.irreversibleActionTurn
+    && left.highCivilianImpactTurns <= right.highCivilianImpactTurns
+    && left.fallbackCoverage >= right.fallbackCoverage;
+}
 
 export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
   if (!Array.isArray(seeds) || seeds.length < 5 || new Set(seeds).size !== seeds.length) throw new TypeError("at least five unique seeds are required");
   const initialStateHash = observationFingerprint(state);
-  const scenarios = STRATEGIES.flatMap((strategy) => seeds.map((seed) => ({ strategy, seed, disabledRelationshipIds: disabledFor(state, strategy.id, seed) })));
-  const runs = runCrisisSimulationBatch(state, scenarios.map(({ seed, disabledRelationshipIds }) => ({ seed, disabledRelationshipIds })));
-  const results = scenarios.map(({ strategy, seed, disabledRelationshipIds }, index) => {
-    const run = runs[index];
-    const axes = evaluationAxes(run, state);
-    return { strategyId: strategy.id, strategyLabel: strategy.label, seed, initialStateHash, budget: state.budget, actionCount: state.ledger.filter((entry) => entry.action !== "checkpoint-snapshot").length, causalSeedHash: observationFingerprint({ seed, causalParameters: run.causalParameters }), disabledRelationshipIds, evaluationAxes: axes, sensitivity: sensitivityFor(axes) };
-  });
+  const scenarios = STRATEGIES.flatMap((strategy) => seeds.flatMap((seed) => SENSITIVITY_VARIANTS.map((variant) => ({ strategy, seed, variant, disabledRelationshipIds: disabledFor(state, strategy.id, seed) }))));
   const japanRelationshipIds = Object.keys(state.relationships).filter((id) => endpoints(id).some((actor) => actor.startsWith("J")));
+  const japanScenarios = state.year < 2045 ? [] : [{ strategy: null, seed: seeds[0], variant: SENSITIVITY_VARIANTS[1], disabledRelationshipIds: japanRelationshipIds }];
+  const allScenarios = [...scenarios, ...japanScenarios];
+  const runs = runCrisisSimulationBatch(state, allScenarios.map(({ seed, disabledRelationshipIds, variant }) => ({ seed, disabledRelationshipIds, coefficients: variant.coefficients })));
+  const results = STRATEGIES.flatMap((strategy) => seeds.map((seed) => {
+    const variants = scenarios.map((scenario, index) => ({ scenario, run: runs[index] })).filter(({ scenario }) => scenario.strategy.id === strategy.id && scenario.seed === seed);
+    const registered = variants.find(({ scenario }) => scenario.variant.id === "registered");
+    return {
+      strategyId: strategy.id, strategyLabel: strategy.label, seed, initialStateHash, budget: state.budget,
+      actionCount: state.ledger.filter((entry) => entry.action !== "checkpoint-snapshot").length,
+      causalSeedHash: observationFingerprint({ seed, causalParameters: registered.run.causalParameters }),
+      disabledRelationshipIds: registered.scenario.disabledRelationshipIds,
+      evaluationAxes: evaluationAxes(registered.run, state),
+      sensitivity: variants.map(({ scenario, run }) => ({ variantId: scenario.variant.id, coefficientVersion: run.coefficientVersion, coefficients: run.coefficients, evaluationAxes: evaluationAxes(run, state), eventStreamHash: run.eventStreamHash })),
+    };
+  }));
   let japanRemoval;
   if (state.year < 2045) {
     japanRemoval = { status: "pending", executed: false, reason: "Japan removal evidence is only valid at 2045", requiredYear: 2045, currentYear: state.year };
   } else {
-    const [run] = runCrisisSimulationBatch(state, [{ seed: seeds[0], disabledRelationshipIds: japanRelationshipIds }]);
+    const run = runs[runs.length - 1];
     japanRemoval = { status: "executed", executed: true, removedRelationshipIds: japanRelationshipIds, remainingOperatorIds: [...new Set(Object.keys(state.relationships).flatMap(endpoints).filter((id) => !id.startsWith("J")))].sort(), stoppedFunctions: [...new Set(run.fallbackAssessments.filter((item) => !item.available).map((item) => item.function))].sort(), coveredFunctions: [...new Set(run.fallbackAssessments.filter((item) => item.available).map((item) => item.function))].sort(), evaluationAxes: evaluationAxes(run, state) };
   }
   const reversalThresholds = seeds.flatMap((seed) => {
-    const rows = results.filter((item) => item.seed === seed);
-    const leader = (variantId) => rows.map((row) => ({ strategyId: row.strategyId, value: row.sensitivity.find((item) => item.variantId === variantId).diagnosticIndex })).sort((a, b) => b.value - a.value)[0].strategyId;
-    const baseline = leader("registered");
-    return SENSITIVITY_VARIANTS.filter(({ id }) => id !== "registered").flatMap((variant) => leader(variant.id) === baseline ? [] : [{ seed, variantId: variant.id, from: baseline, to: leader(variant.id), failureCost: variant.failureCost }]);
+    const d = results.find((item) => item.strategyId === "D" && item.seed === seed);
+    const baseline = d.sensitivity.find((item) => item.variantId === "registered").evaluationAxes;
+    return d.sensitivity.filter((item) => item.variantId !== "registered").flatMap((item) => {
+      const changedAxes = Object.keys(item.evaluationAxes).filter((key) => item.evaluationAxes[key] !== baseline[key]);
+      return changedAxes.length === 0 ? [] : [{ seed, variantId: item.variantId, changedAxes }];
+    });
   });
   const dLossSeeds = seeds.filter((seed) => {
     const rows = results.filter((item) => item.seed === seed);
@@ -71,5 +93,29 @@ export function runComparativeStudy(state, { seeds = STUDY_SEEDS } = {}) {
       || item.evaluationAxes.attributionCorrectionTurn < d.attributionCorrectionTurn
     ));
   });
-  return { engineVersion: EXPERIMENT_ENGINE_VERSION, seeds: [...seeds], initialStateHash, evaluationPolicy: "axes-first-no-scalar-winner", results, japanRemoval, sensitivityVariants: SENSITIVITY_VARIANTS, reversalThresholds, dLossSeeds };
+  const eEqualOrBetterThanDSeeds = seeds.filter((seed) => {
+    const d = results.find((item) => item.strategyId === "D" && item.seed === seed).evaluationAxes;
+    const e = results.find((item) => item.strategyId === "E" && item.seed === seed).evaluationAxes;
+    return equalOrBetter(e, d);
+  });
+  return { engineVersion: EXPERIMENT_ENGINE_VERSION, seeds: [...seeds], initialStateHash, evaluationPolicy: "axes-first-no-scalar-winner", results, japanRemoval, sensitivityVariants: SENSITIVITY_VARIANTS, reversalThresholds, falsification: { eEqualOrBetterThanDSeeds, triggered: eEqualOrBetterThanDSeeds.length > 0 }, dLossSeeds };
+}
+
+export function recordJapanRemovalStudy(state, study) {
+  if (state?.year !== 2045 || study?.initialStateHash !== observationFingerprint(state) || study?.japanRemoval?.executed !== true) {
+    throw new TypeError("only an executed 2045 study for the exact state can be recorded");
+  }
+  const result = study.japanRemoval;
+  return {
+    ...state,
+    japanRemovalStressTest: {
+      year: 2045,
+      verdict: result.evaluationAxes.coordinationFailedTurns === 0 ? "協調継続" : "改善余地",
+      removedRelationshipIds: [...result.removedRelationshipIds],
+      stoppedFunctions: [...result.stoppedFunctions],
+      coveredFunctions: [...result.coveredFunctions],
+      evaluationAxes: structuredClone(result.evaluationAxes),
+      studyHash: observationFingerprint(study),
+    },
+  };
 }

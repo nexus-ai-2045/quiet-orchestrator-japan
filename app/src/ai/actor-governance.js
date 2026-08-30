@@ -60,7 +60,10 @@ function transactionErrors(receipt, proposerId, approverId, executorId) {
   if (!executor?.decisionRights.execute) errors.push("execution_not_authorized");
   const actionId = receipt?.appliedProposal?.actionId;
   const requiredCapability = ACTION_REQUIRED_CAPABILITY[actionId];
-  if (!requiredCapability || !executor?.capabilities.includes(requiredCapability)) {
+  // Capabilities constrain who may originate an action. Execution remains a
+  // separate decision right: the bridge can execute an approved proposal
+  // without lending its capabilities to an otherwise unauthorized proposer.
+  if (!requiredCapability || !proposer?.capabilities.includes(requiredCapability)) {
     errors.push("action_capability_not_authorized");
   }
   if (receipt?.outcome !== "accepted") errors.push("proposal_not_accepted");

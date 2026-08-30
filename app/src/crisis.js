@@ -3,6 +3,11 @@ import { ACTOR_CONSTRAINTS } from "./ai/actor-governance.js";
 import { observationFingerprint } from "./ai/contract.js";
 
 export const CRISIS_ENGINE_VERSION = "crisis-event-v2";
+export const CRISIS_COEFFICIENT_VERSION = "crisis-coefficients-v1";
+export const DEFAULT_CRISIS_COEFFICIENTS = Object.freeze({
+  attributionCorrectionOffset: 0,
+  disruptionDurationScale: 1,
+});
 export const CRISIS_PHASES = Object.freeze([
   { start: 0, end: 11, name: "衝撃" }, { start: 12, end: 27, name: "帰属競争" },
   { start: 28, end: 55, name: "生活圧力" }, { start: 56, end: 83, name: "制度疲労" },
@@ -61,17 +66,25 @@ function actorView(seed, turn, truth, confidence, falseAttribution) {
   });
 }
 
-function runValidated(state, { seed, disabledRelationshipIds }) {
+function normalizeCoefficients(coefficients = DEFAULT_CRISIS_COEFFICIENTS) {
+  const candidate = { ...DEFAULT_CRISIS_COEFFICIENTS, ...coefficients };
+  if (!Number.isInteger(candidate.attributionCorrectionOffset) || candidate.attributionCorrectionOffset < -8 || candidate.attributionCorrectionOffset > 8) throw new TypeError("attributionCorrectionOffset must be an integer from -8 to 8");
+  if (!Number.isFinite(candidate.disruptionDurationScale) || candidate.disruptionDurationScale < 0.5 || candidate.disruptionDurationScale > 1.5) throw new TypeError("disruptionDurationScale must be from 0.5 to 1.5");
+  return candidate;
+}
+
+function runValidated(state, { seed, disabledRelationshipIds, coefficients }) {
   const disabled = new Set(disabledRelationshipIds);
   if (disabled.size !== disabledRelationshipIds.length || disabledRelationshipIds.some((id) => !state.relationships[id])) throw new TypeError("disabledRelationshipIds must contain unique canonical relationship IDs");
   const fallbackAssessments = fallbackAssessment(state, disabled);
   const verification = state.metrics.verification;
   const continuity = state.metrics.continuity;
   const causeCode = causeForSeed(seed);
-  const correctionTurn = 40 + Math.floor(seededUnit(seed, 901) * 20);
+  const correctionTurn = Math.max(32, Math.min(68, 40 + Math.floor(seededUnit(seed, 901) * 20) + coefficients.attributionCorrectionOffset));
   const irreversibleTurn = 26 + Math.floor(seededUnit(seed, 902) * 12);
   const disruptionStart = 66 + Math.floor(seededUnit(seed, 903) * 16);
-  const disruptionEnd = Math.min(108, disruptionStart + 12 + Math.floor(seededUnit(seed, 904) * 18));
+  const baseDisruptionDuration = 12 + Math.floor(seededUnit(seed, 904) * 18);
+  const disruptionEnd = Math.min(108, disruptionStart + Math.max(1, Math.round(baseDisruptionDuration * coefficients.disruptionDurationScale)));
   const events = Array.from({ length: CRISIS_TURNS }, (_, turn) => {
     const falseAttribution = turn >= 18 && turn < correctionTurn;
     const correction = turn === correctionTurn;
@@ -92,24 +105,24 @@ function runValidated(state, { seed, disabledRelationshipIds }) {
     };
   });
   const actorObservationFrames = CRISIS_PHASES.map(({ start, name }) => ({ phase: name, sequence: start, observations: actorView(seed, start, events[start].truth, events[start].observation.confidence, events[start].claim.status === "misattributed") }));
-  return { engineVersion: CRISIS_ENGINE_VERSION, seed, disabledRelationshipIds: [...disabled].sort(), fallbackAssessments, actorObservationFrames, causalParameters: { causeCode, correctionTurn, irreversibleTurn, disruptionStart, disruptionEnd }, frozenStrategicYear: state.year, frozenStateHash: observationFingerprint(state), turns: CRISIS_TURNS, events, importantEvents: events.filter((event) => event.important), eventStreamHash: observationFingerprint(events) };
+  return { engineVersion: CRISIS_ENGINE_VERSION, coefficientVersion: CRISIS_COEFFICIENT_VERSION, coefficients: { ...coefficients }, seed, disabledRelationshipIds: [...disabled].sort(), fallbackAssessments, actorObservationFrames, causalParameters: { causeCode, correctionTurn, irreversibleTurn, disruptionStart, disruptionEnd }, frozenStrategicYear: state.year, frozenStateHash: observationFingerprint(state), turns: CRISIS_TURNS, events, importantEvents: events.filter((event) => event.important), eventStreamHash: observationFingerprint(events) };
 }
 
-export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", disabledRelationshipIds = [] } = {}) {
+export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", disabledRelationshipIds = [], coefficients } = {}) {
   const report = validateSimulationExecutionState(state);
   if (!report.valid) throw new TypeError(`invalid simulation state: ${report.errors[0]}`);
   if (typeof seed !== "string" || seed.length === 0) throw new TypeError("seed must be a non-empty string");
   if (!Array.isArray(disabledRelationshipIds)) throw new TypeError("disabledRelationshipIds must be an array");
-  return runValidated(state, { seed, disabledRelationshipIds });
+  return runValidated(state, { seed, disabledRelationshipIds, coefficients: normalizeCoefficients(coefficients) });
 }
 
 export function runCrisisSimulationBatch(state, scenarios) {
   const report = validateSimulationExecutionState(state);
   if (!report.valid) throw new TypeError(`invalid simulation state: ${report.errors[0]}`);
   if (!Array.isArray(scenarios) || scenarios.length === 0) throw new TypeError("scenarios must be a non-empty array");
-  return scenarios.map(({ seed, disabledRelationshipIds = [] }) => {
+  return scenarios.map(({ seed, disabledRelationshipIds = [], coefficients }) => {
     if (typeof seed !== "string" || seed.length === 0 || !Array.isArray(disabledRelationshipIds)) throw new TypeError("invalid crisis scenario");
-    return runValidated(state, { seed, disabledRelationshipIds });
+    return runValidated(state, { seed, disabledRelationshipIds, coefficients: normalizeCoefficients(coefficients) });
   });
 }
 

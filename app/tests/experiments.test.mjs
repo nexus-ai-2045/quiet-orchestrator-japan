@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoState } from "../src/simulation.js";
-import { runComparativeStudy } from "../src/experiments.js";
+import { recordJapanRemovalStudy, runComparativeStudy } from "../src/experiments.js";
 
 test("A-E use the same state budget action count and causal seed across five seeds", () => {
   const study = runComparativeStudy(createDemoState(2035));
@@ -20,6 +20,11 @@ test("A-E use the same state budget action count and causal seed across five see
   const dRows = study.results.filter((row) => row.strategyId === "D");
   assert.equal(new Set(dRows.map((row) => row.causalSeedHash)).size, 5);
   assert.ok(dRows.every((row) => row.sensitivity.length === 3));
+  assert.ok(dRows.every((row) => new Set(row.sensitivity.map((item) => item.eventStreamHash)).size > 1));
+  assert.ok(dRows.every((row) => row.sensitivity.every((item) => item.coefficientVersion === "crisis-coefficients-v1")));
+  assert.ok(study.reversalThresholds.length > 0);
+  assert.ok(study.falsification.eEqualOrBetterThanDSeeds.includes("cause-4"));
+  assert.equal(study.falsification.triggered, true);
 });
 
 test("Japan removal remains pending before 2045 and executes only at 2045", () => {
@@ -33,4 +38,9 @@ test("Japan removal remains pending before 2045 and executes only at 2045", () =
   assert.ok(study.japanRemoval.stoppedFunctions.length > 0);
   assert.ok(study.japanRemoval.coveredFunctions.length > 0);
   assert.ok(study.japanRemoval.evaluationAxes.coordinationFailedTurns > 0);
+  const recorded = recordJapanRemovalStudy(createDemoState(2045), study);
+  assert.equal(recorded.japanRemovalStressTest.year, 2045);
+  assert.equal(recorded.japanRemovalStressTest.verdict, "改善余地");
+  assert.ok(recorded.japanRemovalStressTest.stoppedFunctions.length > 0);
+  assert.throws(() => recordJapanRemovalStudy(createDemoState(2035), pending), /only an executed 2045 study/);
 });

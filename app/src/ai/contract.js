@@ -11,13 +11,13 @@ export const AI_ACTORS = Object.freeze({
   }),
   J2: Object.freeze({
     label: "戦略情報分析",
-    allowedActionIds: Object.freeze(["translation", "verification"]),
-    fallbackActionId: "translation",
+    allowedActionIds: Object.freeze(["verification"]),
+    fallbackActionId: "verification",
   }),
   C6: Object.freeze({
     label: "共同検証窓口",
-    allowedActionIds: Object.freeze(["verification", "coownership"]),
-    fallbackActionId: "verification",
+    allowedActionIds: Object.freeze(["coownership"]),
+    fallbackActionId: "coownership",
   }),
 });
 
@@ -197,8 +197,8 @@ export function validateAiReceipt(receipt) {
 
 const FIXTURE_ACTIONS = Object.freeze({
   B1: ["verification", "reversibility", "coownership"],
-  J2: ["translation", "verification", "translation"],
-  C6: ["verification", "coownership", "verification"],
+  J2: ["verification", "verification", "verification"],
+  C6: ["coownership", "coownership", "coownership"],
 });
 
 export function runFixtureSimulation(seed = "hackathon-mvp-0", stateSummary = { year: 2035 }) {
