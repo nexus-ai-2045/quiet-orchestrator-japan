@@ -6,7 +6,7 @@
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - branch: `codex/run-bundle-v1`
-- content HEAD: `f4bae46d4f0940aff70e38dbc9ba87276ca2abe3`（履歴証拠。現candidateではM2〜M5ローカルMVPを追加し123件回帰）
+- content HEAD: `17a4d68554daaf0bd169b3a2d362fa0b0e8cbf83`（M2〜M5ローカルMVP、123件回帰、Sites 4件、build、audit 0）
 - base: `origin/main@bdb9902b91cc98dedb4fdbc88d404ab99e2e6714`
 - inspected date: `2026-08-30`（content HEAD commit後にlive再測定）
 - intended audience: public repositoryのPull Request reviewer
@@ -32,7 +32,7 @@
 
 <!-- repo-preflight-result:v1 -->
 ```json
-{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"f4bae46d4f0940aff70e38dbc9ba87276ca2abe3","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
+{"schemaVersion":1,"status":"pass","intent":"ready_after_confirmation","contentHead":"17a4d68554daaf0bd169b3a2d362fa0b0e8cbf83","secretCandidates":0,"personalPaths":0,"origin":"pass","cleanWorktree":true,"ciConfigCount":2,"effectiveIdentity":"pass","historyMismatchCount":2,"effectiveMismatchCount":0}
 ```
 
 このJSONブロックだけが完了判定の機械可読正本である。上の表は人間向け要約であり、任意の説明文を完了証拠として扱わない。
