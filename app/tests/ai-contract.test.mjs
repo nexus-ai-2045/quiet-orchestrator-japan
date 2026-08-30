@@ -183,6 +183,14 @@ test("proposal freshness binds the complete canonical state summary", () => {
   const proposal = { proposalVersion: 1, actorId: "B1", turn: 1, observationHash: alteredObservation.observationHash, actionId: "verification", relationshipId: "B1-C6", rationale: "完全な状態要約との一致を要求する", confidence: 0.8 };
   const receipt = createAiReceipt({ observation: alteredObservation, proposal });
   assert.deepEqual(applyValidatedAiProposal(state, receipt).errors, ["stale_state_snapshot"]);
+
+  const relationshipDrift = structuredClone(state);
+  relationshipDrift.relationships["J1-B1"].state.trust += 1;
+  assert.notEqual(buildAiStateSummary(relationshipDrift).executionStateHash, buildAiStateSummary(state).executionStateHash);
+  const exactObservation = buildObservation({ actorId: "B1", turn: 1, seed: "summary-exact", stateSummary: buildAiStateSummary(state) });
+  const exactProposal = { ...proposal, observationHash: exactObservation.observationHash };
+  const exactReceipt = createAiReceipt({ observation: exactObservation, proposal: exactProposal });
+  assert.deepEqual(applyValidatedAiProposal(relationshipDrift, exactReceipt).errors, ["stale_state_snapshot"]);
 });
 
 test("receipt envelope is bound to its observation identity", () => {

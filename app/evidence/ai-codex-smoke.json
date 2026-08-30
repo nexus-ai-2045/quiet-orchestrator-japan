@@ -10,7 +10,7 @@
     "rationale": "誤帰属を抑えるため、判断より先に共同検証手順を固定する",
     "confidence": 0.84
   },
-  "expectedObservationHash": "fnv1a32:58554b1e",
-  "expectedOutputHash": "fnv1a32:736dd715",
+  "expectedObservationHash": "fnv1a32:c2ce2047",
+  "expectedOutputHash": "fnv1a32:3ad13e34",
   "note": "M2全20接続校正後のbuildAiStateSummary(createDemoState(2035))からreceiptを再生成し、決定論コア適用まで回帰する。外部API実行証拠ではない。"
 }

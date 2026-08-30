@@ -4,6 +4,7 @@ import { authorizeAiTransaction, recordGovernanceOutcome } from "./actor-governa
 
 export function buildAiStateSummary(state) {
   const stateProjection = {
+    executionStateHash: observationFingerprint(state),
     year: state.year,
     seed: state.seed,
     budget: state.budget,
