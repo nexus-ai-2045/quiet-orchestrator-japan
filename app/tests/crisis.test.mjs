@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoState } from "../src/simulation.js";
-import { CRISIS_PHASES, replayCrisisEvent, runCrisisSimulation } from "../src/crisis.js";
+import { CONTRACTED_CAUSE_WORLDS, CRISIS_PHASES, replayCrisisEvent, runCrisisSimulation } from "../src/crisis.js";
 
 test("the crisis engine deterministically emits all 120 ordered turns without strategic growth", () => {
   const state = createDemoState(2035);
@@ -40,12 +40,12 @@ test("misattribution correction irreversible action and route failure remain rep
   const state = createDemoState(2035);
   const run = runCrisisSimulation(state, { seed: "crisis-evidence-0" });
   assert.equal(run.events[18].claim.status, "misattributed");
-  assert.equal(run.events[run.causalParameters.irreversibleTurn].action.irreversible, true);
-  assert.equal(run.events[run.causalParameters.correctionTurn].claim.status, "corrected");
-  assert.equal(run.importantEvents.some((event) => event.sequence === run.causalParameters.disruptionStart), true);
+  assert.equal(run.events[run.transitionParameters.irreversibleTurn].action.irreversible, true);
+  assert.equal(run.events[run.transitionParameters.correctionTurn].claim.status, "corrected");
+  assert.equal(run.importantEvents.some((event) => event.sequence === run.transitionParameters.disruptionStart), true);
   const disconnected = runCrisisSimulation(state, { disabledRelationshipIds: Object.keys(state.relationships) });
-  assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.fallbackAvailable, false);
-  assert.equal(disconnected.events[disconnected.causalParameters.disruptionStart].consequence.coordination, "failed");
+  assert.equal(disconnected.events[disconnected.transitionParameters.disruptionStart].consequence.fallbackAvailable, false);
+  assert.equal(disconnected.events[disconnected.transitionParameters.disruptionStart].consequence.coordination, "failed");
 });
 
 test("versioned coefficient perturbations rerun transitions rather than reweighting output", () => {
@@ -53,13 +53,45 @@ test("versioned coefficient perturbations rerun transitions rather than reweight
   const fast = runCrisisSimulation(state, { seed: "coefficient-0", coefficients: { attributionCorrectionOffset: -4, disruptionDurationScale: 0.75 } });
   const slow = runCrisisSimulation(state, { seed: "coefficient-0", coefficients: { attributionCorrectionOffset: 4, disruptionDurationScale: 1.25 } });
   assert.equal(fast.coefficientVersion, slow.coefficientVersion);
-  assert.ok(fast.causalParameters.correctionTurn < slow.causalParameters.correctionTurn);
-  assert.ok(fast.causalParameters.disruptionEnd <= slow.causalParameters.disruptionEnd);
+  assert.ok(fast.transitionParameters.correctionTurn < slow.transitionParameters.correctionTurn);
+  assert.ok(fast.transitionParameters.disruptionEnd <= slow.transitionParameters.disruptionEnd);
   assert.notEqual(fast.eventStreamHash, slow.eventStreamHash);
 });
 
 test("the five registered study seeds map bijectively to five true causes", () => {
   const state = createDemoState(2035);
-  const causes = Array.from({ length: 5 }, (_, index) => runCrisisSimulation(state, { seed: `cause-${index}` }).causalParameters.causeCode);
-  assert.equal(new Set(causes).size, 5);
+  const expected = [
+    ["S1", "coordinated-cross-domain-coercion"],
+    ["S2", "maritime-accident-plus-independent-cybercrime"],
+    ["S3", "third-party-or-non-state-incitement"],
+    ["S4", "equipment-weather-and-operator-error"],
+    ["S5", "partial-coercion-plus-unrelated-events"],
+  ];
+  const actual = Array.from({ length: 5 }, (_, index) => {
+    const run = runCrisisSimulation(state, { seed: `cause-${index}` });
+    return [run.causalParameters.causeWorldId, run.causalParameters.causeCode];
+  });
+  assert.deepEqual(actual, expected);
+  assert.equal(Object.keys(CONTRACTED_CAUSE_WORLDS).length, 5);
+});
+
+test("topology and fallback loss causally delay correction and accelerate irreversible action", () => {
+  const state = createDemoState(2035);
+  const connected = runCrisisSimulation(state, { seed: "cause-1" });
+  const disconnected = runCrisisSimulation(state, { seed: "cause-1", disabledRelationshipIds: Object.keys(state.relationships) });
+  assert.ok(disconnected.transitionParameters.topologyPenalty > connected.transitionParameters.topologyPenalty);
+  assert.ok(disconnected.transitionParameters.correctionTurn >= connected.transitionParameters.correctionTurn);
+  assert.ok(disconnected.transitionParameters.irreversibleTurn < connected.transitionParameters.irreversibleTurn);
+  assert.notEqual(disconnected.eventStreamHash, connected.eventStreamHash);
+});
+
+test("per-turn actor observations and decision rights drive proposals and consequences", () => {
+  const state = createDemoState(2035);
+  const run = runCrisisSimulation(state, { seed: "cause-2" });
+  assert.ok(run.events.every((event) => Number.isInteger(event.decision.corroboratingActors)));
+  const correction = run.events[run.transitionParameters.correctionTurn];
+  assert.equal(correction.claim.status, "corrected");
+  assert.equal(correction.proposal.basedOnVerifiedAttribution, correction.decision.corroboratingActors >= 6 && correction.decision.authorizedApprovers >= 1);
+  const noFallback = runCrisisSimulation(state, { seed: "cause-2", disabledRelationshipIds: Object.keys(state.relationships) });
+  assert.equal(noFallback.events[noFallback.transitionParameters.disruptionStart].consequence.coordination, "failed");
 });

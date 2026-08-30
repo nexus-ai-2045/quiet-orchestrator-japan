@@ -14,7 +14,13 @@ export const CRISIS_PHASES = Object.freeze([
   { start: 84, end: 99, name: "二次衝撃" }, { start: 100, end: 111, name: "復旧競争" },
   { start: 112, end: 119, name: "出口" },
 ].map(Object.freeze));
-const FICTIONAL_CAUSES = Object.freeze(["fictional-third-party-spoof", "fictional-sensor-cascade", "fictional-insider-manipulation", "fictional-routing-failure", "fictional-coordinated-deception"]);
+export const CONTRACTED_CAUSE_WORLDS = Object.freeze({
+  "cause-0": Object.freeze({ id: "S1", causeCode: "coordinated-cross-domain-coercion", evidenceQuality: 0.75, harmIntensity: 1.2, ambiguity: 0.2 }),
+  "cause-1": Object.freeze({ id: "S2", causeCode: "maritime-accident-plus-independent-cybercrime", evidenceQuality: 0.55, harmIntensity: 0.8, ambiguity: 0.7 }),
+  "cause-2": Object.freeze({ id: "S3", causeCode: "third-party-or-non-state-incitement", evidenceQuality: 0.45, harmIntensity: 0.9, ambiguity: 0.8 }),
+  "cause-3": Object.freeze({ id: "S4", causeCode: "equipment-weather-and-operator-error", evidenceQuality: 0.65, harmIntensity: 0.6, ambiguity: 0.9 }),
+  "cause-4": Object.freeze({ id: "S5", causeCode: "partial-coercion-plus-unrelated-events", evidenceQuality: 0.5, harmIntensity: 1, ambiguity: 0.9 }),
+});
 const FALLBACK_FUNCTION_BY_CHANNEL = Object.freeze({
   "危機状況・停止条件プロトコル": "crisis-stop-conditions",
   "国内危機継続回線": "crisis-stop-conditions",
@@ -39,10 +45,8 @@ const FALLBACK_FUNCTION_BY_CHANNEL = Object.freeze({
 });
 const phaseAt = (turn) => CRISIS_PHASES.find(({ start, end }) => turn >= start && turn <= end)?.name;
 const seededUnit = (seed, turn) => parseInt(observationFingerprint(`${seed}:${turn}`).slice(-8), 16) / 0xffffffff;
-const causeForSeed = (seed) => {
-  const registered = /^cause-([0-4])$/.exec(seed);
-  return registered ? FICTIONAL_CAUSES[Number(registered[1])] : FICTIONAL_CAUSES[Math.floor(seededUnit(seed, 900) * FICTIONAL_CAUSES.length) % FICTIONAL_CAUSES.length];
-};
+const CAUSE_WORLDS = Object.values(CONTRACTED_CAUSE_WORLDS);
+const causeForSeed = (seed) => CONTRACTED_CAUSE_WORLDS[seed] ?? CAUSE_WORLDS[Math.floor(seededUnit(seed, 900) * CAUSE_WORLDS.length) % CAUSE_WORLDS.length];
 
 function fallbackAssessment(state, disabled) {
   return [...disabled].sort().map((relationshipId) => {
@@ -62,8 +66,17 @@ function actorView(seed, turn, truth, confidence, falseAttribution) {
     const canVerify = profile.capabilities.includes("verify");
     const attribution = canVerify && visibleConfidence >= 70 ? truth.causeCode : falseAttribution && visibleConfidence >= 45 ? "fictional-rival" : "unknown";
     const decision = profile.constraints.includes("time-pressure") && visibleConfidence < 60 ? "protect-and-withhold" : canVerify ? "request-corroboration" : profile.capabilities.includes("translate") ? "share-minimum" : "hold-position";
-    return { actorId: profile.actorId, visibleConfidence, attribution, decision };
+    return { actorId: profile.actorId, visibleConfidence, attribution, decision, decisionRights: profile.decisionRights };
   });
+}
+
+function summarizeActorDecisions(observations) {
+  const verifiedActors = observations.filter((item) => item.attribution !== "unknown" && item.attribution !== "fictional-rival").length;
+  const corroboratingActors = observations.filter((item) => item.decision === "request-corroboration" || item.decision === "share-minimum").length;
+  const pressureActors = observations.filter((item) => item.decision === "protect-and-withhold" || item.decision === "hold-position").length;
+  const authorizedApprovers = observations.filter((item) => item.decisionRights.approve && item.visibleConfidence >= 45).length;
+  const authorizedExecutors = observations.filter((item) => item.decisionRights.execute && item.visibleConfidence >= 35).length;
+  return { verifiedActors, corroboratingActors, pressureActors, authorizedApprovers, authorizedExecutors };
 }
 
 function normalizeCoefficients(coefficients = DEFAULT_CRISIS_COEFFICIENTS) {
@@ -79,9 +92,24 @@ function runValidated(state, { seed, disabledRelationshipIds, coefficients }) {
   const fallbackAssessments = fallbackAssessment(state, disabled);
   const verification = state.metrics.verification;
   const continuity = state.metrics.continuity;
-  const causeCode = causeForSeed(seed);
-  const correctionTurn = Math.max(32, Math.min(68, 40 + Math.floor(seededUnit(seed, 901) * 20) + coefficients.attributionCorrectionOffset));
-  const irreversibleTurn = 26 + Math.floor(seededUnit(seed, 902) * 12);
+  const causeWorld = causeForSeed(seed);
+  const unavailableFunctions = fallbackAssessments.filter((item) => !item.available).length;
+  const topologyPenalty = unavailableFunctions * 2 + Math.ceil(disabled.size / 5);
+  const nominalCorrectionTurn = Math.max(32, Math.min(68, 40 + Math.floor(seededUnit(seed, 901) * 12) + Math.round(causeWorld.ambiguity * 8 - causeWorld.evidenceQuality * 4) + topologyPenalty + coefficients.attributionCorrectionOffset));
+  const decisionAt = (turn, falseAttribution = true) => {
+    const confidence = Math.max(5, Math.min(95, verification - 8 + Math.round(causeWorld.evidenceQuality * 20) + Math.round(seededUnit(seed, turn) * 12) - topologyPenalty));
+    const truth = { causeCode: causeWorld.causeCode, causeWorldId: causeWorld.id, physicalIntegrity: "operational" };
+    return summarizeActorDecisions(actorView(seed, turn, truth, confidence, falseAttribution));
+  };
+  let correctionTurn = nominalCorrectionTurn;
+  while (correctionTurn < 68) {
+    const decision = decisionAt(correctionTurn);
+    if (decision.corroboratingActors >= 6 && decision.authorizedApprovers >= 1) break;
+    correctionTurn += 1;
+  }
+  const nominalIrreversible = 26 + Math.floor(seededUnit(seed, 902) * 12) - Math.min(10, topologyPenalty);
+  const irreversibleDecision = decisionAt(Math.max(20, nominalIrreversible));
+  const irreversibleTurn = Math.max(20, nominalIrreversible + (irreversibleDecision.authorizedExecutors === 0 ? 2 : 0) + (irreversibleDecision.pressureActors < 8 ? 2 : 0));
   const disruptionStart = 66 + Math.floor(seededUnit(seed, 903) * 16);
   const baseDisruptionDuration = 12 + Math.floor(seededUnit(seed, 904) * 18);
   const disruptionEnd = Math.min(108, disruptionStart + Math.max(1, Math.round(baseDisruptionDuration * coefficients.disruptionDurationScale)));
@@ -91,21 +119,24 @@ function runValidated(state, { seed, disabledRelationshipIds, coefficients }) {
     const irreversible = turn === irreversibleTurn;
     const disruption = turn >= disruptionStart && turn < disruptionEnd;
     const failedFunctions = disruption ? fallbackAssessments.filter((item) => !item.available) : [];
-    const observationConfidence = Math.max(5, Math.min(95, verification - (disruption ? 25 : 8) + Math.round(seededUnit(seed, turn) * 12)));
-    const truth = { causeCode, physicalIntegrity: disruption ? "degraded" : "operational" };
+    const observationConfidence = Math.max(5, Math.min(95, verification - (disruption ? 25 : 8) + Math.round(causeWorld.evidenceQuality * 20) + Math.round(seededUnit(seed, turn) * 12) - topologyPenalty));
+    const truth = { causeCode: causeWorld.causeCode, causeWorldId: causeWorld.id, physicalIntegrity: disruption ? "degraded" : "operational" };
+    const actorObservations = actorView(seed, turn, truth, observationConfidence, falseAttribution);
+    const actorDecision = summarizeActorDecisions(actorObservations);
     const claimStatus = correction ? "corrected" : falseAttribution ? "misattributed" : "withheld";
     const action = irreversible ? "raise-readiness" : correction ? "publish-correction" : disruption ? "route-around" : "verify-and-wait";
     return {
       sequence: turn, turn: turn + 1, elapsedHours: turn * CRISIS_TURN_HOURS, day: Math.floor((turn * CRISIS_TURN_HOURS) / 24) + 1,
       phase: phaseAt(turn), truth, observation: { confidence: observationConfidence, communications: disruption ? "delayed" : "available" },
       claim: { status: claimStatus, attributionCode: falseAttribution ? "fictional-rival" : null },
-      proposal: { action, basedOnVerifiedAttribution: !falseAttribution && observationConfidence >= 60 }, action: { id: action, irreversible },
-      consequence: { fallbackAvailable: failedFunctions.length === 0, coordination: failedFunctions.length > 0 ? "failed" : continuity >= 45 ? "maintained" : "strained", civilianImpact: failedFunctions.length > 0 ? "high" : irreversible ? "elevated" : "contained" },
+      proposal: { action, basedOnVerifiedAttribution: !falseAttribution && actorDecision.corroboratingActors >= 6 && actorDecision.authorizedApprovers >= 1 }, action: { id: action, irreversible },
+      decision: actorDecision,
+      consequence: { fallbackAvailable: failedFunctions.length === 0, coordination: failedFunctions.length > 0 || actorDecision.authorizedApprovers === 0 ? "failed" : continuity >= 45 && actorDecision.corroboratingActors >= 6 ? "maintained" : "strained", civilianImpact: failedFunctions.length > 0 || (irreversible && causeWorld.harmIntensity >= 1) ? "high" : irreversible ? "elevated" : "contained" },
       important: turn === 0 || turn === 18 || irreversible || correction || turn === disruptionStart || turn === disruptionEnd || turn === 119,
     };
   });
-  const actorObservationFrames = CRISIS_PHASES.map(({ start, name }) => ({ phase: name, sequence: start, observations: actorView(seed, start, events[start].truth, events[start].observation.confidence, events[start].claim.status === "misattributed") }));
-  return { engineVersion: CRISIS_ENGINE_VERSION, coefficientVersion: CRISIS_COEFFICIENT_VERSION, coefficients: { ...coefficients }, seed, disabledRelationshipIds: [...disabled].sort(), fallbackAssessments, actorObservationFrames, causalParameters: { causeCode, correctionTurn, irreversibleTurn, disruptionStart, disruptionEnd }, frozenStrategicYear: state.year, frozenStateHash: observationFingerprint(state), turns: CRISIS_TURNS, events, importantEvents: events.filter((event) => event.important), eventStreamHash: observationFingerprint(events) };
+  const actorObservationFrames = CRISIS_PHASES.map(({ start, name }) => ({ phase: name, sequence: start, observations: actorView(seed, start, events[start].truth, events[start].observation.confidence, events[start].claim.status === "misattributed").map(({ decisionRights, ...item }) => item) }));
+  return { engineVersion: CRISIS_ENGINE_VERSION, coefficientVersion: CRISIS_COEFFICIENT_VERSION, coefficients: { ...coefficients }, seed, disabledRelationshipIds: [...disabled].sort(), fallbackAssessments, actorObservationFrames, causalParameters: { causeWorldId: causeWorld.id, causeCode: causeWorld.causeCode, evidenceQuality: causeWorld.evidenceQuality, harmIntensity: causeWorld.harmIntensity, ambiguity: causeWorld.ambiguity }, transitionParameters: { correctionTurn, irreversibleTurn, disruptionStart, disruptionEnd, topologyPenalty }, frozenStrategicYear: state.year, frozenStateHash: observationFingerprint(state), turns: CRISIS_TURNS, events, importantEvents: events.filter((event) => event.important), eventStreamHash: observationFingerprint(events) };
 }
 
 export function runCrisisSimulation(state, { seed = state?.seed ?? "crisis-0", disabledRelationshipIds = [], coefficients } = {}) {
