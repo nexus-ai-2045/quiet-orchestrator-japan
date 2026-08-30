@@ -7,8 +7,8 @@
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`
 - 表示タイトル: 「静かなオーケストレーターとしての日本」
 - 現在のvisibility: `PUBLIC`（2026-08-24 live確認）
-- 準備branch: `codex/m2-portfolio-foundation`
-- default branch: `main@959f3f85`（P0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawer、ローカルPDCAシミュレーターMVPを統合済み）
+- 準備branch: `codex/run-bundle-v1`
+- default branch: `main@bdb9902b`（P0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawer、ローカルPDCAシミュレーターMVP、M2ポートフォリオ基盤を統合済み）
 - merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
 
 ## 公開候補ファイル
@@ -47,7 +47,7 @@
 | 項目 | 状態 | 備考 |
 |---|---|---|
 | README情報設計 | pass-main | 実画面hero、要点表、二重時間軸の因果図、実行手順、制約を`main`で確認 |
-| Webアプリ | pass-current-branch | 決定論テスト107件（AI・PDCA境界24件、台帳drawer UI境界3件、annual replay・保存証拠整合性14件を含む）、production build、Sites互換テスト4件を確認 |
+| Webアプリ | pass-current-branch | 決定論テスト116件（AI・PDCA境界24件、台帳drawer UI境界3件、annual replay・保存証拠整合性14件、run bundle境界9件を含む）、production build、Sites互換テスト4件を確認 |
 | ブラウザ操作 | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在branchのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
 | UTF-8 / LF / 相対リンク | pass-local | 53ファイル、Markdown 24件、相対リンク切れ0、conflict marker 0 |
@@ -64,7 +64,7 @@
 ## public化後の実測と停止線
 
 - repository visibilityは`PUBLIC`。
-- `main@959f3f85`はP0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawer、ローカルPDCAシミュレーターMVPを含む現行公開基準点。PR #8・#6・#5・#4・#2・#3はmerge済み。
+- `main@bdb9902b`はP0・P1因果縦切り、依存更新、M1公平性強化、因果台帳drawer、ローカルPDCAシミュレーターMVP、M2ポートフォリオ基盤を含む現行公開基準点。PR #9・#8・#6・#5・#4・#2・#3はmerge済み。
 - 現在branchのpublic push、CI、同一HEAD reviewは未実施であり、既存merge済みPRの証拠で代替しない。
 - secret scanning、push protection、Dependabot security updates、vulnerability alerts、Private Vulnerability Reportingは有効化・read-back済み。
 - ActionsはGitHub公式Actionだけを許可し、full commit SHA固定を必須化済み。
