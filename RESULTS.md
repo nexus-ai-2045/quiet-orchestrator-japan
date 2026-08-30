@@ -2,7 +2,7 @@
 
 確認日: 2026-08-30
 
-機械検証対象content HEAD: `17a4d68554daaf0bd169b3a2d362fa0b0e8cbf83`
+機械検証対象content HEAD: `46fc28de50eed63a0804c178d624557b2ee6f1b3`
 
 ## 実行環境
 
@@ -27,7 +27,7 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-123件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。反証seed `cause-4` ではD網状調整がB同盟代理を下回る。日本除去試験では11接続が停止し、残存11主体を明示した。
+123件にはM2全20接続校正、M3全18主体制約、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`境界を含む。5 seedは真因・訂正時点・不可逆行動時点・障害区間が異なり、Dのscoreもseedごとに変化する。反証seed `cause-4` ではD網状調整がB同盟代理を下回る。日本除去試験では11接続が停止し、残存11主体を明示した。
 
 ### M1.5 ローカルPDCA実測
 
