@@ -12,6 +12,7 @@ import {
 import { AI_ACTORS, runFixtureSimulation } from "./ai/contract.js";
 import { buildAiStateSummary } from "./ai/apply-proposal.js";
 import { canCompleteLocalPdca, runOneLocalPdcaStep } from "./ai/local-pdca.js";
+import { runCrisisSimulation } from "./crisis.js";
 
 const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, index) => START_YEAR + index);
 const GROUPS = ["日本", "米国", "中国", "BRIDGE"];
@@ -416,6 +417,22 @@ function Comparison({ state, onClose }) {
   );
 }
 
+function CrisisReplay({ run, index, running, speed, onToggle, onSpeed, onSeek }) {
+  const event = run.events[index];
+  return (
+    <section className="crisis-replay" aria-label="終末の1ヶ月 120ターン再生">
+      <div className="panel-heading"><strong>危機再生 / {event.phase}</strong><span>Turn {event.turn}/120 · Day {event.day}</span></div>
+      <div className="crisis-controls">
+        <button onClick={onToggle}>{running ? "停止" : "再生"}</button>
+        {[1, 4, 12].map((value) => <button key={value} className={speed === value ? "active" : ""} onClick={() => onSpeed(value)}>×{value}</button>)}
+        <input aria-label="危機ターン" type="range" min="0" max="119" value={index} onChange={(event_) => onSeek(Number(event_.target.value))} />
+      </div>
+      <p><b>{event.claim.status}</b> → {event.action.id} → {event.consequence.coordination} / 通信 {event.observation.communications}</p>
+      <div className="crisis-jumps">{run.importantEvents.map((item) => <button key={item.sequence} onClick={() => onSeek(item.sequence)}>{item.turn}: {item.phase}</button>)}</div>
+    </section>
+  );
+}
+
 export function App() {
   const [state, setState] = useState(() => createDemoState(2035));
   const [comparing, setComparing] = useState(false);
@@ -424,6 +441,18 @@ export function App() {
   const [focusedLedgerEntryId, setFocusedLedgerEntryId] = useState(null);
   const [pdcaCycles, setPdcaCycles] = useState([]);
   const [pdcaStep, setPdcaStep] = useState(0);
+  const [crisisIndex, setCrisisIndex] = useState(0);
+  const [crisisRunning, setCrisisRunning] = useState(false);
+  const [crisisSpeed, setCrisisSpeed] = useState(4);
+  const crisisRun = useMemo(() => runCrisisSimulation(state, { seed: `${state.seed}:crisis` }), [state]);
+  useEffect(() => {
+    if (!crisisRunning) return undefined;
+    const timer = window.setInterval(() => setCrisisIndex((current) => {
+      if (current >= 119) { setCrisisRunning(false); return 119; }
+      return Math.min(119, current + crisisSpeed);
+    }), 500);
+    return () => window.clearInterval(timer);
+  }, [crisisRunning, crisisSpeed]);
   const preview = previewSelectedInvestment(state);
   const focusedLedgerEntry = state.ledger.find((entry) => entry.id === focusedLedgerEntryId) ?? null;
   const clearLedgerFocus = () => setFocusedLedgerEntryId(null);
@@ -438,7 +467,7 @@ export function App() {
     setState(next);
     setNotice(next === state ? "state検証に失敗したため、危機テストを記録しませんでした" : `${state.year}年時点の終末の1ヶ月テストを記録しました`);
   };
-  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
+  const handleReset = () => { clearLedgerFocus(); setLedgerOpen(false); setPdcaCycles([]); setPdcaStep(0); setCrisisIndex(0); setCrisisRunning(false); setState(createInitialState()); setNotice("2026年から新しいシミュレーションを開始しました"); };
   const handleRelationshipSelect = (id) => { clearLedgerFocus(); setState((current) => selectRelationship(current, id)); };
   const handleContributionSelect = (checkpointYear, contribution) => {
     const focus = getStressContributionFocus(state, checkpointYear, contribution.relationshipId);
@@ -494,6 +523,7 @@ export function App() {
       <Header state={state} preview={preview} onAdvance={handleAdvance} onStress={handleStress} onCompare={() => { setLedgerOpen(false); setComparing((value) => !value); }} onReset={handleReset} comparing={comparing} />
       <div className="workspace"><ActorRail state={state} onSelect={(id) => setState((current) => selectActor(current, id))} /><div className="center-stack"><NetworkStage state={state} onSelectActor={(id) => setState((current) => selectActor(current, id))} onSelectRelationship={handleRelationshipSelect} focusedLedgerEntry={focusedLedgerEntry} /><ActionRail state={state} onChoose={(id) => { clearLedgerFocus(); setState((current) => selectAction(current, id)); }} focusedLedgerEntry={focusedLedgerEntry} onClearLedgerFocus={clearLedgerFocus} onOpenLedger={() => { setComparing(false); setLedgerOpen(true); }} /></div><Inspector state={state} focusedLedgerEntry={focusedLedgerEntry} /></div>
       <AiProposalTrace state={state} cycles={pdcaCycles} nextStep={pdcaStep} onStep={handlePdcaStep} onAuto={handlePdcaAuto} /><StressStrip state={state} onSelectContribution={handleContributionSelect} /><MetricRail state={state} />
+      <CrisisReplay run={crisisRun} index={crisisIndex} running={crisisRunning} speed={crisisSpeed} onToggle={() => setCrisisRunning((value) => !value)} onSpeed={setCrisisSpeed} onSeek={(value) => { setCrisisIndex(value); setCrisisRunning(false); }} />
       <footer className="app-footer"><span role="status" aria-live="polite">{notice}</span><span>モデル入力はすべて架空です</span></footer>
       {comparing && <Comparison state={state} onClose={() => setComparing(false)} />}
       {ledgerOpen && state.ledger.length > 0 && <LedgerDrawer state={state} focusedLedgerEntryId={focusedLedgerEntryId} onClose={() => setLedgerOpen(false)} onSelect={handleLedgerSelect} />}

@@ -21,13 +21,13 @@ READMEの下限はNode.js 20であり、この記録は上記環境で実際に�
 
 | コマンド | 結果 |
 |---|---|
-| `npm test` | 119件pass |
+| `npm test` | 121件pass |
 | `npm run build` | Vite production build pass |
 | `npm run test:sites` | 4件pass |
 | `npm audit --audit-level=high` | 0 vulnerabilities |
 | `ai-ratchet-gate` | 現存0件、新規0件 |
 
-119件にはM2全20接続のarchetype校正・非一律施策適格性、M3全18主体の国名非依存制約型、提案・承認・実行権限と拒否台帳、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
+121件にはM2全20接続のarchetype校正・非一律施策適格性、M3全18主体の国名非依存制約型、提案・承認・実行権限と拒否台帳、M4の120ターン決定論危機再生、baseline制約説明のdrift検知と、`meta-security-run-bundle/v1`の同一`run_id`束縛、trusted JSON snapshot、実装repo固定provenance、seed・event container・決定論的再実行の境界を含む。
 
 ### M1.5 ローカルPDCA実測
 
