@@ -44,8 +44,10 @@ for (const phrase of forbiddenDesignPhrases) {
 if (contract.includes("| A ブロック分断")) {
   throw new Error("comparison design duplicated in simulation-contract.md");
 }
+// 必須claimはlifecycle接頭辞 (candidate / main) を含めず、実装が持つ能力だけを固定する。
+// 統合状態を必須文言へ焼き込むと、mergeで真でなくなった主張をgateが凍結する。
 const requiredCurrentContractClaims = [
-  "現在candidateのM4は30日・6時間刻みの120イベントを決定論的に逐次生成",
+  "M4は30日・6時間刻みの120イベントを決定論的に逐次生成",
   "M5はS1〜S5へ対応する5真因seed、A〜E、係数感度、日本除去を同じ危機エンジンへ一括投入",
   "外部LLM対話層は必須MVPの外",
   "U4-C3 海上現場停止回線",
@@ -108,8 +110,8 @@ if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証�
 if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
   throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
 }
-if (!roadmap.includes("現在candidateはM2〜M5のローカルMVPを実装済み")) {
-  throw new Error("ROADMAP.md must record the current M2-M5 runtime candidate boundary");
+if (!roadmap.includes("`main`はP0・P1・M1.5・M2〜M5とrun bundleまでを統合済み")) {
+  throw new Error("ROADMAP.md must record the merged M2-M5 runtime boundary on main");
 }
 const staleRoadmapMvpClaims = [
   "全20接続を投資可能にする校正 |",
@@ -402,7 +404,8 @@ if (/公開前review中|visibility変更/.test(roadmap)) {
   throw new Error("stale publication state remains in ROADMAP.md");
 }
 
-const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady };
+// simulation-contract.md も現行runtimeを説明する current-state doc なので同じratchetへ含める。
+const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady, CONTRACT: contract };
 const staleLifecyclePhrases = [
   "mergeされるまで現行SSOTではなく",
   "本SSOT統合HEADはローカルのみ",
@@ -416,6 +419,15 @@ const staleLifecyclePhrases = [
   "SSOT統合HEADは未push",
   "PR #4はremote `codex/design-roadmap-2045",
   "PR #4は`c2eeaf3`でOPEN",
+  // M2〜M5がmainへmergeされた後も残っていた統合前lifecycle表現 (PR #12以降)。
+  // 正の必須文言としてgateへ固定すると、mergeで真でなくなった主張を凍結してしまうため、
+  // 「統合後の真」を必須にし、統合前表現はこのratchetで再発を止める。
+  "現在candidateはM2〜M5のローカルMVPを実装済み",
+  "現在candidateはM2〜M5のローカルMVP差分を保持",
+  "ローカルMVP candidate",
+  "統合前の残務",
+  "runtime candidate実装済み",
+  "run bundleへのevent・replay・evidence統合",
 ];
 for (const [name, content] of Object.entries(currentStateDocuments)) {
   for (const phrase of staleLifecyclePhrases) {
