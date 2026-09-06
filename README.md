@@ -69,12 +69,12 @@ npm run verify
 
 `npm run simulate` は現在の決定論コアからP0 baselineをJSONで標準出力へ生成します。`npm run --silent simulate:bundle -- --seed 404 --max-steps 9` はnpm bannerを抑止し、同じコアを使ってrequest、event stream、replay、evidenceを同一`run_id`で束縛した`meta-security-run-bundle/v1`だけを標準出力へ生成します。`npm run verify` は、事前設計と実測結果の文書境界、test、production build、Sites packaging、baseline実行を一括確認します。
 
-現在のP0 baselineは次を実装しています。
+現在の`main`は次を実装しています。
 
 - 2026年から2045年までの決定論的な年次シミュレーション
 - 18の論理主体、20本の固定接続、全体指標としての依存リスクの可視化
 - 翻訳、検証、可逆化、複線化、共同所有の5つの年次アクション
-- 2030、2035、2040、2045年の「終末の1ヶ月」集約ストレス評価
+- 2030、2035、2040、2045年の「終末の1ヶ月」ストレス評価
 - 協調資本、検証能力、相互運用性、戦略的自律性、国内正統性の能力指標
 - 権力集中、監視化、単一依存のリスク指標
 - 同盟代理、単独仲介、静かなオーケストレーションの比較表示
@@ -82,8 +82,12 @@ npm run verify
 - 全20接続の安定IDと`Relationship v1`状態schema
 - `B1 BRIDGE ↔ C6 中国・研究機関`を使う、投資前差分・実行・因果台帳・危機寄与の代表縦切り
 - 接続archetypeごとの施策適格性・非一律deltaとfail-closed境界
+- 18主体へ国名非依存の制約型を割り当て、提案・承認・実行の権限を分離するM3主体制約
+- 30日を6時間×120ターンの決定論イベント列として逐次生成し、同じseedで再生するM4危機エンジン
+- A〜Eの5戦略、5真因seed、係数感度、日本ノード除去を同じエンジンで比較するM5反証試験
+- Cloud handoff用に実行・event・replay・evidenceを同じ`run_id`で束ねる`meta-security-run-bundle/v1`
 
-現在は、P0 baselineと代表接続のP1因果縦切りに加え、全20接続を3つのarchetypeと`contested` modifierで校正したM2ポートフォリオを実装しています。接続ごとに目的、チャネル、ownership、初期状態、施策適格性が異なり、同じ施策でも非一律の結果になります。値はハッカソン体験用の架空校正であり、研究仮説を検証できる完成MVPではありません。仮説と反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)、状態遷移と再現条件は[シミュレーション契約](simulation-contract.md)、実測値と限界は[実行結果](RESULTS.md)がそれぞれ所有します。設計スナップショットは初回実測に対する事前登録証拠ではありません。
+現在は、P0 baselineと代表接続のP1因果縦切り、全20接続を3つのarchetypeと`contested` modifierで校正したM2ポートフォリオに加えて、M3主体制約、M4の120ターン危機エンジン、M5の反証・日本不在試験までを`main`へ統合しています。接続ごとに目的、チャネル、ownership、初期状態、施策適格性が異なり、同じ施策でも非一律の結果になります。値はハッカソン体験用の架空校正であり、研究仮説を検証できる完成MVPではありません。仮説と反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)、状態遷移と再現条件は[シミュレーション契約](simulation-contract.md)、実測値と限界は[実行結果](RESULTS.md)がそれぞれ所有します。設計スナップショットは初回実測に対する事前登録証拠ではありません。
 
 ## 二つの時間軸
 
@@ -160,10 +164,15 @@ app/
   src/
     simulation.js      決定論的な状態遷移、施策、評価
     calibration-v0.js  代表接続の架空係数正本 (docs/calibration-v0.md と対)
-    ai/                scripted Policy Engineの契約・検証・ローカルPDCA
+    crisis.js          M4 終末の1ヶ月を6時間×120ターンで生成・再生する危機エンジン
+    experiments.js     M5 A〜E・5真因seed・係数感度・日本除去の比較試験
+    run-bundle.js      実行・event・replay・evidenceを束ねるrun bundle出力
+    run-bundle-provenance.js  run bundleへ記録する実装revisionの解決
+    ai/                scripted Policy Engineの契約・検証・主体制約・ローカルPDCA
     App.jsx            操作可能なUIと比較表示
+    modal-focus.js     モーダルのフォーカス循環と復帰
     styles.css         選択済みデザインシステム
-  tests/               決定論エンジン、AI契約、UI契約、Sites互換のテスト
+  tests/               決定論エンジン、危機、比較試験、AI契約、UI契約、Sites互換のテスト
   scripts/             baseline実行、文書境界検証、Sites packaging
 docs/
   adr/                 設計判断記録

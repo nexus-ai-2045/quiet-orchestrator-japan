@@ -25,7 +25,7 @@
 
 - `app/` のソースコード、独自文書、図表は本repository向けに制作した。
 - `docs/design/selected-ui-concept.png` は本作のUI設計を検討するために生成したコンセプト画像である。
-- `docs/images/simulator-preview.jpg` はローカルで実行した本作の画面を記録したスクリーンショットである。
+- `docs/images/simulator-preview-one-month.jpg` と `docs/images/simulator-preview-causal-slice.png` はローカルで実行した本作の画面を記録したスクリーンショットである。
 - ロゴ、実在組織の紋章、第三者資料の画像や本文は同梱しない。
 
 ## 免責
