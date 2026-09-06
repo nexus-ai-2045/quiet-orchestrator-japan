@@ -1,4 +1,4 @@
-# 実行結果｜P0・P1・M1.5・M2 mechanical foundation 実測スナップショット
+# 実行結果｜P0・P1・M1.5・M2〜M5・run bundle 実測スナップショット
 
 確認日: 2026-08-30
 
@@ -47,7 +47,7 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 ### ブラウザ確認（因果台帳drawer・履歴content HEAD）
 
-履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このブラウザ証拠は現在のM2 mechanical foundation content HEADのsame-HEAD証拠には数えない。
+履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このブラウザ証拠は現在のcontent HEADのsame-HEAD証拠には数えない。
 
 | gate | status | affirmative observation |
 |---|---|---|

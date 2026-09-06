@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,8 +110,11 @@ if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証�
 if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
   throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
 }
-if (!roadmap.includes("`main`はP0・P1・M1.5・M2〜M5とrun bundleまでを統合済み")) {
-  throw new Error("ROADMAP.md must record the merged M2-M5 runtime boundary on main");
+// 統合済みマイルストーンの「一覧」をリテラル必須にすると、次のmergeで偽になった主張をgateが凍結する。
+// 必須にするのは「mainの統合範囲を述べた状態行が存在すること」という形だけにし、
+// 中身の更新はmerge都度おこなえるようにする。
+if (!/^状態: \*\*`main`は[^*\n]*統合済み[^*\n]*\*\*$/m.test(roadmap)) {
+  throw new Error("ROADMAP.md must keep a 状態 line describing what main has integrated");
 }
 const staleRoadmapMvpClaims = [
   "全20接続を投資可能にする校正 |",
@@ -402,6 +405,33 @@ if (verifySitesEvidence) {
 
 if (/公開前review中|visibility変更/.test(roadmap)) {
   throw new Error("stale publication state remains in ROADMAP.md");
+}
+
+// READMEは作品の入口ownerなので、実装が持つ能力を実装より遅れて説明しないよう固定する。
+// lifecycle (candidate / merge状態) ではなく能力だけを書き、mergeで偽にならない不変条件にする。
+const requiredReadmeCapabilityClaims = [
+  "18主体へ国名非依存の制約型を割り当て",
+  "6時間×120ターンの決定論イベント列",
+  "A〜Eの5戦略、5真因seed、係数感度、日本ノード除去",
+  "`meta-security-run-bundle/v1`",
+];
+for (const claim of requiredReadmeCapabilityClaims) {
+  if (!readme.includes(claim)) throw new Error(`README.md must describe the implemented capability: ${claim}`);
+}
+
+// README実装構成ツリーとapp/src直下の実体を機械照合する。
+// PR #12でcrisis/experiments/run-bundleが追加された際、ツリーだけM2止まりで取り残された。
+// 人手の更新漏れに依存せず、moduleを足したらREADMEも更新しないと落ちる形にする。
+const readmeImplementationTree = readme.match(/## 実装構成\n\n```text\n([\s\S]*?)\n```/)?.[1];
+if (!readmeImplementationTree) throw new Error("README.md must keep the 実装構成 tree block");
+const sourceModules = (await readdir(resolve(repoRoot, "app", "src"), { withFileTypes: true }))
+  .filter((entry) => entry.isFile() && entry.name !== "main.jsx")
+  .map((entry) => entry.name)
+  .sort();
+for (const moduleName of sourceModules) {
+  if (!readmeImplementationTree.includes(moduleName)) {
+    throw new Error(`README implementation tree missing app/src module: ${moduleName}`);
+  }
 }
 
 // simulation-contract.md も現行runtimeを説明する current-state doc なので同じratchetへ含める。
