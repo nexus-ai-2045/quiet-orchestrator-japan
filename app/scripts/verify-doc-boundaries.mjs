@@ -434,6 +434,18 @@ for (const moduleName of sourceModules) {
   }
 }
 
+// docs/adr/ の実体とADR索引を機械照合する。ADRを足して索引へ載せ忘れると、
+// 読み手はADR一覧だけを見て古い判断を現行と誤読する。人手更新に依存しない。
+const adrFiles = (await readdir(resolve(repoRoot, "docs", "adr"), { withFileTypes: true }))
+  .filter((entry) => entry.isFile() && /^\d{4}-.+\.md$/.test(entry.name))
+  .map((entry) => entry.name)
+  .sort();
+if (adrFiles.length === 0) throw new Error("docs/adr must contain numbered ADR files");
+const adrIndex = await read("docs/adr/README.md");
+for (const adrFile of adrFiles) {
+  if (!adrIndex.includes(adrFile)) throw new Error(`docs/adr/README.md must index the ADR: ${adrFile}`);
+}
+
 // simulation-contract.md も現行runtimeを説明する current-state doc なので同じratchetへ含める。
 const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady, CONTRACT: contract };
 const staleLifecyclePhrases = [
