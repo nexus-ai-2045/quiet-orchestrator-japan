@@ -1,23 +1,25 @@
 # 実行結果｜P0・P1・M1.5・M2〜M5・run bundle 実測スナップショット
 
-確認日: 2026-08-30
+確認日: 2026-09-06
 
-機械検証対象content HEAD: `8d1e738799ec6997eceb7133dd3a53b39e349c5b`
+機械検証対象content HEAD: `ca056ae8fc0ea41e0c439e779634bcd8980ad9a2`（`main`のmerge commit）
+
+以前この欄はbranch側のcommit SHAを記録していたが、squash mergeでそのcommitは破棄され、第三者が証拠を再現できない状態になっていた。以後は破棄されない`main`のmerge commitを記録する。
 
 ## 実行環境
 
-- Node.js `v24.14.0`
-- npm `11.14.1`
-- Windows / ローカルworktree
+- Node.js `v26.7.0`
+- npm `11.19.0`
+- macOS / `main`のcleanなclone
 - 外部API、APIキー、ライブデータなし
 
-READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した履歴スナップショットである。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
+READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した観測である。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
 
 この文書が記録する現在の実装段階は、代表接続の因果縦切り、scripted Policy EngineによるM1.5、全20接続のM2架空校正、18主体のM3制約と権限分離、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、Cloud handoff用`meta-security-run-bundle/v1`までである。これらは`main`へ統合したハッカソン用ローカルMVPの機械検証範囲であり、経験的政策効果、研究上の妥当性、外部AIによる自律交渉の完了証拠ではない。
 
 ## 機械検証
 
-次の結果は上記content HEADをcommit後にcheckoutした状態で再実行した。同じcommitへ証拠文書を自己参照させず、この文書更新は後続evidence commitとして記録する。
+次の結果は上記content HEADをcleanなcloneでcheckoutして実行した。同じcommitへ証拠文書を自己参照させず、この文書更新は後続evidence commitとして記録する。
 
 | コマンド | 結果 |
 |---|---|
@@ -47,7 +49,7 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 ### ブラウザ確認（因果台帳drawer・履歴content HEAD）
 
-履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このブラウザ証拠は現在のcontent HEADのsame-HEAD証拠には数えない。
+履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このSHAはsquash mergeで破棄されており、現在のrepositoryからは参照できない。したがってこの行は再現可能な証拠ではなく、当時そう記録したという履歴である。このブラウザ証拠は現在のcontent HEADのsame-HEAD証拠には数えない。
 
 | gate | status | affirmative observation |
 |---|---|---|

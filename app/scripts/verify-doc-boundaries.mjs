@@ -97,18 +97,30 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-const historicalDrawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
-for (const gate of historicalDrawerEvidenceGates) {
-  const row = results.match(new RegExp(`^\\| ${gate} \\| pass-historical-head \\| ([^|]+) \\|$`, "m"));
-  if (!row || /未確認|pending|未実施/.test(row[1]) || row[1].trim().length < 8) {
-    throw new Error(`RESULTS.md historical drawer evidence must be affirmative and complete: ${gate}`);
+// drawer UIゲートの証拠行。statusは履歴証拠(pass-historical-head)と同一HEAD証拠(pass-current-head)の
+// どちらでもよい。旧gateはpass-current-headを一律禁止していたため、ROADMAPが次に指示している
+// 「現在HEADでのUI再検証」を完了して正直に記録すると必ず落ちる自己矛盾があった。
+// 禁止をやめる代わりに、same-HEADを主張する行には検証したcommit SHAの併記を必須にし、
+// 実測を伴わない格上げが通らないようにする。
+const drawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
+const drawerEvidenceStatuses = [];
+for (const gate of drawerEvidenceGates) {
+  const row = results.match(new RegExp(`^\\| ${gate} \\| (pass-historical-head|pass-current-head) \\| ([^|]+) \\|$`, "m"));
+  if (!row) throw new Error(`RESULTS.md drawer evidence row is missing or uses an unknown status: ${gate}`);
+  const [, status, observation] = row;
+  drawerEvidenceStatuses.push(status);
+  if (/未確認|pending|未実施/.test(observation) || observation.trim().length < 8) {
+    throw new Error(`RESULTS.md drawer evidence must be affirmative and complete: ${gate}`);
+  }
+  if (status === "pass-current-head" && !/`[0-9a-f]{7,40}`/.test(observation)) {
+    throw new Error(`RESULTS.md same-HEAD drawer evidence must cite the verified commit SHA: ${gate}`);
   }
 }
-if (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証拠には数えない")) {
-  throw new Error("RESULTS.md drawer evidence must remain historical for the current M2 content HEAD");
-}
-if (/^\| (?:standard-width|narrow-880|narrow-320|keyboard-modal|reduced-motion) \| pass-current-head \|/m.test(results)) {
-  throw new Error("RESULTS.md must not label historical drawer gates as pass-current-head");
+// 履歴証拠が1件でも残っている間だけ、同一HEAD証拠と混同しない注記を要求する。
+// 全行がsame-HEADへ更新されたら注記自体が事実でなくなるため、要求しない。
+if (drawerEvidenceStatuses.includes("pass-historical-head")
+  && (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証拠には数えない"))) {
+  throw new Error("RESULTS.md must keep historical drawer evidence distinct from same-HEAD evidence");
 }
 // 統合済みマイルストーンの「一覧」をリテラル必須にすると、次のmergeで偽になった主張をgateが凍結する。
 // 必須にするのは「mainの統合範囲を述べた状態行が存在すること」という形だけにし、
@@ -432,6 +444,23 @@ for (const moduleName of sourceModules) {
   if (!readmeImplementationTree.includes(moduleName)) {
     throw new Error(`README implementation tree missing app/src module: ${moduleName}`);
   }
+}
+
+// RESULTSが機械検証の対象として記録するcontent HEADは、このrepositoryに実在しなければならない。
+// 以前はsquash mergeで破棄されたbranch commitを記録しており、gateはdoc同士のSHA照合しかして
+// いなかったため、存在しないcommitを指したまま緑になっていた。証拠は第三者が再現できて初めて証拠になる。
+const recordedResultsHead = results.match(/^機械検証対象content HEAD: `([0-9a-f]{40})`/m)?.[1];
+if (!recordedResultsHead) {
+  throw new Error("RESULTS.md must record the machine-verified content HEAD as a full SHA");
+}
+const headLookup = spawnSync("git", ["cat-file", "-e", `${recordedResultsHead}^{commit}`], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
+if (headLookup.status !== 0) {
+  throw new Error(
+    `RESULTS.md machine-verified content HEAD does not exist in this repository: ${recordedResultsHead}`,
+  );
 }
 
 // docs/adr/ の実体とADR索引を機械照合する。ADRを足して索引へ載せ忘れると、
