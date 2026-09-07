@@ -2,7 +2,7 @@
 
 確認日: 2026-09-06
 
-機械検証対象content HEAD: `ca056ae8fc0ea41e0c439e779634bcd8980ad9a2`（`main`のmerge commit）
+機械検証対象content HEAD: `92f795fddd92f153b191a7fd9c45521bb9bbe523`（`main`のmerge commit）
 
 以前この欄はbranch側のcommit SHAを記録していたが、squash mergeでそのcommitは破棄され、第三者が証拠を再現できない状態になっていた。以後は破棄されない`main`のmerge commitを記録する。
 
@@ -47,17 +47,22 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
-### ブラウザ確認（因果台帳drawer・履歴content HEAD）
+### ブラウザ確認（因果台帳drawer・same-HEAD）
 
-履歴content HEAD `9a11564d3d583a7f1b4b95125e7faf1bd5440fba` のローカルViteで、因果台帳drawerのUIゲートを確認した。このSHAはsquash mergeで破棄されており、現在のrepositoryからは参照できない。したがってこの行は再現可能な証拠ではなく、当時そう記録したという履歴である。このブラウザ証拠は現在のcontent HEADのsame-HEAD証拠には数えない。
+`main@92f795fddd92f153b191a7fd9c45521bb9bbe523` のcleanなcloneをローカルViteで起動し、
+`http://127.0.0.1:5399/` の実画面でdrawerのUIゲートを再検証した。観測はブラウザ自動操作による
+実行結果であり、人間の目視reviewの代替ではない。
 
 | gate | status | affirmative observation |
 |---|---|---|
-| standard-width | pass-historical-head | 複数台帳を一覧し、過去entryからInspectorと記録済み副作用へ逆引きできた |
-| narrow-880 | pass-historical-head | drawer一覧・選択・Inspector更新が表示領域内で破綻しなかった |
-| narrow-320 | pass-historical-head | padded backdropのcontent幅100%へdrawerを制約し、左右clipを防ぐ契約testが通った |
-| keyboard-modal | pass-historical-head | Escape・行操作・Tab循環・Close後のopener focus復帰を確認した |
-| reduced-motion | pass-historical-head | 署名差分が静的テキストとして残り、理解がanimationに依存しなかった |
+| standard-width | pass-current-head | `92f795fd` で確認。1440x1400で台帳49件を一覧し、`#46 U2 ↔ C3`を選ぶとInspectorが「2035年の接続」へ切替わり、記録済みの累積スナップショットへ逆引きできた |
+| narrow-880 | pass-current-head | `92f795fd` で確認。viewport880でdrawer矩形はleft=160・right=720と表示領域内に収まり、documentElementの横あふれは発生しなかった |
+| narrow-320 | pass-current-head | `92f795fd` で確認。viewport320でdrawer幅260px・left=30・right=290と左右clipなく収まり、scrollWidthは320のままで横スクロールが出なかった |
+| keyboard-modal | pass-current-head | `92f795fd` で確認。ArrowDown/ArrowUp/Home/Endで行フォーカスが0〜48へ移動し先頭でクランプ、Tabはdialog内を循環し、Escapeでdrawerが閉じてopenerの「全台帳を開く」へfocusが戻った |
+| reduced-motion | pass-current-head | `92f795fd` で確認。台帳選択で署名差分`2035 単一依存 24→16`がテキストとして描画され、`styles.css`の`prefers-reduced-motion: reduce`が同要素の`animation`を`none`・`opacity`を`1`へ固定するため、animation停止時も内容が残る |
+
+観測は自動操作で取得したため、意匠・可読性・情緒的な妥当性は含まない。`PREFLIGHT.md`と
+`PUBLIC_READY.md`が持つ人間目視reviewの主張は、この記録では更新しない。
 
 ## PR reviewへの対応
 

@@ -8,7 +8,7 @@
 
 ## 現在地｜M2〜M5を`main`へ統合済み
 
-状態: **`main`はP0・P1・M1.5・M2〜M5とrun bundleまでを統合済み / 次は同一HEADのUI・アクセシビリティ証拠**
+状態: **`main`はP0・P1・M1.5・M2〜M5とrun bundleまでを統合済み / drawer UIゲートはsame-HEAD検証済み / 次は反証結果の記録**
 
 | `main`で実装済み | 残務・対象外 |
 |---|---|
@@ -239,11 +239,10 @@ M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が�
 
 repo goalから逆算し、次の依存順で閉じる。
 
-1. UI・狭幅・キーボード・reduced-motionを現在HEADで再検証し、`RESULTS.md`のdrawer証拠行を検証したcommit SHA付きで`pass-current-head`へ更新する。
-2. M5のA〜E、複数seed、日本除去の反証結果を`RESULTS.md`へ軸ごとに記録する。
-3. `PREFLIGHT.md`・`PUBLIC_READY.md`を現在の`main`で再実行し、破棄されたbranch SHAではなくmerge commitを記録する。人間目視reviewの主張は実際に見た人が更新する。
+1. M5のA〜E、複数seed、日本除去の反証結果を`RESULTS.md`へ軸ごとに記録する。
+2. `PREFLIGHT.md`・`PUBLIC_READY.md`を現在の`main`で再実行し、破棄されたbranch SHAではなくmerge commitを記録する。人間目視reviewの主張は実際に見た人が更新する。
 
-M2校正はハッカソン用架空値として採用済みであり、経験的政策効果として扱わない。M3〜M5とrun bundleは`main`へ依存順で統合済みであり、残る作業は同一HEADのUI・アクセシビリティ証拠と、反証結果のRESULTS記録である。
+M2校正はハッカソン用架空値として採用済みであり、経験的政策効果として扱わない。M3〜M5とrun bundleは`main`へ依存順で統合済みであり、drawerのUIゲートは`main@92f795fd`でsame-HEAD再検証済みであり、残る作業は反証結果のRESULTS記録と、人間目視reviewを含む公開判定文書の更新である。
 
 ## 現時点の人間判断
 
