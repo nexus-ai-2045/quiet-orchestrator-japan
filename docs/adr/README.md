@@ -14,5 +14,7 @@
 | [0008](0008-causal-vertical-slice.md) | accepted | 接続投資から危機寄与までを一本の縦切りで実装する |
 | [0009](0009-ai-proposal-harness.md) | accepted | scripted Policy Engineで推論層の安全境界を先に固定する |
 | [0010](0010-run-bundle-and-experience-technology.md) | accepted | 実行bundleを固定し、体験技術は必要時だけ追加する |
+| [0011](0011-m2-fictional-calibration-v1-1-0.md) | accepted | M2残り19接続の架空校正 relationship-v1.1.0 を採用する |
+| [0012](0012-mvp-scope-expanded-to-m5.md) | accepted | MVP実装範囲をM2〜M5とrun bundleへ拡大する |
 
 状態は `proposed | accepted | superseded | rejected` のいずれかを使う。判断を変更する場合、過去ADRを書き換えず、新しいADRから置換先を示す。
