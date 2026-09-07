@@ -4,6 +4,13 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isIdentifyingGitShaPrefix, parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
+import {
+  assertAdrIndex,
+  assertDrawerEvidenceRows,
+  assertHistoricalEvidenceNote,
+  assertReadmeImplementationTree,
+  extractRecordedResultsHead,
+} from "./doc-boundary-checks.mjs";
 
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
@@ -97,31 +104,13 @@ if (!design.includes("事前登録証拠ではない") || !results.includes("事
   throw new Error("design chronology limitation must remain explicit");
 }
 
-// drawer UIゲートの証拠行。statusは履歴証拠(pass-historical-head)と同一HEAD証拠(pass-current-head)の
-// どちらでもよい。旧gateはpass-current-headを一律禁止していたため、ROADMAPが次に指示している
-// 「現在HEADでのUI再検証」を完了して正直に記録すると必ず落ちる自己矛盾があった。
-// 禁止をやめる代わりに、same-HEADを主張する行には検証したcommit SHAの併記を必須にし、
-// 実測を伴わない格上げが通らないようにする。
-const drawerEvidenceGates = ["standard-width", "narrow-880", "narrow-320", "keyboard-modal", "reduced-motion"];
-const drawerEvidenceStatuses = [];
-for (const gate of drawerEvidenceGates) {
-  const row = results.match(new RegExp(`^\\| ${gate} \\| (pass-historical-head|pass-current-head) \\| ([^|]+) \\|$`, "m"));
-  if (!row) throw new Error(`RESULTS.md drawer evidence row is missing or uses an unknown status: ${gate}`);
-  const [, status, observation] = row;
-  drawerEvidenceStatuses.push(status);
-  if (/未確認|pending|未実施/.test(observation) || observation.trim().length < 8) {
-    throw new Error(`RESULTS.md drawer evidence must be affirmative and complete: ${gate}`);
-  }
-  if (status === "pass-current-head" && !/`[0-9a-f]{7,40}`/.test(observation)) {
-    throw new Error(`RESULTS.md same-HEAD drawer evidence must cite the verified commit SHA: ${gate}`);
-  }
-}
-// 履歴証拠が1件でも残っている間だけ、同一HEAD証拠と混同しない注記を要求する。
-// 全行がsame-HEADへ更新されたら注記自体が事実でなくなるため、要求しない。
-if (drawerEvidenceStatuses.includes("pass-historical-head")
-  && (!results.includes("履歴content HEAD") || !results.includes("same-HEAD証拠には数えない"))) {
-  throw new Error("RESULTS.md must keep historical drawer evidence distinct from same-HEAD evidence");
-}
+// drawer UIゲートの証拠行。same-HEADを主張する行は検証したcommit SHAを併記し、
+// それが記録済みcontent HEADと同じcommitを指していなければならない。
+// 形式一致だけを見ていた頃は実在しないSHAでも通っていた (レビューで再現確認済み)。
+// 判定は doc-boundary-checks.mjs の純粋関数が持ち、回帰テストで固定する。
+const recordedResultsHead = extractRecordedResultsHead(results);
+const drawerEvidenceStatuses = assertDrawerEvidenceRows(results, recordedResultsHead);
+assertHistoricalEvidenceNote(results, drawerEvidenceStatuses);
 // 統合済みマイルストーンの「一覧」をリテラル必須にすると、次のmergeで偽になった主張をgateが凍結する。
 // 必須にするのは「mainの統合範囲を述べた状態行が存在すること」という形だけにし、
 // 中身の更新はmerge都度おこなえるようにする。
@@ -388,12 +377,22 @@ function getTestResult(scriptName) {
 }
 
 const registeredTestCount = getTestResult("test");
+// 現在値との一致を求めるのは、現行状態を述べる文書 (RESULTS / ROADMAP) だけにする。
+// PREFLIGHT.md と PUBLIC_READY.md は特定content HEADにおけるreview recordであり、
+// テストが増えるたびに現在値へ書き換えると、その記録が指すHEADについて嘘になる。
+// 履歴記録側には「どのHEADの数値か」を明示させ、数値そのものは凍結する。
 const recordedTestCounts = {
   RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
-  PREFLIGHT: Number(preflight.match(/`npm test`: (\d+)件pass/)?.[1] ?? Number.NaN),
-  PUBLIC_READY: Number(publicReady.match(/決定論テスト(\d+)件/)?.[1] ?? Number.NaN),
 };
+for (const [name, content, pattern] of [
+  ["PREFLIGHT.md", preflight, /^- content HEAD: `[0-9a-f]{40}`/m],
+  ["PUBLIC_READY.md", publicReady, /`main@[0-9a-f]{7,40}`/],
+]) {
+  if (!pattern.test(content)) {
+    throw new Error(`${name} must state which content HEAD its recorded numbers belong to`);
+  }
+}
 if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCount)) {
   throw new Error(
     `npm test count drift: ${JSON.stringify(recordedTestCounts)}, registered=${registeredTestCount}`,
@@ -405,8 +404,6 @@ if (verifySitesEvidence) {
   const recordedSitesTestCounts = {
     RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
     ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
-    PREFLIGHT: Number(preflight.match(/`npm run test:sites`: (\d+)件pass/)?.[1] ?? Number.NaN),
-    PUBLIC_READY: Number(publicReady.match(/Sites互換テスト(\d+)件/)?.[1] ?? Number.NaN),
   };
   if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
     throw new Error(
@@ -434,25 +431,14 @@ for (const claim of requiredReadmeCapabilityClaims) {
 // README実装構成ツリーとapp/src直下の実体を機械照合する。
 // PR #12でcrisis/experiments/run-bundleが追加された際、ツリーだけM2止まりで取り残された。
 // 人手の更新漏れに依存せず、moduleを足したらREADMEも更新しないと落ちる形にする。
-const readmeImplementationTree = readme.match(/## 実装構成\n\n```text\n([\s\S]*?)\n```/)?.[1];
-if (!readmeImplementationTree) throw new Error("README.md must keep the 実装構成 tree block");
 const sourceModules = (await readdir(resolve(repoRoot, "app", "src"), { withFileTypes: true }))
   .filter((entry) => entry.isFile() && entry.name !== "main.jsx")
   .map((entry) => entry.name)
   .sort();
-for (const moduleName of sourceModules) {
-  if (!readmeImplementationTree.includes(moduleName)) {
-    throw new Error(`README implementation tree missing app/src module: ${moduleName}`);
-  }
-}
+assertReadmeImplementationTree(readme, sourceModules);
 
-// RESULTSが機械検証の対象として記録するcontent HEADは、このrepositoryに実在しなければならない。
-// 以前はsquash mergeで破棄されたbranch commitを記録しており、gateはdoc同士のSHA照合しかして
-// いなかったため、存在しないcommitを指したまま緑になっていた。証拠は第三者が再現できて初めて証拠になる。
-const recordedResultsHead = results.match(/^機械検証対象content HEAD: `([0-9a-f]{40})`/m)?.[1];
-if (!recordedResultsHead) {
-  throw new Error("RESULTS.md must record the machine-verified content HEAD as a full SHA");
-}
+// 記録されたcontent HEADは実在し、かつ現在HEADの祖先でなければならない。
+// 実在確認だけでは、mainへ統合されていないcommitでも通ってしまう。
 const headLookup = spawnSync("git", ["cat-file", "-e", `${recordedResultsHead}^{commit}`], {
   cwd: repoRoot,
   encoding: "utf8",
@@ -462,6 +448,15 @@ if (headLookup.status !== 0) {
     `RESULTS.md machine-verified content HEAD does not exist in this repository: ${recordedResultsHead}`,
   );
 }
+const ancestryLookup = spawnSync("git", ["merge-base", "--is-ancestor", recordedResultsHead, "HEAD"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
+if (ancestryLookup.status !== 0) {
+  throw new Error(
+    `RESULTS.md machine-verified content HEAD is not an ancestor of the current HEAD: ${recordedResultsHead}`,
+  );
+}
 
 // docs/adr/ の実体とADR索引を機械照合する。ADRを足して索引へ載せ忘れると、
 // 読み手はADR一覧だけを見て古い判断を現行と誤読する。人手更新に依存しない。
@@ -469,11 +464,7 @@ const adrFiles = (await readdir(resolve(repoRoot, "docs", "adr"), { withFileType
   .filter((entry) => entry.isFile() && /^\d{4}-.+\.md$/.test(entry.name))
   .map((entry) => entry.name)
   .sort();
-if (adrFiles.length === 0) throw new Error("docs/adr must contain numbered ADR files");
-const adrIndex = await read("docs/adr/README.md");
-for (const adrFile of adrFiles) {
-  if (!adrIndex.includes(adrFile)) throw new Error(`docs/adr/README.md must index the ADR: ${adrFile}`);
-}
+assertAdrIndex(await read("docs/adr/README.md"), adrFiles);
 
 // simulation-contract.md も現行runtimeを説明する current-state doc なので同じratchetへ含める。
 const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady, CONTRACT: contract };
