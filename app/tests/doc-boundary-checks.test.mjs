@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertAdrIndex,
+  assertCrisisPhaseNamesNotDuplicated,
   assertDrawerEvidenceRows,
   assertHistoricalEvidenceNote,
   assertReadmeImplementationTree,
@@ -98,4 +99,31 @@ test("ADR索引に載っていないADRがあれば落ちる", () => {
 
 test("ADRが1件もなければ落ちる", () => {
   assert.throws(() => assertAdrIndex("index", []), /docs\/adr must contain numbered ADR files/);
+});
+
+const CRISIS_SOURCE = `export const CRISIS_PHASES = Object.freeze([
+  { start: 0, end: 11, name: "衝撃" }, { start: 12, end: 27, name: "帰属競争" },
+  { start: 28, end: 55, name: "生活圧力" }, { start: 56, end: 83, name: "制度疲労" },
+]);`;
+
+test("他文書が危機局面名を3つ以上並べると落ちる", () => {
+  assert.throws(
+    () => assertCrisisPhaseNamesNotDuplicated(CRISIS_SOURCE, [
+      ["ROADMAP.md", "衝撃、帰属競争、生活圧力、制度疲労を再生する。"],
+    ]),
+    /ROADMAP\.md duplicates the crisis phase sequence/,
+  );
+});
+
+test("局面名への言及が2つまでなら複製とみなさない", () => {
+  assertCrisisPhaseNamesNotDuplicated(CRISIS_SOURCE, [
+    ["ROADMAP.md", "帰属競争の局面で衝撃の余波を観測する。"],
+  ]);
+});
+
+test("CRISIS_PHASESを読めなければ落ちる", () => {
+  assert.throws(
+    () => assertCrisisPhaseNamesNotDuplicated("export const NOTHING = [];", []),
+    /must declare CRISIS_PHASES names/,
+  );
 });
