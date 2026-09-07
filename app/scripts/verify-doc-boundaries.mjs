@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { isIdentifyingGitShaPrefix, parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
 import {
   assertAdrIndex,
+  assertCrisisPhaseNamesNotDuplicated,
   assertDrawerEvidenceRows,
   assertHistoricalEvidenceNote,
   assertReadmeImplementationTree,
@@ -16,7 +17,7 @@ const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const repoRoot = resolve(scriptDirectory, "..", "..");
 const read = (name) => readFile(resolve(repoRoot, name), "utf8");
 
-const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson, calibrationPacket, calibrationCandidateJson, simulationSource] = await Promise.all([
+const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson, calibrationPacket, calibrationCandidateJson, simulationSource, crisisSource] = await Promise.all([
   read("EXPERIMENT_DESIGN.md"),
   read("simulation-contract.md"),
   read("RESULTS.md"),
@@ -29,6 +30,7 @@ const [design, contract, results, roadmap, projectSsot, readme, preflight, publi
   read("docs/m2-calibration-decision-packet.md"),
   read("docs/m2-calibration-v1.json"),
   read("app/src/simulation.js"),
+  read("app/src/crisis.js"),
 ]);
 
 const requirements = [
@@ -457,6 +459,13 @@ if (ancestryLookup.status !== 0) {
     `RESULTS.md machine-verified content HEAD is not an ancestor of the current HEAD: ${recordedResultsHead}`,
   );
 }
+
+// 危機局面名は実装が正本、契約が説明を持つ。他文書が並びを複製すると片方だけ古くなる。
+assertCrisisPhaseNamesNotDuplicated(crisisSource, [
+  ["ROADMAP.md", roadmap],
+  ["docs/product-architecture.md", await read("docs/product-architecture.md")],
+  ["README.md", readme],
+]);
 
 // docs/adr/ の実体とADR索引を機械照合する。ADRを足して索引へ載せ忘れると、
 // 読み手はADR一覧だけを見て古い判断を現行と誤読する。人手更新に依存しない。

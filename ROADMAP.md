@@ -78,7 +78,7 @@ M1〜M5が中核であり、M6は任意である。AIなしでもM7へ到達で�
 - 終末の1ヶ月の接続寄与からInspectorへ戻る導線と、drawer選択は同じ`ledgerEntryId` focus契約を共有する。
 - state version 3、schema-v2校正fingerprint backfill、旧集約状態のmigration入口を追加した。
 - 校正fingerprintはキー挿入順に依存せず、preview前に全investableを検証し、schema-v2の競合fingerprintは上書きせずfail closedにする。
-- unit test 157件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在`main`のsame-HEAD実測には数えない。
+- unit test 160件、Sites test 4件、production buildを同一content HEADで確認する。一般操作・console確認は[RESULTS](RESULTS.md)の2026-08-28 PR #4履歴証拠であり、現在branchの同一HEAD実測には数えない。因果台帳drawerのUIゲートは履歴content HEADのRESULTS証拠であり、現在`main`のsame-HEAD実測には数えない。
 
 初期値、施策delta、危機寄与selectorの重み、開示コスト等の副作用表現、画面の視覚密度は、2026-08-24にハッカソン体験検証用v0として人間採用された。値の正本と変更ゲートは[架空係数 Calibration v0](docs/calibration-v0.md)に置く。M2全20接続の校正はハッカソン用架空archetypeである。M3では18主体へ国名非依存の再利用可能な制約型を割り当て、提案・承認・実行権限と拒否証拠を分離した。国名・表示名の置換で制約fingerprintが変わらないfixtureを回帰固定している。
 
@@ -170,7 +170,7 @@ M1のschemaを全20接続へ展開し、同じ施策でも投資先で結果が�
 - 真因、物理状態、観測断片、公開主張を分離する。
 - `event → observation → claim → proposal → action → consequence`を処理する。
 - 通信遅延、遮断、誤解、訂正、代替経路への切替を接続状態から計算する。
-- 初動、帰属競争、警戒上昇、持久、連鎖障害、出口形成、復旧を再生する。
+- 局面列を再生する。局面名と順序の正本は[シミュレーション契約](simulation-contract.md)であり、この文書では複製しない。
 - ターン再生、停止、速度変更、重要イベントへのジャンプをUIへ追加する。
 
 ### 完了条件

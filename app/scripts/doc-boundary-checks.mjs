@@ -97,3 +97,27 @@ export function assertAdrIndex(adrIndexText, adrFileNames) {
     }
   }
 }
+
+/**
+ * 危機局面名は実装の CRISIS_PHASES が正本で、契約がそれを説明する。
+ * 他の文書が局面名の並びを複製すると、実装が変わったときにそこだけ古くなる。
+ * 実際に product-architecture.md を直した際 ROADMAP.md を取りこぼし、
+ * 実装と食い違う旧局面名が「main統合済み」の節に残った。
+ *
+ * @param crisisSource app/src/crisis.js の中身
+ * @param docs [name, text] の配列。契約以外の文書を渡す
+ */
+export function assertCrisisPhaseNamesNotDuplicated(crisisSource, docs) {
+  const phaseNames = [...String(crisisSource ?? "").matchAll(/name:\s*"([^"]+)"/g)].map(([, name]) => name);
+  if (phaseNames.length === 0) throw new Error("app/src/crisis.js must declare CRISIS_PHASES names");
+  for (const [name, text] of docs) {
+    const content = String(text ?? "");
+    const duplicated = phaseNames.filter((phase) => content.includes(phase));
+    // 3つ以上の局面名が同居していれば、局面列の複製とみなす。
+    if (duplicated.length >= 3) {
+      throw new Error(
+        `${name} duplicates the crisis phase sequence owned by simulation-contract.md: ${duplicated.join("/")}`,
+      );
+    }
+  }
+}
