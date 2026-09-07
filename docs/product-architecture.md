@@ -91,7 +91,7 @@ UI上の線、指標、判定はすべてこの状態から導出する。描画
 | `coOwnership` | 日本以外が運用・変更・監査できるか |
 | `dependency / alternateRoutes` | 単一障害点と代替経路 |
 | `disclosureCost` | 機密、知財、個人情報の開示負担 |
-| `lastChangedBy / changeReason` | 因果レジャーへの追跡情報 |
+| `lastChangedYear / lastAction` | 因果レジャーへの追跡情報 |
 
 ### 5.3 Evidence item
 
@@ -99,30 +99,24 @@ UI上の線、指標、判定はすべてこの状態から導出する。描画
 
 ### 5.4 Ledger entry
 
+現行実装の因果台帳は年次投資を単位とし、`id / year / relationshipId / action / before / after / deltas / metricDeltas / tradeoffs / reason / ruleVersion / seed` を持つ。正本は `app/src/simulation.js` である。
+
+次の拡張は**未実装の設計案**であり、現行の台帳形状ではない。
+
 ```text
-id / year / crisisTurn
-causeType / causeId
-targetType / targetId
-before / after / delta
-reason / tradeoff
-evidenceIds / ruleVersion / seed
+crisisTurn                  危機ターン単位の記録
+causeType / causeId         原因側の型とID
+targetType / targetId       影響先の型とID
+evidenceIds                 根拠となる証拠itemへの参照
 ```
 
-総合指標、接続線、危機判定のどこからでも、元のレジャーへ逆引きできることを必須にする。
+総合指標、接続線、危機判定のどこからでも、元のレジャーへ逆引きできることを必須にする。この逆引きは年次投資については実装済みで、危機ターン単位は未実装である。
 
 ## 6. 「終末の1ヶ月」エンジン
 
 30日を6時間単位、全120ターンで進める。年次能力は危機中に成長させず、開始時点のスナップショットとして固定する。
 
-| 局面 | 主な圧力 | 観測する接続 |
-|---|---|---|
-| 1. 接触 | 海上接触、測位異常、断片映像 | 海上法執行、証拠保全 |
-| 2. 帰属競争 | DDoS、リーク、公開声明 | 検証、翻訳、PUBLIC回線 |
-| 3. 警戒上昇 | 同盟要請、軍事警戒、保険料上昇 | ALLIANCE、JP-CN、可逆化 |
-| 4. 持久 | 要員疲労、補給、世論圧力 | 代替経路、国内正統性 |
-| 5. 連鎖障害 | 港湾、金融、通信、エネルギー | 民間復旧、相互運用性 |
-| 6. 出口形成 | 共同停止、第三者検証、面子 | MULTI、共同所有 |
-| 7. 復旧・検証 | 訂正、補償、再発防止 | 異論保存、BRIDGE自律性 |
+危機の局面列は[シミュレーション契約](../simulation-contract.md)の「入れ子の『終末の1ヶ月』イベント列」が所有する。実装 `app/src/crisis.js` の `CRISIS_PHASES` は契約の局面名と順序をそのまま持つ。この文書は局面名を複製せず、契約と実装のどちらが正本かだけを示す。
 
 各ターンは `world event → observation → claim → proposal → authorized action → consequence → ledger` の順で処理する。発話だけで状態を変更しない。
 
@@ -130,7 +124,7 @@ evidenceIds / ruleVersion / seed
 
 比較条件A〜Eは、同じ初期状態、seed、予算、行動回数、危機イベント列を使う。変えてよいのは接続投資と意思決定構造だけである。
 
-最低限の反証試験は次の通り。
+最低限の反証試験は次の通り。`Japan removal` は `app/src/experiments.js` に実装済みで、残りは**未実装の設計案**である。
 
 - `Japan removal`: 2045年に日本の中央・検証ノードを停止する。
 - `Bridge capture`: BRIDGEが一陣営へ依存する。
@@ -155,7 +149,7 @@ evidenceIds / ruleVersion / seed
 
 ### 段階的開示
 
-初期画面で18主体、20接続、全指標、危機詳細を同じ強さで見せない。通常時は「今年の投資先」と「直近の変化」を主役にし、アクター詳細、全ログ、比較、120ターン再生は選択後に開く。
+初期画面で18主体、20接続、全指標、危機詳細を同じ強さで見せない。通常時は「今年の投資先」と「直近の変化」を主役にする。現行実装で選択後に開くのは比較dialogと因果台帳drawerであり、120ターン再生とPDCAトレースは下部に常時配置している。段階的開示の対象をどこまで広げるかはUI証拠の再検証と合わせて見直す。
 
 ### 署名的な表現
 
@@ -163,7 +157,7 @@ evidenceIds / ruleVersion / seed
 
 ## 9. 実装境界
 
-現在の`simulation.js`を、状態の正本を保ったまま次へ分割する。
+現在の実装は `app/src/` 直下の `simulation.js` / `crisis.js` / `experiments.js` / `run-bundle.js` / `ai/` で構成する。次の分割は**未実装の設計案**であり、現行のファイル構成ではない。
 
 ```text
 app/src/simulation/
