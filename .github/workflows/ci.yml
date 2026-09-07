@@ -24,6 +24,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # verify:docs が RESULTS.md の記録した content HEAD の実在を git で検査するため、
+          # 既定の shallow clone では祖先 commit が存在せず誤検知になる。全履歴を取得する。
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
