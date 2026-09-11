@@ -2,6 +2,58 @@
 
 # Preflight review record
 
+## 現在の記録（2026-09-11、`main@60268813`）
+
+この節が現在の記録である。後ろの「履歴記録」以降は2026-08-30時点の記録を変更せずに残したもので、現在の状態を表さない。
+
+- repository: `nexus-ai-2045/quiet-orchestrator-japan`
+- branch: `main`
+- content HEAD: `60268813b322e2647a0a6bb16ebd481ff5285ed8`（`main`のsquash merge commit、PR #22まで）
+- base: `origin/main@60268813b322e2647a0a6bb16ebd481ff5285ed8`
+- inspected date: `2026-09-11`
+- 実行: repo-preflight v0.5.0、`--intent publish --audience public`、repository全体mode。content HEADをcheckoutしたcleanなcloneで、clone-localの次commit名義を期待名義へ設定してから実行した
+- expected identity: `nexus_ai <273569186+nexus-ai-2045@users.noreply.github.com>`
+
+この記録は上記content HEADの後続evidence commitとして追加する。
+
+### 機械検査（repo-preflightの出力）
+
+総合statusは`blocked`（dialogue status `needs_human_input`、publication_decision `blocked_human_review_required`）。このcontent HEADについてpassの完了記録は書けないため、機械可読の完了記録ブロックは置かない。
+
+| 検査 | 結果 | 証拠・限界 |
+|---|---|---|
+| repo-preflight | blocked | 失敗項目はcommit_identityだけ。履歴の名義2種（identity_count 2）がいずれも期待名義と一致しない（mismatch_count 2） |
+| clean worktree | pass | 未コミット変更なし |
+| 必須文書 | pass | missing 0、invalid 0 |
+| 既知secret候補 | pass | finding_count 0 |
+| 個人path | pass | 0件 |
+| commit名義（履歴） | fail | identity_count 2、mismatch_count 2。repo-preflightは件数だけを出力し、名義そのものは出力しない |
+| commit名義（次commit） | pass | effective_identity pass、effective_mismatch_count 0 |
+| CI設定 | pass | workflow 2件、invalid 0 |
+| origin | pass | `https://github.com/nexus-ai-2045/quiet-orchestrator-japan.git` |
+| README release design | pass | findings 0。toolはhuman_visual_review_required trueを返す |
+| 依存設定・依存脆弱性監査 | not_applicable | toolの出力はfiles 0、監査は`requires_ecosystem_specific_current_audit` |
+| repository consistency | not_configured | 宣言設定なし |
+| remote CI結果 | unknown（tool）/ success（GitHub読み返し） | toolは判定しない（`requires_current_remote_ci_evidence`）。2026-09-11にGitHub APIで読み返したcontent HEADのcheck-runはvalidate success、analyze (javascript-typescript) success（2件） |
+| 人間目視review | unknown（tool）/ 未実施 | toolは判定しない（`explicit_human_review_required`）。下記「人間目視review」を参照 |
+| ブラウザ操作・デザインQA | history-only-92f795fd | 2026-09-07に`92f795fd`でdrawer UIゲートをブラウザ自動操作で確認した（`RESULTS.md`）。app/srcは現在のcontent HEADと同一（`git diff --quiet 92f795fd 60268813 -- app/src`）だが、現在content HEADのsame-HEAD evidenceではなく履歴証拠として扱う。デザインQAの記録は下の履歴記録（2026-08-28のPR #4系列）を参照 |
+| GitHub repository read-back | pass | visibility `PUBLIC`、default branch `main@60268813`、archived `false`（2026-09-11にGitHub APIで読み返し） |
+
+### 人間目視review
+
+2026-09-07 に、app/src が 92f795fd と同一のアプリ画面のスクリーンショットを会話で CEO に提示した。CEO が目視したという返答は記録にない。現在の HEAD についての人間目視 review は未実施。
+
+### 残る人間判断
+
+1. 現在のcontent HEADについてのCEO目視review。
+2. GitHubやdependabotのようなplatform名義を、repo-preflightが期待名義として受け入れるべきか。repo-preflightは名義を件数でしか出力しないため、この記録は履歴の名義2種が何かを特定していない。
+
+この記録はpush、PR、merge、release、応募、告知の承認ではない。
+
+## 履歴記録（2026-08-30、content HEAD `8d1e7387`）
+
+以下は2026-08-30の記録を変更せずに残したものである。
+
 ## 検査対象
 
 - repository: `nexus-ai-2045/quiet-orchestrator-japan`

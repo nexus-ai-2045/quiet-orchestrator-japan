@@ -3,14 +3,20 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isIdentifyingGitShaPrefix, parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
+import { isIdentifyingGitShaPrefix } from "./preflight-row-gate.mjs";
 import {
   assertAdrIndex,
+  assertContentHeadLineage,
+  assertContentHeadReachable,
   assertCrisisPhaseNamesNotDuplicated,
   assertDrawerEvidenceRows,
   assertHistoricalEvidenceNote,
+  assertPreflightResultSections,
   assertReadmeImplementationTree,
+  assertReviewRecordHeadsAgree,
+  assertReviewRecordQaRows,
   extractRecordedResultsHead,
+  splitReviewRecordSections,
 } from "./doc-boundary-checks.mjs";
 
 const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -305,22 +311,34 @@ for (const runtimeId of runtimeRelationshipIds) {
   }
 }
 
-const historicalEvidenceRows = [
-  ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
-  ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
-  ["PUBLIC_READY design QA", publicReady, /^\| デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
-];
-for (const [name, content, pattern] of historicalEvidenceRows) {
-  if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
-}
+// review record のブラウザ操作・デザインQA行。以前は `history-only-pr4` をリテラル必須にしており、
+// 時点状態を必須文言へ焼き込んでいた (merge後に同じHEADで再検証しても記録を更新できない)。
+// 必須にするのは「履歴と明記する」か「記録済みcontent HEADへ束縛したsame-HEAD証拠」かの不変条件だけ。
+// 判定は doc-boundary-checks.mjs の純粋関数が持ち、回帰テストで固定する。
+const preflightSections = splitReviewRecordSections(preflight, "PREFLIGHT.md").sections;
+const publicReadySections = splitReviewRecordSections(publicReady, "PUBLIC_READY.md").sections;
+const preflightContentHead = preflightSections[0].contentHead;
+const publicReadyContentHead = publicReadySections[0].contentHead;
+assertReviewRecordHeadsAgree(preflightContentHead, publicReadyContentHead);
+// QA行は節単位で検査する。文書全体を舐めると、現在の記録からQA行が消えても履歴の行が
+// 拾われて緑になり、逆に履歴の `pass-current-head` 行は次のHEADで必ず落ちるため、
+// 「変更せずに残す」はずの履歴を書き換えさせられる (今回外したlifecycle凍結と同型)。
+assertReviewRecordQaRows(preflight, "PREFLIGHT.md", ["ブラウザ操作・デザインQA"]);
+assertReviewRecordQaRows(publicReady, "PUBLIC_READY.md", ["ブラウザ操作", "デザインQA"]);
 
-if (!/^\| repo-preflight target diff \| pass \| machine-readable result v1 \|$/m.test(preflight)) {
-  throw new Error("PREFLIGHT.md repo-preflight summary row must point to machine-readable result v1");
-}
-parseCompletedPreflightEvidence(preflight);
+// repo-preflight要約行と完了記録は節単位で束縛する。最新content HEADにpass完了記録を要求しない。
+// 実測がblockedなら、完了記録を持たないblocked節を現在の記録として書けなければならない。
+// 完了記録がある節では、そのcontentHeadが同じ節のcontent HEADと一致することを要求する。
+assertPreflightResultSections(preflight);
 
-const preflightBranch = preflight.match(/^- branch: `([^`]+)`$/m)?.[1];
-const publicReadyBranch = publicReady.match(/^- 準備branch: `([^`]+)`$/m)?.[1];
+// 現在の値は現在節 (先頭節) だけから取る。文書全体へのfirst-match正規表現では、現在節から
+// 証拠行が消えても履歴節の古い値へ静かにフォールバックし、両文書の履歴が揃っていれば
+// cross-doc照合も通ってしまう (レビューで実機再現済み)。
+const preflightCurrent = preflightSections[0].text;
+const publicReadyCurrent = publicReadySections[0].text;
+
+const preflightBranch = preflightCurrent.match(/^- branch: `([^`]+)`$/m)?.[1];
+const publicReadyBranch = publicReadyCurrent.match(/^- 準備branch: `([^`]+)`$/m)?.[1];
 if (!preflightBranch || publicReadyBranch !== preflightBranch) {
   throw new Error(
     `current branch evidence drift: PREFLIGHT=${preflightBranch ?? "missing"}, PUBLIC_READY=${publicReadyBranch ?? "missing"}`,
@@ -387,14 +405,7 @@ const recordedTestCounts = {
   RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
   ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
 };
-for (const [name, content, pattern] of [
-  ["PREFLIGHT.md", preflight, /^- content HEAD: `[0-9a-f]{40}`/m],
-  ["PUBLIC_READY.md", publicReady, /`main@[0-9a-f]{7,40}`/],
-]) {
-  if (!pattern.test(content)) {
-    throw new Error(`${name} must state which content HEAD its recorded numbers belong to`);
-  }
-}
+// どのHEADの数値かは extractRecordedContentHead で PREFLIGHT / PUBLIC_READY の両方に必須化済み。
 if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCount)) {
   throw new Error(
     `npm test count drift: ${JSON.stringify(recordedTestCounts)}, registered=${registeredTestCount}`,
@@ -439,26 +450,14 @@ const sourceModules = (await readdir(resolve(repoRoot, "app", "src"), { withFile
   .sort();
 assertReadmeImplementationTree(readme, sourceModules);
 
-// 記録されたcontent HEADは実在し、かつ現在HEADの祖先でなければならない。
+// 記録されたcontent HEADの実在・祖先確認と、節の並び (先頭が現在、後ろほど古い) の確認。
 // 実在確認だけでは、mainへ統合されていないcommitでも通ってしまう。
-const headLookup = spawnSync("git", ["cat-file", "-e", `${recordedResultsHead}^{commit}`], {
-  cwd: repoRoot,
-  encoding: "utf8",
-});
-if (headLookup.status !== 0) {
-  throw new Error(
-    `RESULTS.md machine-verified content HEAD does not exist in this repository: ${recordedResultsHead}`,
-  );
-}
-const ancestryLookup = spawnSync("git", ["merge-base", "--is-ancestor", recordedResultsHead, "HEAD"], {
-  cwd: repoRoot,
-  encoding: "utf8",
-});
-if (ancestryLookup.status !== 0) {
-  throw new Error(
-    `RESULTS.md machine-verified content HEAD is not an ancestor of the current HEAD: ${recordedResultsHead}`,
-  );
-}
+// same-HEAD証拠のSHA照合は文字列上の一致しか見ないため、この実在・祖先確認と組で成立する。
+// 判定は doc-boundary-checks.mjs の純粋関数が持ち、gitの実行だけをここから注入する。
+const runGit = (args) => spawnSync("git", args, { cwd: repoRoot, encoding: "utf8" });
+assertContentHeadReachable("RESULTS.md machine-verified", recordedResultsHead, runGit);
+assertContentHeadLineage("PREFLIGHT.md", preflightSections, runGit);
+assertContentHeadLineage("PUBLIC_READY.md", publicReadySections, runGit);
 
 // 危機局面名は実装が正本、契約が説明を持つ。他文書が並びを複製すると片方だけ古くなる。
 assertCrisisPhaseNamesNotDuplicated(crisisSource, [

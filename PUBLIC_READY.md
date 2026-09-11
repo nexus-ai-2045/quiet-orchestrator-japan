@@ -1,6 +1,33 @@
 # 公開準備チェック
 
-最終更新: 2026-08-30
+最終更新: 2026-09-11
+
+## 現在の記録（2026-09-11）
+
+この節が現在の記録である。後ろの「履歴記録」以降は2026-08-30時点の記録を変更せずに残したもので、現在の状態を表さない。機械検査の詳細は[PREFLIGHT.md](PREFLIGHT.md)の現在の記録を正本とする。
+
+- repository: `nexus-ai-2045/quiet-orchestrator-japan`
+- 準備branch: `main`
+- content HEAD: `60268813b322e2647a0a6bb16ebd481ff5285ed8`
+- default branch: `main@60268813`（2026-09-11にGitHub APIで読み返し。visibility `PUBLIC`、archived `false`）
+- `main@60268813`はPR #22までを統合したcontent HEADであり、この節の検査対象である。
+- merge、repository設定変更、release、告知、応募フォーム編集はこの文書だけでは承認されない
+
+| 項目 | 状態 | 備考 |
+|---|---|---|
+| repo-preflight | blocked | 2026-09-11にrepo-preflight v0.5.0で実測。失敗項目はcommit_identity（履歴の名義2種が期待名義と一致しない）だけ。clean worktree、必須文書、secret候補0、個人path 0、CI設定2件、originはpass |
+| remote CI | success-github-readback | content HEADのcheck-runはvalidate success、analyze (javascript-typescript) success（2件）。repo-preflightはremote CIを判定しない |
+| ブラウザ操作 | history-only-92f795fd | 2026-09-07に`92f795fd`でdrawer UIゲートをブラウザ自動操作で確認した（`RESULTS.md`）。app/srcは現在のcontent HEADと同一だが、現在content HEADのsame-HEAD evidenceではなく履歴証拠として扱う |
+| デザインQA | history-only-pr4 | 2026-08-28のPR #4系列で確認済み。現在content HEADのsame-HEAD evidenceではなく、履歴証拠の詳細は`RESULTS.md`を参照 |
+| 人間目視review | 未実施 | 下記を参照 |
+
+2026-09-07 に、app/src が 92f795fd と同一のアプリ画面のスクリーンショットを会話で CEO に提示した。CEO が目視したという返答は記録にない。現在の HEAD についての人間目視 review は未実施。
+
+残る人間判断は、現在のcontent HEADについてのCEO目視reviewと、GitHubやdependabotのようなplatform名義をrepo-preflightが期待名義として受け入れるべきかの2件である。
+
+## 履歴記録（2026-08-30）
+
+以下は2026-08-30の記録を変更せずに残したものである。
 
 ## 対象
 
