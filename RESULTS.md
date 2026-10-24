@@ -1,19 +1,19 @@
 # 実行結果｜P0・P1・M1.5・M2〜M5・run bundle 実測スナップショット
 
-確認日: 2026-09-06
+確認日: 2026-10-24
 
-機械検証対象content HEAD: `92f795fddd92f153b191a7fd9c45521bb9bbe523`（`main`のmerge commit）
+機械検証対象content HEAD: `cb11280febdb1aa97f63ab89345c4dbe0c24b7ed`（公開用に履歴を作り直した`main`のcontent commit）
 
-以前この欄はbranch側のcommit SHAを記録していたが、squash mergeでそのcommitは破棄され、第三者が証拠を再現できない状態になっていた。以後は破棄されない`main`のmerge commitを記録する。
+以前この欄はbranch側のcommit SHAを記録していたが、squash mergeでそのcommitは破棄され、第三者が証拠を再現できない状態になっていた。以後は破棄されない`main`のcommitを記録する。公開前に履歴を1本のcontent commitへ作り直したため、旧履歴のcommit（`92f795fd`など）はこのrepositoryに存在しない。現在の記録先は作り直し後のcontent commitであり、この文書の更新はその後続evidence commitで行う。
 
 ## 実行環境
 
-- Node.js `v26.7.0`
-- npm `11.19.0`
-- macOS / `main`のcleanなclone
+- Node.js `v20.19.2`
+- npm `11.21.1`
+- Linux / `main`のcleanなclone
 - 外部API、APIキー、ライブデータなし
 
-READMEの下限はNode.js 20であり、この記録は上記環境で実際に実行した観測である。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
+READMEの下限であるNode.js 20で実行した。この記録は上記環境で実際に実行した観測である。仮説、比較条件、反証条件の正本は[実験設計スナップショット](EXPERIMENT_DESIGN.md)だが、初回実測と同じcommit系列で追加されたため、この結果に対する事前登録証拠ではない。今後の実行ではdesign revisionを先に固定し、この文書から変更しない。
 
 この文書が記録する現在の実装段階は、代表接続の因果縦切り、scripted Policy EngineによるM1.5、全20接続のM2架空校正、18主体のM3制約と権限分離、M4の120ターン決定論危機再生、M5のA〜E・5 seed・日本除去比較、Cloud handoff用`meta-security-run-bundle/v1`までである。これらは`main`へ統合したハッカソン用ローカルMVPの機械検証範囲であり、経験的政策効果、研究上の妥当性、外部AIによる自律交渉の完了証拠ではない。
 
@@ -47,19 +47,19 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 
 2026-08-28のPR #4系列における履歴証拠である。標準幅と880px狭幅で、接続選択、表示専用接続のfail-closed、投資差分と集約指標・tradeoffのpreview、年次更新、最新因果台帳、2030年危機寄与から台帳#5の累積スナップショットと当時の接続状態への逆引き、現在台帳への復帰を確認した。追加確認では、2030年のstress未記録時に年次進行が停止し、記録後に再開すること、2038年のfatigue後に開示コスト・監視化リスクが実delta`+1`として表示されることを確認した。URLと固有title、非blank、console warning/error 0件、axe violations 0件を確認した。画面外要素26件はaxeがcontrastを自動判定できずincompleteであり、passとは数えていない。この履歴証拠を同一HEADのブラウザ実測とは数えない。
 
-### ブラウザ確認（因果台帳drawer・same-HEAD）
+### ブラウザ確認（因果台帳drawer・履歴content HEAD）
 
-`main@92f795fddd92f153b191a7fd9c45521bb9bbe523` のcleanなcloneをローカルViteで起動し、
+作り直し前の履歴content HEAD `main@92f795fddd92f153b191a7fd9c45521bb9bbe523` のcleanなcloneをローカルViteで起動し、
 `http://127.0.0.1:5399/` の実画面でdrawerのUIゲートを再検証した。観測はブラウザ自動操作による
-実行結果であり、人間の目視reviewの代替ではない。
+実行結果であり、人間の目視reviewの代替ではない。この観測は履歴content HEADの証拠であり、上記の現在content HEADのsame-HEAD証拠には数えない。
 
 | gate | status | affirmative observation |
 |---|---|---|
-| standard-width | pass-current-head | `92f795fd` で確認。1440x1400で台帳49件を一覧し、`#46 U2 ↔ C3`を選ぶとInspectorが「2035年の接続」へ切替わり、記録済みの累積スナップショットへ逆引きできた |
-| narrow-880 | pass-current-head | `92f795fd` で確認。viewport880でdrawer矩形はleft=160・right=720と表示領域内に収まり、documentElementの横あふれは発生しなかった |
-| narrow-320 | pass-current-head | `92f795fd` で確認。viewport320でdrawer幅260px・left=30・right=290と左右clipなく収まり、scrollWidthは320のままで横スクロールが出なかった |
-| keyboard-modal | pass-current-head | `92f795fd` で確認。ArrowDown・ArrowUp・Home・Endで行フォーカスが0〜48へ移動し先頭でクランプ、Tabはdialog内を循環し、Escapeでdrawerが閉じてopenerの「全台帳を開く」へfocusが戻った |
-| reduced-motion | pass-current-head | `92f795fd` で確認。台帳選択で署名差分`2035 単一依存 24→16`がテキストとして描画され、`styles.css`の`prefers-reduced-motion: reduce`が同要素の`animation`を`none`・`opacity`を`1`へ固定するため、animation停止時も内容が残る |
+| standard-width | pass-historical-head | 履歴`92f795fd` で確認。1440x1400で台帳49件を一覧し、`#46 U2 ↔ C3`を選ぶとInspectorが「2035年の接続」へ切替わり、記録済みの累積スナップショットへ逆引きできた |
+| narrow-880 | pass-historical-head | 履歴`92f795fd` で確認。viewport880でdrawer矩形はleft=160・right=720と表示領域内に収まり、documentElementの横あふれは発生しなかった |
+| narrow-320 | pass-historical-head | 履歴`92f795fd` で確認。viewport320でdrawer幅260px・left=30・right=290と左右clipなく収まり、scrollWidthは320のままで横スクロールが出なかった |
+| keyboard-modal | pass-historical-head | 履歴`92f795fd` で確認。ArrowDown・ArrowUp・Home・Endで行フォーカスが0〜48へ移動し先頭でクランプ、Tabはdialog内を循環し、Escapeでdrawerが閉じてopenerの「全台帳を開く」へfocusが戻った |
+| reduced-motion | pass-historical-head | 履歴`92f795fd` で確認。台帳選択で署名差分`2035 単一依存 24→16`がテキストとして描画され、`styles.css`の`prefers-reduced-motion: reduce`が同要素の`animation`を`none`・`opacity`を`1`へ固定するため、animation停止時も内容が残る |
 
 観測は自動操作で取得したため、意匠・可読性・情緒的な妥当性は含まない。`PREFLIGHT.md`と
 `PUBLIC_READY.md`が持つ人間目視reviewの主張は、この記録では更新しない。
