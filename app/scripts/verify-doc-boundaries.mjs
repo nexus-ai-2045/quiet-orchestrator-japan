@@ -1,0 +1,511 @@
+import { readFile, readdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { isIdentifyingGitShaPrefix, parseCompletedPreflightEvidence } from "./preflight-row-gate.mjs";
+import {
+  assertAdrIndex,
+  assertCrisisPhaseNamesNotDuplicated,
+  assertDrawerEvidenceRows,
+  assertHistoricalEvidenceNote,
+  assertReadmeImplementationTree,
+  extractRecordedResultsHead,
+} from "./doc-boundary-checks.mjs";
+
+const scriptDirectory = resolve(fileURLToPath(new URL(".", import.meta.url)));
+const repoRoot = resolve(scriptDirectory, "..", "..");
+const read = (name) => readFile(resolve(repoRoot, name), "utf8");
+
+const [design, contract, results, roadmap, projectSsot, readme, preflight, publicReady, packageJson, calibrationPacket, calibrationCandidateJson, simulationSource, crisisSource] = await Promise.all([
+  read("EXPERIMENT_DESIGN.md"),
+  read("simulation-contract.md"),
+  read("RESULTS.md"),
+  read("ROADMAP.md"),
+  read("PROJECT_SSOT.md"),
+  read("README.md"),
+  read("PREFLIGHT.md"),
+  read("PUBLIC_READY.md"),
+  read("app/package.json"),
+  read("docs/m2-calibration-decision-packet.md"),
+  read("docs/m2-calibration-v1.json"),
+  read("app/src/simulation.js"),
+  read("app/src/crisis.js"),
+]);
+
+const requirements = [
+  [design, "retrospective design snapshot / 未実証", "design status"],
+  [design, "## 反証・縮小条件", "design falsification section"],
+  [contract, "EXPERIMENT_DESIGN.md", "contract design pointer"],
+  [results, "実測", "results evidence label"],
+  [roadmap, "P0 baseline", "roadmap baseline terminology"],
+];
+
+for (const [content, needle, label] of requirements) {
+  if (!content.includes(needle)) throw new Error(`document boundary missing: ${label}`);
+}
+
+const forbiddenDesignPhrases = ["テストは4件pass", "build pass", "実測結果である"];
+for (const phrase of forbiddenDesignPhrases) {
+  if (design.includes(phrase)) throw new Error(`observed result leaked into design: ${phrase}`);
+}
+
+if (contract.includes("| A ブロック分断")) {
+  throw new Error("comparison design duplicated in simulation-contract.md");
+}
+// 必須claimはlifecycle接頭辞 (candidate / main) を含めず、実装が持つ能力だけを固定する。
+// 統合状態を必須文言へ焼き込むと、mergeで真でなくなった主張をgateが凍結する。
+const requiredCurrentContractClaims = [
+  "M4は30日・6時間刻みの120イベントを決定論的に逐次生成",
+  "M5はS1〜S5へ対応する5真因seed、A〜E、係数感度、日本除去を同じ危機エンジンへ一括投入",
+  "外部LLM対話層は必須MVPの外",
+  "U4-C3 海上現場停止回線",
+  "最小限の `crisis-stop-conditions`",
+  "実在する能力・制度・政策の証拠ではない",
+];
+for (const claim of requiredCurrentContractClaims) {
+  if (!contract.includes(claim)) throw new Error(`simulation-contract.md current M4/M5 boundary missing: ${claim}`);
+}
+for (const claim of ["U4-C3 海上現場停止回線", "最小限の `crisis-stop-conditions`", "実在する能力・制度・政策の証拠ではない"]) {
+  if (!calibrationPacket.includes(claim)) throw new Error(`M2 calibration fallback assumption missing: ${claim}`);
+}
+const staleContractClaims = [
+  "現在は全体指標を決定論的に更新し、30日・6時間×120ターンという期間契約から集約結果を算出する",
+  "120個のイベントを逐次実行しているわけではない",
+  "5真因seed、30日間の120イベント実行、A〜Eの同一seed一括実行、LLM対話層は次段階とする",
+];
+for (const claim of staleContractClaims) {
+  if (contract.includes(claim)) throw new Error(`simulation-contract.md stale M4/M5 boundary: ${claim}`);
+}
+
+if (!results.includes("EXPERIMENT_DESIGN.md") || !results.includes("結論に使えない")) {
+  throw new Error("RESULTS.md must link the frozen design and state its limits");
+}
+
+const requiredCurrentMvpClaims = [
+  "M2架空校正",
+  "M3制約と権限分離",
+  "M4の120ターン決定論危機再生",
+  "M5のA〜E・5 seed・日本除去比較",
+];
+for (const claim of requiredCurrentMvpClaims) {
+  if (!results.includes(claim)) throw new Error(`RESULTS.md current MVP scope missing: ${claim}`);
+}
+const staleResultsScopeClaims = [
+  "未校正19接続の採用、18主体の制約、120個の逐次危機event、A〜E・日本除去の同一engine比較は完了証拠に含めない",
+  "アクターごとの利害、制約、証拠アクセスは行動差へ反映していない",
+  "終末の1ヶ月試験は120ターンのイベント列をまだ持たない",
+  "比較条件の一部は固定値で、同じエンジンによる再実行ではない",
+  "次段階はM4危機イベント機械",
+];
+for (const claim of staleResultsScopeClaims) {
+  if (results.includes(claim)) throw new Error(`RESULTS.md stale MVP scope claim: ${claim}`);
+}
+
+if (!design.includes("事前登録証拠ではない") || !results.includes("事前登録証拠ではない")) {
+  throw new Error("design chronology limitation must remain explicit");
+}
+
+// drawer UIゲートの証拠行。same-HEADを主張する行は検証したcommit SHAを併記し、
+// それが記録済みcontent HEADと同じcommitを指していなければならない。
+// 形式一致だけを見ていた頃は実在しないSHAでも通っていた (レビューで再現確認済み)。
+// 判定は doc-boundary-checks.mjs の純粋関数が持ち、回帰テストで固定する。
+const recordedResultsHead = extractRecordedResultsHead(results);
+const drawerEvidenceStatuses = assertDrawerEvidenceRows(results, recordedResultsHead);
+assertHistoricalEvidenceNote(results, drawerEvidenceStatuses);
+// 統合済みマイルストーンの「一覧」をリテラル必須にすると、次のmergeで偽になった主張をgateが凍結する。
+// 必須にするのは「mainの統合範囲を述べた状態行が存在すること」という形だけにし、
+// 中身の更新はmerge都度おこなえるようにする。
+if (!/^状態: \*\*`main`は[^*\n]*統合済み[^*\n]*\*\*$/m.test(roadmap)) {
+  throw new Error("ROADMAP.md must keep a 状態 line describing what main has integrated");
+}
+const staleRoadmapMvpClaims = [
+  "全20接続を投資可能にする校正 |",
+  "主体ごとの能力・利害・制約 |",
+  "| 全接続の状態遷移 |",
+  "| 120ターンのイベント列 |",
+  "| A〜Eを同じエンジン・seedで再実行 |",
+  "| 日本ノード除去後の実動テスト |",
+  "現在candidateはM2 runtime差分を保持する",
+  "M3・M4の実装統合は依存順で行う",
+];
+for (const claim of staleRoadmapMvpClaims) {
+  if (roadmap.includes(claim)) throw new Error(`ROADMAP.md stale MVP scope claim: ${claim}`);
+}
+const m1Roadmap = roadmap.match(/## M1[\s\S]*?(?=## M2)/)?.[0] ?? "";
+const m3Roadmap = roadmap.match(/## M3[\s\S]*?(?=## M4)/)?.[0] ?? "";
+const countryEquivalenceGate = "日本、中国、米国の国名を入れ替えた制約同等fixture";
+if (m1Roadmap.includes(countryEquivalenceGate) || !m3Roadmap.includes(countryEquivalenceGate)) {
+  throw new Error("country-equivalence completion gate belongs to M3 actor constraints, not closed M1");
+}
+
+if (!calibrationPacket.includes("status: **採用済み / ハッカソン用架空校正**") || !calibrationPacket.includes("経験的校正へ置換する場合はversionを更新")) {
+  throw new Error("M2 calibration packet must record the adopted fictional calibration boundary");
+}
+if (
+  !calibrationPacket.includes("M2残り19接続の採用済み機械可読SSOT: [`m2-calibration-v1.json`](m2-calibration-v1.json)")
+  || calibrationPacket.includes("machine-readable candidate")
+  || calibrationPacket.includes("m2-calibration-candidate-v1.json")
+) {
+  throw new Error("M2 calibration packet must point to the adopted machine-readable SSOT");
+}
+if (
+  !readme.includes("採用済み機械可読SSOT [`docs/m2-calibration-v1.json`](docs/m2-calibration-v1.json)")
+  || !readme.includes("代表接続の架空係数正本")
+) {
+  throw new Error("README.md must distinguish M1 and M2 calibration ownership");
+}
+if (!simulationSource.includes('from "../../docs/m2-calibration-v1.json" with { type: "json" }')) {
+  throw new Error("M2 runtime must import the adopted calibration SSOT");
+}
+const calibrationCandidate = JSON.parse(calibrationCandidateJson);
+if (
+  calibrationCandidate.status !== "adopted-hackathon-fictional"
+  || calibrationCandidate.version !== "relationship-v1.1.0"
+  || !calibrationPacket.includes(`adopted calibration version: \`${calibrationCandidate.version}\``)
+) {
+  throw new Error("M2 calibration candidate status/version drift");
+}
+const relationshipPairsBlock = simulationSource.match(/const RELATIONSHIP_PAIRS = \[([\s\S]*?)\n\];/)?.[1] ?? "";
+const runtimeRelationshipIds = [...relationshipPairsBlock.matchAll(/\["([A-Z]\d+)", "([A-Z]\d+)"\]/g)]
+  .map(([, source, target]) => `${source}-${target}`)
+  .filter((id) => id !== "B1-C6");
+const runtimeContestedIds = new Set(
+  [...(simulationSource.match(/const CONTESTED_RELATIONSHIPS = new Set\(\[([^\]]+)\]\);/)?.[1] ?? "").matchAll(/"([A-Z]\d+-[A-Z]\d+)"/g)]
+    .map(([, id]) => id),
+);
+const packetRows = [...calibrationPacket.matchAll(/^\| ([A-Z]\d+-[A-Z]\d+) \| ([^|]+) \| ([^|]+) \| (yes|no) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$/gm)]
+  .map(([, id, endpoints, archetype, contested, purpose, channel, ownership]) => ({
+    id,
+    endpoints: endpoints.trim(),
+    archetype: archetype.trim(),
+    contested: contested === "yes",
+    purpose: purpose.trim(),
+    channel: channel.trim(),
+    ownership: ownership.trim(),
+  }));
+const packetRelationshipIds = packetRows.map(({ id }) => id);
+if (
+  runtimeRelationshipIds.length !== 19
+  || packetRelationshipIds.length !== 19
+  || new Set(packetRelationshipIds).size !== 19
+  || runtimeRelationshipIds.some((id) => !packetRelationshipIds.includes(id))
+) {
+  throw new Error(`M2 calibration packet relationship drift: runtime=${runtimeRelationshipIds.join(",")}, packet=${packetRelationshipIds.join(",")}`);
+}
+const stateKeys = ["maturity", "trust", "verificationAgreement", "interoperability", "coOwnership", "dependency", "alternateRoutes", "disclosureCost"];
+const actionIds = ["translation", "verification", "reversibility", "redundancy", "coownership"];
+const archetypeIds = ["verification", "interoperability", "coownership"];
+if (JSON.stringify(calibrationCandidate.stateKeys) !== JSON.stringify(stateKeys) || JSON.stringify(calibrationCandidate.actions) !== JSON.stringify(actionIds)) {
+  throw new Error("M2 calibration candidate state/action dimensions drift");
+}
+if (Object.keys(calibrationCandidate.archetypes).sort().join("|") !== [...archetypeIds].sort().join("|")) {
+  throw new Error("M2 calibration candidate archetype dimensions drift");
+}
+for (const archetypeId of archetypeIds) {
+  const archetype = calibrationCandidate.archetypes[archetypeId];
+  if (!archetype || typeof archetype.ownership !== "string" || archetype.ownership.trim().length < 4) {
+    throw new Error(`M2 calibration candidate ownership missing: ${archetypeId}`);
+  }
+  if (Object.keys(archetype.initialState ?? {}).sort().join("|") !== [...stateKeys].sort().join("|")) {
+    throw new Error(`M2 calibration candidate initial-state dimensions drift: ${archetypeId}`);
+  }
+  for (const [key, value] of Object.entries(archetype.initialState)) {
+    const valid = key === "alternateRoutes"
+      ? Number.isInteger(value) && value >= 0 && value <= 5
+      : Number.isInteger(value) && value >= 0 && value <= 100;
+    if (!valid) throw new Error(`M2 calibration candidate initial-state value invalid: ${archetypeId}.${key}=${value}`);
+  }
+  if (Object.keys(archetype.actionMultipliers ?? {}).sort().join("|") !== [...actionIds].sort().join("|")) {
+    throw new Error(`M2 calibration candidate action dimensions drift: ${archetypeId}`);
+  }
+  for (const [actionId, multiplier] of Object.entries(archetype.actionMultipliers)) {
+    if (multiplier !== null && !(typeof multiplier === "number" && multiplier > 0 && multiplier <= 1)) {
+      throw new Error(`M2 calibration candidate multiplier invalid: ${archetypeId}.${actionId}=${multiplier}`);
+    }
+  }
+  const displayedStateRow = `| ${archetypeId} | ${stateKeys.map((key) => archetype.initialState[key]).join(" | ")} |`;
+  if (!calibrationPacket.includes(displayedStateRow)) {
+    throw new Error(`M2 calibration packet displayed initial-state drift: ${archetypeId}`);
+  }
+  const displayedActionRow = `| ${archetypeId} | ${actionIds.map((actionId) => {
+    const multiplier = archetype.actionMultipliers[actionId];
+    return multiplier === null ? "—" : multiplier.toFixed(2);
+  }).join(" | ")} |`;
+  if (!calibrationPacket.includes(displayedActionRow)) {
+    throw new Error(`M2 calibration packet displayed action-multiplier drift: ${archetypeId}`);
+  }
+  if (!calibrationPacket.includes(`| ${archetypeId} | ${archetype.ownership} |`)) {
+    throw new Error(`M2 calibration packet displayed ownership drift: ${archetypeId}`);
+  }
+}
+if (Object.keys(calibrationCandidate.contestedModifier?.initialStateDelta ?? {}).sort().join("|") !== [...stateKeys].sort().join("|")) {
+  throw new Error("M2 calibration candidate contested modifier dimensions drift");
+}
+for (const [key, delta] of Object.entries(calibrationCandidate.contestedModifier.initialStateDelta)) {
+  if (!Number.isInteger(delta) || delta < -100 || delta > 100) {
+    throw new Error(`M2 calibration candidate contested modifier invalid: ${key}=${delta}`);
+  }
+  for (const archetypeId of archetypeIds) {
+    const modified = calibrationCandidate.archetypes[archetypeId].initialState[key] + delta;
+    const valid = key === "alternateRoutes" ? modified >= 0 && modified <= 5 : modified >= 0 && modified <= 100;
+    if (!valid) throw new Error(`M2 calibration candidate contested state out of range: ${archetypeId}.${key}=${modified}`);
+  }
+}
+if (
+  calibrationCandidate.contestedModifier.positiveDeltaMultiplier !== 0.75
+  || calibrationCandidate.contestedModifier.riskDeltaMultiplier !== 1
+  || typeof calibrationCandidate.contestedModifier.ownershipSuffix !== "string"
+) {
+  throw new Error("M2 calibration candidate contested modifier policy drift");
+}
+const modifier = calibrationCandidate.contestedModifier.initialStateDelta;
+const modifierSentence = `\`contested\`接続はbaseへ、成熟\`${modifier.maturity}\`、信頼\`${modifier.trust}\`、検証合意\`${modifier.verificationAgreement}\`、単一依存\`+${modifier.dependency}\`、開示コスト\`+${modifier.disclosureCost}\`を適用する。`;
+if (!calibrationPacket.includes(modifierSentence)) {
+  throw new Error("M2 calibration packet displayed contested modifier drift");
+}
+const decisionModifierSentence = `\`contested\`だけ成熟\`${modifier.maturity}\`、信頼\`${modifier.trust}\`、検証合意\`${modifier.verificationAgreement}\`、単一依存\`+${modifier.dependency}\`、開示コスト\`+${modifier.disclosureCost}\`の明示modifierを適用する。`;
+if (!calibrationPacket.includes(decisionModifierSentence)) {
+  throw new Error("M2 calibration packet decision-summary modifier drift");
+}
+const candidateRows = calibrationCandidate.relationships ?? [];
+if (candidateRows.length !== 19 || new Set(candidateRows.map(({ id }) => id)).size !== 19) {
+  throw new Error("M2 calibration candidate must contain 19 unique relationship rows");
+}
+const actorBlock = simulationSource.match(/export const ACTORS = \[([\s\S]*?)\n\];/)?.[1] ?? "";
+const actorNames = new Map(
+  [...actorBlock.matchAll(/\{ id: "([A-Z]\d+)", group: "[^"]+", name: "([^"]+)"/g)]
+    .map(([, id, name]) => [id, name]),
+);
+for (const runtimeId of runtimeRelationshipIds) {
+  const candidate = candidateRows.find(({ id }) => id === runtimeId);
+  const packet = packetRows.find(({ id }) => id === runtimeId);
+  if (!candidate || !packet || !archetypeIds.includes(candidate.archetype)) {
+    throw new Error(`M2 calibration candidate relationship missing or invalid: ${runtimeId}`);
+  }
+  const expectedContested = runtimeContestedIds.has(runtimeId);
+  const expectedOwnership = calibrationCandidate.archetypes[candidate.archetype].ownership
+    + (expectedContested ? calibrationCandidate.contestedModifier.ownershipSuffix : "");
+  const [sourceId, targetId] = runtimeId.split("-");
+  const [displayedSource, displayedTarget] = packet.endpoints.split("↔").map((value) => value.trim());
+  const endpointsMatchRuntime = actorNames.get(sourceId)?.endsWith(displayedSource)
+    && actorNames.get(targetId)?.endsWith(displayedTarget);
+  if (
+    candidate.contested !== expectedContested
+    || packet.contested !== expectedContested
+    || packet.archetype !== candidate.archetype
+    || packet.purpose !== candidate.purpose
+    || packet.channel !== candidate.channel
+    || packet.ownership !== expectedOwnership
+    || !endpointsMatchRuntime
+    || candidate.purpose.trim().length < 8
+    || candidate.channel.trim().length < 5
+  ) {
+    throw new Error(`M2 calibration packet/candidate/runtime row drift: ${runtimeId}`);
+  }
+}
+
+const historicalEvidenceRows = [
+  ["PREFLIGHT browser", preflight, /^\| ブラウザ操作・デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY browser", publicReady, /^\| ブラウザ操作 \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+  ["PUBLIC_READY design QA", publicReady, /^\| デザインQA \| history-only-pr4 \|.*現在branchのsame-HEAD evidenceではなく.*\|$/m],
+];
+for (const [name, content, pattern] of historicalEvidenceRows) {
+  if (!pattern.test(content)) throw new Error(`${name} must classify inherited evidence as historical`);
+}
+
+if (!/^\| repo-preflight target diff \| pass \| machine-readable result v1 \|$/m.test(preflight)) {
+  throw new Error("PREFLIGHT.md repo-preflight summary row must point to machine-readable result v1");
+}
+parseCompletedPreflightEvidence(preflight);
+
+const preflightBranch = preflight.match(/^- branch: `([^`]+)`$/m)?.[1];
+const publicReadyBranch = publicReady.match(/^- 準備branch: `([^`]+)`$/m)?.[1];
+if (!preflightBranch || publicReadyBranch !== preflightBranch) {
+  throw new Error(
+    `current branch evidence drift: PREFLIGHT=${preflightBranch ?? "missing"}, PUBLIC_READY=${publicReadyBranch ?? "missing"}`,
+  );
+}
+
+const preflightBaseSha = preflight.match(/^- base: `origin\/main@([0-9a-f]{40})`$/m)?.[1];
+const preflightDefaultBranchSha = preflight.match(/default branch `main@([0-9a-f]+)`/)?.[1];
+const publicReadyDefaultBranchSha = publicReady.match(/^- default branch: `main@([0-9a-f]+)`/m)?.[1];
+const publicReadySummarySha = publicReady.match(/^- `main@([0-9a-f]+)`は/m)?.[1];
+if (!preflightBaseSha || !preflightDefaultBranchSha) {
+  throw new Error("PREFLIGHT.md must record origin/main base SHA and default-branch read-back");
+}
+if (
+  !isIdentifyingGitShaPrefix(preflightDefaultBranchSha)
+  || !isIdentifyingGitShaPrefix(publicReadyDefaultBranchSha)
+  || !isIdentifyingGitShaPrefix(publicReadySummarySha)
+) {
+  throw new Error("default-branch provenance must use an identifying Git SHA prefix of 7-40 hexadecimal characters");
+}
+if (!preflightBaseSha.startsWith(preflightDefaultBranchSha)) {
+  throw new Error(
+    `PREFLIGHT default-branch provenance drift: base=${preflightBaseSha}, read-back=${preflightDefaultBranchSha}`,
+  );
+}
+if (
+  publicReadyDefaultBranchSha !== preflightDefaultBranchSha
+  || publicReadySummarySha !== preflightDefaultBranchSha
+) {
+  throw new Error(
+    `default branch provenance drift: PREFLIGHT=${preflightDefaultBranchSha}, PUBLIC_READY target=${publicReadyDefaultBranchSha ?? "missing"}, summary=${publicReadySummarySha ?? "missing"}`,
+  );
+}
+
+const scripts = JSON.parse(packageJson).scripts;
+const verifySitesEvidence = process.argv.includes("--sites");
+function getTestResult(scriptName) {
+  const targets = scripts[scriptName]?.match(/tests\/[\w.-]+\.test\.mjs/g) ?? [];
+  if (targets.length === 0) throw new Error(`no test targets found for ${scriptName}`);
+  const result = spawnSync(process.execPath, ["--test", "--test-reporter=tap", ...targets], {
+    cwd: resolve(repoRoot, "app"),
+    encoding: "utf8",
+  });
+  if (result.status !== 0) throw new Error(`${scriptName} failed while measuring evidence:\n${result.stdout}\n${result.stderr}`);
+  const readSummary = (label) => Number(result.stdout.match(new RegExp(`^# ${label} (\\d+)$`, "m"))?.[1] ?? Number.NaN);
+  const summary = {
+    pass: readSummary("pass"),
+    skipped: readSummary("skipped"),
+    todo: readSummary("todo"),
+    cancelled: readSummary("cancelled"),
+  };
+  if (!Number.isFinite(summary.pass) || summary.skipped !== 0 || summary.todo !== 0 || summary.cancelled !== 0) {
+    throw new Error(`${scriptName} evidence is not all-pass: ${JSON.stringify(summary)}`);
+  }
+  return summary.pass;
+}
+
+const registeredTestCount = getTestResult("test");
+// 現在値との一致を求めるのは、現行状態を述べる文書 (RESULTS / ROADMAP) だけにする。
+// PREFLIGHT.md と PUBLIC_READY.md は特定content HEADにおけるreview recordであり、
+// テストが増えるたびに現在値へ書き換えると、その記録が指すHEADについて嘘になる。
+// 履歴記録側には「どのHEADの数値か」を明示させ、数値そのものは凍結する。
+const recordedTestCounts = {
+  RESULTS: Number(results.match(/\| `npm test` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+  ROADMAP: Number(roadmap.match(/unit test (\d+)件/)?.[1] ?? Number.NaN),
+};
+for (const [name, content, pattern] of [
+  ["PREFLIGHT.md", preflight, /^- content HEAD: `[0-9a-f]{40}`/m],
+  ["PUBLIC_READY.md", publicReady, /`main@[0-9a-f]{7,40}`/],
+]) {
+  if (!pattern.test(content)) {
+    throw new Error(`${name} must state which content HEAD its recorded numbers belong to`);
+  }
+}
+if (Object.values(recordedTestCounts).some((count) => count !== registeredTestCount)) {
+  throw new Error(
+    `npm test count drift: ${JSON.stringify(recordedTestCounts)}, registered=${registeredTestCount}`,
+  );
+}
+
+if (verifySitesEvidence) {
+  const registeredSitesTestCount = getTestResult("test:sites");
+  const recordedSitesTestCounts = {
+    RESULTS: Number(results.match(/\| `npm run test:sites` \| (\d+)件pass \|/)?.[1] ?? Number.NaN),
+    ROADMAP: Number(roadmap.match(/Sites test (\d+)件/)?.[1] ?? Number.NaN),
+  };
+  if (Object.values(recordedSitesTestCounts).some((count) => count !== registeredSitesTestCount)) {
+    throw new Error(
+      `npm run test:sites count drift: ${JSON.stringify(recordedSitesTestCounts)}, registered=${registeredSitesTestCount}`,
+    );
+  }
+}
+
+if (/公開前review中|visibility変更/.test(roadmap)) {
+  throw new Error("stale publication state remains in ROADMAP.md");
+}
+
+// READMEは作品の入口ownerなので、実装が持つ能力を実装より遅れて説明しないよう固定する。
+// lifecycle (candidate / merge状態) ではなく能力だけを書き、mergeで偽にならない不変条件にする。
+const requiredReadmeCapabilityClaims = [
+  "18主体へ国名非依存の制約型を割り当て",
+  "6時間×120ターンの決定論イベント列",
+  "A〜Eの5戦略、5真因seed、係数感度、日本ノード除去",
+  "`meta-security-run-bundle/v1`",
+];
+for (const claim of requiredReadmeCapabilityClaims) {
+  if (!readme.includes(claim)) throw new Error(`README.md must describe the implemented capability: ${claim}`);
+}
+
+// README実装構成ツリーとapp/src直下の実体を機械照合する。
+// PR #12でcrisis/experiments/run-bundleが追加された際、ツリーだけM2止まりで取り残された。
+// 人手の更新漏れに依存せず、moduleを足したらREADMEも更新しないと落ちる形にする。
+const sourceModules = (await readdir(resolve(repoRoot, "app", "src"), { withFileTypes: true }))
+  .filter((entry) => entry.isFile() && entry.name !== "main.jsx")
+  .map((entry) => entry.name)
+  .sort();
+assertReadmeImplementationTree(readme, sourceModules);
+
+// 記録されたcontent HEADは実在し、かつ現在HEADの祖先でなければならない。
+// 実在確認だけでは、mainへ統合されていないcommitでも通ってしまう。
+const headLookup = spawnSync("git", ["cat-file", "-e", `${recordedResultsHead}^{commit}`], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
+if (headLookup.status !== 0) {
+  throw new Error(
+    `RESULTS.md machine-verified content HEAD does not exist in this repository: ${recordedResultsHead}`,
+  );
+}
+const ancestryLookup = spawnSync("git", ["merge-base", "--is-ancestor", recordedResultsHead, "HEAD"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
+if (ancestryLookup.status !== 0) {
+  throw new Error(
+    `RESULTS.md machine-verified content HEAD is not an ancestor of the current HEAD: ${recordedResultsHead}`,
+  );
+}
+
+// 危機局面名は実装が正本、契約が説明を持つ。他文書が並びを複製すると片方だけ古くなる。
+assertCrisisPhaseNamesNotDuplicated(crisisSource, [
+  ["ROADMAP.md", roadmap],
+  ["docs/product-architecture.md", await read("docs/product-architecture.md")],
+  ["README.md", readme],
+]);
+
+// docs/adr/ の実体とADR索引を機械照合する。ADRを足して索引へ載せ忘れると、
+// 読み手はADR一覧だけを見て古い判断を現行と誤読する。人手更新に依存しない。
+const adrFiles = (await readdir(resolve(repoRoot, "docs", "adr"), { withFileTypes: true }))
+  .filter((entry) => entry.isFile() && /^\d{4}-.+\.md$/.test(entry.name))
+  .map((entry) => entry.name)
+  .sort();
+assertAdrIndex(await read("docs/adr/README.md"), adrFiles);
+
+// simulation-contract.md も現行runtimeを説明する current-state doc なので同じratchetへ含める。
+const currentStateDocuments = { PROJECT_SSOT: projectSsot, ROADMAP: roadmap, RESULTS: results, README: readme, PREFLIGHT: preflight, PUBLIC_READY: publicReady, CONTRACT: contract };
+const staleLifecyclePhrases = [
+  "mergeされるまで現行SSOTではなく",
+  "本SSOT統合HEADはローカルのみ",
+  "現在HEADはlocalのみ",
+  "どのPRへ統合HEADを反映するか",
+  "public push前のローカル候補",
+  "P1 ローカル統合候補",
+  "P1 ローカル候補",
+  "P1はPR #4でreview中",
+  "main反映はPR merge後",
+  "SSOT統合HEADは未push",
+  "PR #4はremote `codex/design-roadmap-2045",
+  "PR #4は`c2eeaf3`でOPEN",
+  // M2〜M5がmainへmergeされた後も残っていた統合前lifecycle表現 (PR #12以降)。
+  // 正の必須文言としてgateへ固定すると、mergeで真でなくなった主張を凍結してしまうため、
+  // 「統合後の真」を必須にし、統合前表現はこのratchetで再発を止める。
+  "現在candidateはM2〜M5のローカルMVPを実装済み",
+  "現在candidateはM2〜M5のローカルMVP差分を保持",
+  "ローカルMVP candidate",
+  "統合前の残務",
+  "runtime candidate実装済み",
+  "run bundleへのevent・replay・evidence統合",
+];
+for (const [name, content] of Object.entries(currentStateDocuments)) {
+  for (const phrase of staleLifecyclePhrases) {
+    if (content.includes(phrase)) {
+      throw new Error(`stale merge lifecycle claim in ${name}: ${phrase}`);
+    }
+  }
+}
+
+console.log("document boundaries: OK");

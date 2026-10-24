@@ -1,0 +1,31 @@
+name: モデル改善提案
+description: 主体、接続、指標、反証条件の改善を提案する
+title: "[Model] "
+labels: [model]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 検証したい問い
+      description: 結論ではなく、比較・反証したい問いを書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: 提案する変更
+      description: 主体、接続、ルール、指標のどこを変えるかを書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: counterevidence
+    attributes:
+      label: 反証・副作用
+      description: どの結果なら提案を縮小・棄却するか、増えるリスクは何かを書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: 公開根拠
+      description: 発表主体、取得日、公式URLを記載してください。第三者原典を転載しないでください。
