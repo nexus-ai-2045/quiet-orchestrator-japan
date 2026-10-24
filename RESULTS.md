@@ -1,6 +1,6 @@
 # 実行結果｜P0・P1・M1.5・M2〜M5・run bundle 実測スナップショット
 
-確認日: 2026-10-24
+確認日: 2026-10-24（下記「機械検証」を現在content HEADで実行した日。ブラウザ確認の各節は当時の観測日を節ごとに記す）
 
 機械検証対象content HEAD: `cb11280febdb1aa97f63ab89345c4dbe0c24b7ed`（公開用に履歴を作り直した`main`のcontent commit）
 
@@ -52,6 +52,8 @@ Policy Engineの正規versionは`scripted-policy-v1`であり、各receiptのpro
 作り直し前の履歴content HEAD `main@92f795fddd92f153b191a7fd9c45521bb9bbe523` のcleanなcloneをローカルViteで起動し、
 `http://127.0.0.1:5399/` の実画面でdrawerのUIゲートを再検証した。観測はブラウザ自動操作による
 実行結果であり、人間の目視reviewの代替ではない。この観測は履歴content HEADの証拠であり、上記の現在content HEADのsame-HEAD証拠には数えない。
+
+観測日は2026-09-07（日本時間）である。旧履歴では、`92f795fd`の作成（2026-09-07 20:49）から、この観測結果を記録した旧履歴のcommit `447d557`（PR #20、2026-09-07 20:58）までの間に実行された。下表の5行は当時のcommitに対する証拠であり、冒頭の確認日（2026-10-24）に測り直したものではない。
 
 | gate | status | affirmative observation |
 |---|---|---|
